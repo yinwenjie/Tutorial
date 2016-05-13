@@ -144,4 +144,58 @@ C++标准库中定义了一组类用于函数中的异常处理。其中最为�
 
 在调用该函数时，可以在参数中传入int型或const int型均可。另外，如果定义了两个函数具有相同的函数名和参数，只是其中const类型不同，那么这两个参数的不同实际上会被忽略，导致两个函数发生重复定义的错误。因为在函数的形参被实参初始化时，形参的const会被忽略。
 
-在参数定义为const类型时，
+在参数定义为const类型时，形参还可以定义为指针或引用。以引用为例，定义一个参数类型为常量引用的函数如下：
+
+	int func2(const int& param)
+	{
+		return 2 * param;
+	}
+
+我们知道，const int& 引用类型可以指向const int或int型。虽然常引用类型的形参与实参同样是一个实体，但由于其引用时const类型，无论实参是否为const，都不能通过这个引用来修改指向对象的值。因此，如果确定某一个参数只作为输入参数的功能，又必须定义为引用类型，那么应将这个参数定义为常量引用。
+
+
+---
+## 四. 可变形参
+
+在C语言中我们最常见的函数可能就是printf函数了。该函数可以直接输出一行字符串，如：
+
+	printf("Hello, I am printf.\n");
+
+更多时候，我们在字符串中加入一些占位符，作为一些数值、字符和其他类型变量的显示，如：
+
+	printf("Image width: %d, height: %d.\n", imgWidth, imgHeight);
+
+类似printf函数所实现的就是一种可变参数。在目前我们自己定义的大多数函数中，参数的个数和类型都是在声明时确定的，如果调用时出现不一致将导致错误。
+
+事实上，我们在开发C语言程序时就可以定义自己的带有可变参数的函数。在C语言中定义可变参数的函数需要用到如下几个宏定义。使用可变参数功能需包含头文件stdarg.ha。
+
+- **va\_list**：保存va_start, va_arg和va_end所需信息，为访问变长参数列表所必须。
+- **va\_start**：初始化va\_list中的参数，初始化的结果供va\_arg和va\_end使用。
+- **va\_arg**：从参数列表中按照指定格式取出各个参数。每次调用都会修改va\_list从而使va\_list指向下一个参数。
+- **va\_end**：结束可变参数处理。
+
+一个简单的例子如下：
+
+	#include <stdarg.h>
+
+	void va_test(int arg, ...)
+	{
+		va_list valist;
+		va_start(valist, arg);
+	
+		int count = arg;
+	
+		while (arg-- > 0)
+		{
+			printf("%s\n", (char *)va_arg(valist, char *));
+		}
+		
+		va_end(valist);
+	}
+	
+	int _tmain(int argc, _TCHAR* argv[])
+	{
+		va_test(2, "string1", "string2");
+		va_test(3, "test0","test1","test2");
+		return 0;
+	}
