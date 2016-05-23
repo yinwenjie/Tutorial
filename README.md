@@ -12,3 +12,11 @@
 ## 命名管道通信：服务端
 
 客户端调用CreateFile连接一个正在等待的命名管道实例，此时客户端需要指定命名管道的名称。CreateFile成功返回后，客户端会得到一个指向已经建立的命名管道的句柄，此时服务器的ConnectNamedPipe也建立完成或WaitNamedPipe测试命名管道实例是否可用。使用完成之后，客户端可以调用CloseHandle关闭一个已经连接的命名管道实例。
+
+## 创建命名管道函数
+
+创建命名管道的函数为CreateNamedPipe，声明如下：
+  
+  HANDLE  WINAPI   CreateNamedPipe(
+  _In_     LPCTSTR               lpName,
+  );
