@@ -38,3 +38,14 @@
         _Inout_opt_ LPOVERLAPPED lpOverlapped       // OVERLAPPED 对象的指针,包含一个事件的句柄
     );
     //返回值：函数执行结果，非0成功/0失败，通过GetLastError返回错误码
+
+## 客户端连接命名管道
+
+客户端连接命名管道调用函数 WaitNamedPipe 函数，声明如下：
+
+    BOOL WINAPI WaitNamedPipe(
+        _In_ LPCTSTR lpNamedPipeName,       //命名管道的名称
+         _In_ DWORD   nTimeOut              //超时时间，可选择默认或始终
+    );
+    //返回值
+    
