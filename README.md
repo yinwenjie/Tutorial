@@ -6,18 +6,9 @@
 
 ## 命名管道通信：服务端
 
-服务端的进程首先创建命名管道。创建命名管道函数：
-
-  HANDLE WINAPI CreateNamedPipe(
-    _In_     LPCTSTR               lpName,
-    _In_     DWORD                 dwOpenMode,
-    _In_     DWORD                 dwPipeMode,
-    _In_     DWORD                 nMaxInstances,
-    _In_     DWORD                 nOutBufferSize,
-    _In_     DWORD                 nInBufferSize,
-    _In_     DWORD                 nDefaultTimeOut,
-    _In_opt_ LPSECURITY_ATTRIBUTES lpSecurityAttributes
-  );
-  
+服务端的进程首先创建命名管道。创建命名管道时必须制定本地的命名管道名称和最大允许的实例数（因为Windows允许一个名称对应多个命名管道实例）。服务器使用函数CreateNamedPipe创建命名管道并成功返回一个命名管道的句柄。然后，服务器可以使用ConnectNamedPipe函数等待客户端的连接。ConnectNamedPipe 支持同步或异步模式。
+处理完成后，服务端可以调用DisconnectNamedPipe来断开连接从而可以连接下一个客户端进程。或者调用CloseHandle关闭命名管道实例
 
 ## 命名管道通信：服务端
+
+客户端调用CreateFile连接一个正在等待的命名管道实例，此时客户端需要指定命名管道的名称。CreateFile成功返回后，客户端会得到一个指向已经建立的命名管道的句柄，此时服务器的ConnectNamedPipe也建立完成或WaitNamedPipe测试命名管道实例是否可用。使用完成之后，客户端可以调用CloseHandle关闭一个已经连接的命名管道实例。
