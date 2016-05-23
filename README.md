@@ -16,7 +16,14 @@
 ## 创建命名管道函数
 
 创建命名管道的函数为CreateNamedPipe，声明如下：
-  
-  HANDLE  WINAPI   CreateNamedPipe(
-  _In_     LPCTSTR               lpName,
-  );
+
+    HANDLE  WINAPI   CreateNamedPipe(
+      _In_     LPCTSTR               lpName,
+      _In_     DWORD                 dwOpenMode,
+      _In_     DWORD                 dwPipeMode,
+      _In_     DWORD                 nMaxInstances,
+      _In_     DWORD                 nOutBufferSize,
+      _In_     DWORD                 nInBufferSize,
+      _In_     DWORD                 nDefaultTimeOut,
+      _In_opt_ LPSECURITY_ATTRIBUTES lpSecurityAttributes
+    );
