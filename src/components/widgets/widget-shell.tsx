@@ -6,6 +6,7 @@ import { useI18n } from "@/hooks/use-i18n";
 
 interface WidgetShellProps {
   title: string;
+  displayTitle: string;
   defaultTitle: string;
   description: string;
   manageMode: boolean;
@@ -27,6 +28,7 @@ interface WidgetShellProps {
 
 export function WidgetShell({
   title,
+  displayTitle,
   defaultTitle,
   description,
   manageMode,
@@ -86,7 +88,7 @@ export function WidgetShell({
               <input
                 className="widget-title-input"
                 value={titleDraft}
-                aria-label={t("widgetShell.titleInputAria", { title })}
+                aria-label={t("widgetShell.titleInputAria", { title: displayTitle })}
                 onBlur={commitTitle}
                 onChange={(event) => setTitleDraftState({
                   sourceTitle: title,
@@ -95,7 +97,7 @@ export function WidgetShell({
               />
             </form>
           ) : (
-            <strong title={title}>{title}</strong>
+            <strong title={displayTitle}>{displayTitle}</strong>
           )}
           <span title={description}>{description}</span>
         </div>
@@ -104,7 +106,7 @@ export function WidgetShell({
             <button
               className="mini-button widget-shell-settings-action"
               type="button"
-              aria-label={t("widgetShell.configureAria", { title })}
+              aria-label={t("widgetShell.configureAria", { title: displayTitle })}
               title={t("widgetShell.settingsTitle")}
               onClick={onOpenSettings}
             >
@@ -115,7 +117,7 @@ export function WidgetShell({
             className="mini-button widget-shell-primary-action"
             type="button"
             aria-expanded={!collapsed}
-            aria-label={collapsed ? t("widgetShell.expandAria", { title }) : t("widgetShell.collapseAria", { title })}
+            aria-label={collapsed ? t("widgetShell.expandAria", { title: displayTitle }) : t("widgetShell.collapseAria", { title: displayTitle })}
             title={collapsed ? t("widgetShell.expandTitle") : t("widgetShell.collapseTitle")}
             onClick={onToggleCollapsed}
           >
@@ -127,7 +129,7 @@ export function WidgetShell({
                 className="mini-button"
                 type="button"
                 disabled={widgetIndex === 0}
-                aria-label={t("widgetShell.moveUpAria", { title })}
+                aria-label={t("widgetShell.moveUpAria", { title: displayTitle })}
                 title={t("widgetShell.moveUpTitle")}
                 onClick={() => onMove(-1)}
               >
@@ -137,7 +139,7 @@ export function WidgetShell({
                 className="mini-button"
                 type="button"
                 disabled={widgetIndex === widgetsLength - 1}
-                aria-label={t("widgetShell.moveDownAria", { title })}
+                aria-label={t("widgetShell.moveDownAria", { title: displayTitle })}
                 title={t("widgetShell.moveDownTitle")}
                 onClick={() => onMove(1)}
               >
@@ -146,7 +148,7 @@ export function WidgetShell({
               <button
                 className="mini-button"
                 type="button"
-                aria-label={t("widgetShell.deleteAria", { title })}
+                aria-label={t("widgetShell.deleteAria", { title: displayTitle })}
                 title={t("common.delete")}
                 onClick={onDelete}
               >

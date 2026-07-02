@@ -1,7 +1,23 @@
-import type { HomeWidgetType, SyncStatus } from "@/domain/home-document";
+import type { HomeWidget, HomeWidgetType, SyncStatus } from "@/domain/home-document";
 import type { HomeTemplateId } from "@/domain/home-template";
 import type { HomeWidgetPreset } from "@/domain/home-widget";
-import type { I18nTranslate } from "@/i18n/messages";
+import type { I18nMessageKey, I18nTranslate } from "@/i18n/messages";
+
+const SYSTEM_WIDGET_DEFAULT_TITLES: Record<HomeWidgetType, Set<string>> = {
+  "todo.list": new Set(["Todo"]),
+  "calendar.month": new Set(["月历", "月曆", "Calendar", "Calendrier", "Calendario", "カレンダー", "달력"])
+};
+
+const SYSTEM_WIDGET_PRESET_TITLE_KEYS: Record<string, I18nMessageKey> = {
+  "本月概览": "template.widget.thisMonthOverview",
+  "今日待办": "template.widget.todayTodo",
+  "工作待办": "template.widget.workTodo",
+  "会议与日程": "template.widget.meetingSchedule",
+  "开发任务": "template.widget.devTasks",
+  "本月节奏": "template.widget.monthlyRhythm",
+  "学习计划": "template.widget.studyPlan",
+  "学习日历": "template.widget.studyCalendar"
+};
 
 export function formatHomeTemplateName(templateId: HomeTemplateId, t: I18nTranslate): string {
   switch (templateId) {
@@ -55,6 +71,20 @@ export function formatHomeWidgetDefaultTitle(type: HomeWidgetType, t: I18nTransl
   }
 }
 
+export function formatHomeWidgetDisplayTitle(widget: Pick<HomeWidget, "type" | "title">, t: I18nTranslate): string {
+  const title = widget.title.trim();
+  const presetKey = SYSTEM_WIDGET_PRESET_TITLE_KEYS[title];
+  if (presetKey) {
+    return t(presetKey);
+  }
+
+  if (SYSTEM_WIDGET_DEFAULT_TITLES[widget.type].has(title)) {
+    return formatHomeWidgetDefaultTitle(widget.type, t);
+  }
+
+  return widget.title;
+}
+
 export function formatHomeWidgetDescription(type: HomeWidgetType, t: I18nTranslate): string {
   switch (type) {
     case "todo.list":
@@ -83,26 +113,14 @@ export function formatHomeWidgetSettingsDescription(type: HomeWidgetType, t: I18
 }
 
 export function formatHomeWidgetPresetTitle(preset: HomeWidgetPreset, t: I18nTranslate): string {
-  switch (preset.title) {
-    case "本月概览":
-      return t("template.widget.thisMonthOverview");
-    case "今日待办":
-      return t("template.widget.todayTodo");
-    case "工作待办":
-      return t("template.widget.workTodo");
-    case "会议与日程":
-      return t("template.widget.meetingSchedule");
-    case "开发任务":
-      return t("template.widget.devTasks");
-    case "本月节奏":
-      return t("template.widget.monthlyRhythm");
-    case "学习计划":
-      return t("template.widget.studyPlan");
-    case "学习日历":
-      return t("template.widget.studyCalendar");
-    default:
-      return formatHomeWidgetDefaultTitle(preset.type, t);
+  if (preset.title) {
+    return formatHomeWidgetDisplayTitle({
+      type: preset.type,
+      title: preset.title
+    }, t);
   }
+
+  return formatHomeWidgetDefaultTitle(preset.type, t);
 }
 
 export function formatSyncStatus(status: SyncStatus, t: I18nTranslate): string {

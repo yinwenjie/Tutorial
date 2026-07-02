@@ -41,6 +41,7 @@ import type { I18nTranslate } from "@/i18n/messages";
 import {
   formatHomeWidgetDefaultTitle,
   formatHomeWidgetDescription,
+  formatHomeWidgetDisplayTitle,
   formatHomeWidgetTitle,
   formatSyncStatus
 } from "@/i18n/home-presentation";
@@ -127,10 +128,7 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
       return;
     }
 
-    const nextWidget = {
-      ...createHomeWidget(type, { order: widgets.length + 1 }),
-      title: formatHomeWidgetDefaultTitle(type, t)
-    };
+    const nextWidget = createHomeWidget(type, { order: widgets.length + 1 });
 
     commitWidgets([...widgets, nextWidget], t("widgetPanel.widgetAdded"));
     trackProductEvent("widget.added", {
@@ -187,7 +185,7 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
       return;
     }
 
-    if (!window.confirm(t("widgetPanel.deleteConfirm", { widget: widget.title }))) {
+    if (!window.confirm(t("widgetPanel.deleteConfirm", { widget: formatHomeWidgetDisplayTitle(widget, t) }))) {
       return;
     }
 
@@ -339,7 +337,7 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
           </SortableContext>
           <DragOverlay>
             {activeWidget ? (
-              <div className="widget-drag-overlay">{activeWidget.title}</div>
+              <div className="widget-drag-overlay">{formatHomeWidgetDisplayTitle(activeWidget, t)}</div>
             ) : null}
           </DragOverlay>
         </DndContext>
@@ -370,6 +368,7 @@ function SortableWidgetCard({
   onUpdateWidget
 }: SortableWidgetCardProps) {
   const { t, format } = useI18n();
+  const displayTitle = formatHomeWidgetDisplayTitle(widget, t);
   const collapsed = widget.layout.collapsed;
   const {
     attributes,
@@ -392,7 +391,7 @@ function SortableWidgetCard({
       className="widget-drag-handle"
       type="button"
       disabled={widgetsLength < 2}
-      aria-label={t("widgetPanel.dragWidgetAria", { widget: widget.title })}
+      aria-label={t("widgetPanel.dragWidgetAria", { widget: displayTitle })}
       title={t("widgetPanel.dragTitle")}
       {...attributes}
       {...listeners}
@@ -404,6 +403,7 @@ function SortableWidgetCard({
   return (
     <WidgetShell
       title={widget.title}
+      displayTitle={displayTitle}
       defaultTitle={formatHomeWidgetDefaultTitle(widget.type, t)}
       description={formatHomeWidgetDescription(widget.type, t)}
       manageMode={manageMode}
