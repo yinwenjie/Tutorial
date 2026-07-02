@@ -67,9 +67,35 @@ v1 采用分层交付：先完成语言数据模型、Supabase 约束和系统�
 - `npm run build` 通过。
 - `npm run verify:export` 通过。
 
+## Phase 1.15.2：设置页语言选择落地
+
+已完成：
+
+- 通用设置面板接入 `useI18n()`，语言、主题偏好、字体、界面密度、默认搜索引擎和默认首页空间等入口文案改为 i18n runtime 渲染。
+- 语言下拉选项改为通过 dictionary 渲染，不再依赖 `LOCALE_OPTIONS` 中的静态中文 label。
+- 选择 `system` 时，在语言控件下显示当前 resolved locale，帮助用户理解“跟随系统”的实际渲染结果。
+- 通用设置保存按钮、保存中状态、本地/账号保存成功提示、账号/本地偏好作用域说明和禁用 title 改为 i18n runtime。
+- 设置页折叠摘要中的“账号偏好/本地偏好”和语言名称改为 i18n runtime；默认搜索引擎仍使用产品固有名称。
+- 设置页中通用设置 section 的 title 和 kicker 改为 i18n runtime。
+- 为语言解析说明补充轻量 CSS，避免浏览器默认 `small` 样式破坏表单密度。
+
+数据与架构边界：
+
+- 不修改 `HomeDocumentV2`。
+- 不新增 Supabase 表、migration、RPC 或 Storage 配置。
+- 不改变本地偏好和账号偏好保存模型。
+- 不把语言选择结果写入首页文档、同步码密文、账号托管首页文档、历史快照或数据包导出。
+- 不扩大到全设置页文案翻译；设置页核心路径和剩余同步/恢复细节继续留给后续阶段。
+
+验证：
+
+- `npm run typecheck` 通过。
+- `npm run lint` 通过。
+- `npm run build` 通过。
+- `npm run verify:export` 通过。
+
 后续任务：
 
-- Phase 1.15.2：设置页语言选择落地。
 - Phase 1.15.3：首页主路径本地化。
 - Phase 1.15.4：设置页核心路径本地化。
 - Phase 1.15.5：组件、同步和恢复细节本地化收口。

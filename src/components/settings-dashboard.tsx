@@ -4,7 +4,11 @@ import type { ChangeEvent } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AccountPanel } from "@/components/account-panel";
-import { AccountPreferencesPanel } from "@/components/account-preferences-panel";
+import {
+  AccountPreferencesPanel,
+  formatPreferenceLocaleLabel,
+  formatPreferenceSearchEngineLabel
+} from "@/components/account-preferences-panel";
 import { BookmarkImportPanel } from "@/components/bookmark-import-panel";
 import { DataRecoveryCenterPanel } from "@/components/data-recovery-center-panel";
 import { DeviceStatusPanel } from "@/components/device-status-panel";
@@ -24,9 +28,9 @@ import type { HomeDocumentV2, HomeSyncMeta } from "@/domain/home-document";
 import type { SettingsSectionId } from "@/domain/settings-layout";
 import { parseSyncCode, type StoredSyncBinding } from "@/domain/sync-code";
 import { getHomeThemePreset, normalizeHomeThemePresetId } from "@/domain/theme-preset";
-import { localePreferenceLabel, searchEngineLabel } from "@/domain/ui-preferences";
 import { useAccountData } from "@/hooks/use-account-data";
 import { useHomeDocumentController } from "@/hooks/use-home-document-controller";
+import { useI18n } from "@/hooks/use-i18n";
 import { useSettingsLayoutPreferences } from "@/hooks/use-settings-layout-preferences";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 import { useUiPreferences } from "@/hooks/use-ui-preferences";
@@ -50,6 +54,7 @@ export function SettingsDashboard() {
   const auth = useSupabaseAuth();
   const accountData = useAccountData(auth.user);
   const uiPreferences = useUiPreferences();
+  const { t } = useI18n();
   const settingsLayout = useSettingsLayoutPreferences();
   const [currentBinding, setCurrentBinding] = useState<StoredSyncBinding | null>(null);
   const [advancedActionMessage, setAdvancedActionMessage] = useState("");
@@ -391,7 +396,7 @@ export function SettingsDashboard() {
     },
     themeImages: getThemeImagesSectionSummary(homeDocument),
     accountPreferences: {
-      summary: `${signedIn ? "账号偏好" : "本地偏好"} · ${localePreferenceLabel(uiPreferences.preferences.locale)} · ${searchEngineLabel(uiPreferences.preferences.defaultSearchEngine)}`,
+      summary: `${t(signedIn ? "preferences.summaryAccount" : "preferences.summaryLocal")} · ${formatPreferenceLocaleLabel(uiPreferences.preferences.locale, t)} · ${formatPreferenceSearchEngineLabel(uiPreferences.preferences.defaultSearchEngine)}`,
       tone: uiPreferences.error ? "warning" as StatusTone : "neutral" as StatusTone
     },
     dataRecovery: recoverySectionStatus
@@ -525,8 +530,8 @@ export function SettingsDashboard() {
 
         <SettingsSection
           id="account-preferences"
-          title="通用设置"
-          kicker={signedIn ? "Account" : "Local"}
+          title={t("preferences.title")}
+          kicker={signedIn ? t("preferences.accountBadge") : t("preferences.localBadge")}
           summary={sectionSummaries.accountPreferences.summary}
           tone={sectionSummaries.accountPreferences.tone}
           expanded={settingsLayout.isSectionExpanded("account-preferences")}

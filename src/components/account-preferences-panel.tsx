@@ -4,13 +4,20 @@ import { useMemo, useState } from "react";
 import {
   DENSITY_OPTIONS,
   FONT_FAMILY_OPTIONS,
+  type DensityPreference,
+  type FontFamilyPreference,
+  type LocalePreference,
   LOCALE_OPTIONS,
   normalizeUiPreferences,
   SEARCH_ENGINE_OPTIONS,
+  type SearchEnginePreference,
+  type ThemePreference,
   THEME_OPTIONS,
   type UiPreferences
 } from "@/domain/ui-preferences";
 import { StatusMessage } from "@/components/status-message";
+import type { I18nMessageKey, I18nTranslate } from "@/i18n/messages";
+import { useI18n } from "@/hooks/use-i18n";
 import { useUiPreferences } from "@/hooks/use-ui-preferences";
 import type { AccountDataState } from "@/hooks/use-account-data";
 import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
@@ -23,6 +30,7 @@ interface AccountPreferencesPanelProps {
 }
 
 export function AccountPreferencesPanel({ accountData, authLoading, embedded = false, signedIn }: AccountPreferencesPanelProps) {
+  const { t } = useI18n();
   const uiPreferences = useUiPreferences();
   const accountPreferencesReady = Boolean(signedIn && accountData.preferences && !accountData.error);
   const usesAccountPreferences = accountPreferencesReady;
@@ -42,27 +50,27 @@ export function AccountPreferencesPanel({ accountData, authLoading, embedded = f
   const defaultSpaceName = useMemo(() => {
     const defaultSpaceId = accountData.preferences?.defaultSpaceId;
     if (!defaultSpaceId) {
-      return "未设置";
+      return t("preferences.defaultHomeSpaceUnset");
     }
 
     return accountData.homeSpaces.find((homeSpace) => homeSpace.id === defaultSpaceId)?.name ?? defaultSpaceId;
-  }, [accountData.homeSpaces, accountData.preferences?.defaultSpaceId]);
+  }, [accountData.homeSpaces, accountData.preferences?.defaultSpaceId, t]);
   const formDisabled = authLoading || accountData.loading;
 
   const content = (
     <>
       {authLoading ? (
         <div className="settings-placeholder">
-          <strong>正在读取账号状态</strong>
-          <p>账号状态确认前，会先使用当前浏览器的本地偏好。</p>
+          <strong>{t("preferences.accountLoadingTitle")}</strong>
+          <p>{t("preferences.accountLoadingDescription")}</p>
         </div>
       ) : (
         <>
           {signedIn && accountData.error ? (
             <div className="settings-placeholder">
-              <strong>账号偏好加载失败</strong>
+              <strong>{t("preferences.accountLoadFailedTitle")}</strong>
               <StatusMessage role="alert" tone="danger">{accountData.error}</StatusMessage>
-              <p>当前页面继续使用本地偏好，不会尝试写入账号表。</p>
+              <p>{t("preferences.accountLoadFailedDescription")}</p>
             </div>
           ) : null}
 
@@ -84,10 +92,10 @@ export function AccountPreferencesPanel({ accountData, authLoading, embedded = f
   }
 
   return (
-    <section className="settings-panel" aria-label="通用设置">
+    <section className="settings-panel" aria-label={t("preferences.title")}>
       <div className="panel-header">
-        <h2>通用设置</h2>
-        <span>{signedIn ? "Account" : "Local"}</span>
+        <h2>{t("preferences.title")}</h2>
+        <span>{signedIn ? t("preferences.accountBadge") : t("preferences.localBadge")}</span>
       </div>
       {content}
     </section>
@@ -109,20 +117,23 @@ function PreferencesEditor({
   formDisabled,
   usesAccountPreferences
 }: PreferencesEditorProps) {
+  const { t, locale } = useI18n();
   const uiPreferences = useUiPreferences();
   const [formValues, setFormValues] = useState<UiPreferences>(basePreferences);
   const [localMessage, setLocalMessage] = useState("");
   const saving = accountData.updatingPreferences;
   const controlsDisabled = formDisabled || saving;
   const formChanged = !preferencesEqual(formValues, basePreferences);
+  const accountPreferencesMessage = accountData.preferencesMessage ? t("preferences.accountSaved") : "";
   const statusMessage = accountData.preferencesError
     || localMessage
-    || accountData.preferencesMessage
+    || accountPreferencesMessage
     || uiPreferences.error
-    || (usesAccountPreferences ? "账号偏好会同步到当前账号。" : "偏好仅保存在当前浏览器。");
+    || t(usesAccountPreferences ? "preferences.scopeAccount" : "preferences.scopeLocal");
   const hasStatusError = Boolean(accountData.preferencesError || uiPreferences.error);
-  const statusTone = hasStatusError ? "danger" : localMessage || accountData.preferencesMessage ? "success" : "neutral";
+  const statusTone = hasStatusError ? "danger" : localMessage || accountPreferencesMessage ? "success" : "neutral";
   const saveDisabledReason = getPreferencesSaveDisabledReason(controlsDisabled, formChanged, saving, formDisabled);
+  const saveDisabledTitle = saveDisabledReason ? t(saveDisabledReason) : undefined;
 
   async function savePreferences() {
     const normalized = normalizeUiPreferences(formValues);
@@ -132,6 +143,7 @@ function PreferencesEditor({
       const updated = await accountData.updatePreferences(normalized);
       if (updated) {
         uiPreferences.applyAccountPreferences(updated);
+        setLocalMessage(t("preferences.accountSaved"));
         trackProductEvent("account.preferences_updated", {
           result: "account"
         });
@@ -140,7 +152,7 @@ function PreferencesEditor({
     }
 
     uiPreferences.updateLocalPreferences(normalized);
-    setLocalMessage("本地偏好已保存。");
+    setLocalMessage(t("preferences.localSaved"));
     trackProductEvent("account.preferences_updated", {
       result: "local"
     });
@@ -150,51 +162,54 @@ function PreferencesEditor({
     <>
       <div className="preference-form-grid">
         <label className="field">
-          <span>语言</span>
+          <span>{t("preferences.language")}</span>
           <select
             value={formValues.locale}
             disabled={controlsDisabled}
             onChange={(event) => setFormValues((current) => normalizeUiPreferences({ ...current, locale: event.target.value }))}
           >
-            {LOCALE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            {LOCALE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{getLocaleOptionLabel(option.value, t)}</option>)}
           </select>
+          {formValues.locale === "system" ? (
+            <small>{t("preferences.languageResolved", { locale: getLocaleOptionLabel(locale, t) })}</small>
+          ) : null}
         </label>
 
         <label className="field">
-          <span>主题偏好</span>
+          <span>{t("preferences.themePreference")}</span>
           <select
             value={formValues.themePreference}
             disabled={controlsDisabled}
             onChange={(event) => setFormValues((current) => normalizeUiPreferences({ ...current, themePreference: event.target.value }))}
           >
-            {THEME_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            {THEME_OPTIONS.map((option) => <option key={option.value} value={option.value}>{getThemeOptionLabel(option.value, t)}</option>)}
           </select>
         </label>
 
         <label className="field">
-          <span>字体</span>
+          <span>{t("preferences.fontFamily")}</span>
           <select
             value={formValues.fontFamily}
             disabled={controlsDisabled}
             onChange={(event) => setFormValues((current) => normalizeUiPreferences({ ...current, fontFamily: event.target.value }))}
           >
-            {FONT_FAMILY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            {FONT_FAMILY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{getFontOptionLabel(option.value, t)}</option>)}
           </select>
         </label>
 
         <label className="field">
-          <span>界面密度</span>
+          <span>{t("preferences.density")}</span>
           <select
             value={formValues.density}
             disabled={controlsDisabled}
             onChange={(event) => setFormValues((current) => normalizeUiPreferences({ ...current, density: event.target.value }))}
           >
-            {DENSITY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            {DENSITY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{getDensityOptionLabel(option.value, t)}</option>)}
           </select>
         </label>
 
         <label className="field">
-          <span>默认搜索引擎</span>
+          <span>{t("preferences.defaultSearchEngine")}</span>
           <select
             value={formValues.defaultSearchEngine}
             disabled={controlsDisabled}
@@ -205,7 +220,7 @@ function PreferencesEditor({
         </label>
 
         <div className="preference-readonly-row">
-          <span>默认首页空间</span>
+          <span>{t("preferences.defaultHomeSpace")}</span>
           <strong>{defaultSpaceName}</strong>
         </div>
       </div>
@@ -215,10 +230,10 @@ function PreferencesEditor({
           className="utility-button"
           type="button"
           disabled={controlsDisabled || !formChanged}
-          title={saveDisabledReason}
+          title={saveDisabledTitle}
           onClick={savePreferences}
         >
-          {saving ? "保存中" : "保存偏好"}
+          {saving ? t("preferences.saving") : t("preferences.save")}
         </button>
       </div>
 
@@ -252,22 +267,86 @@ function getPreferencesSaveDisabledReason(
   formChanged: boolean,
   saving: boolean,
   formDisabled: boolean
-): string | undefined {
+): I18nMessageKey | undefined {
   if (saving) {
-    return "偏好正在保存，请稍后。";
+    return "preferences.savePendingTitle";
   }
 
   if (formDisabled) {
-    return "账号或本地偏好正在读取，请稍后。";
+    return "preferences.loadingTitle";
   }
 
   if (controlsDisabled) {
-    return "当前暂不能保存偏好。";
+    return "preferences.saveUnavailableTitle";
   }
 
   if (!formChanged) {
-    return "偏好没有变更。";
+    return "preferences.unchangedTitle";
   }
 
-  return "保存当前偏好";
+  return "preferences.saveTitle";
+}
+
+function getLocaleOptionLabel(locale: LocalePreference, t: I18nTranslate): string {
+  switch (locale) {
+    case "system":
+      return t("preferences.option.system");
+    case "zh-CN":
+      return t("preferences.option.zhCN");
+    case "zh-TW":
+      return t("preferences.option.zhTW");
+    case "en-US":
+      return t("preferences.option.enUS");
+    case "fr-FR":
+      return t("preferences.option.frFR");
+    case "es-ES":
+      return t("preferences.option.esES");
+    case "ja-JP":
+      return t("preferences.option.jaJP");
+    case "ko-KR":
+      return t("preferences.option.koKR");
+    case "it-IT":
+      return t("preferences.option.itIT");
+    default:
+      return locale;
+  }
+}
+
+function getThemeOptionLabel(theme: ThemePreference, t: I18nTranslate): string {
+  switch (theme) {
+    case "system":
+      return t("preferences.theme.system");
+    case "light":
+      return t("preferences.theme.light");
+    case "dark":
+      return t("preferences.theme.dark");
+  }
+}
+
+function getFontOptionLabel(font: FontFamilyPreference, t: I18nTranslate): string {
+  switch (font) {
+    case "system":
+      return t("preferences.font.system");
+    case "serif":
+      return t("preferences.font.serif");
+    case "mono":
+      return t("preferences.font.mono");
+  }
+}
+
+function getDensityOptionLabel(density: DensityPreference, t: I18nTranslate): string {
+  switch (density) {
+    case "comfortable":
+      return t("preferences.density.comfortable");
+    case "compact":
+      return t("preferences.density.compact");
+  }
+}
+
+export function formatPreferenceLocaleLabel(locale: LocalePreference, t: I18nTranslate): string {
+  return getLocaleOptionLabel(locale, t);
+}
+
+export function formatPreferenceSearchEngineLabel(searchEngine: SearchEnginePreference): string {
+  return SEARCH_ENGINE_OPTIONS.find((option) => option.value === searchEngine)?.label ?? searchEngine;
 }

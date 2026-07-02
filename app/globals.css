@@ -2496,6 +2496,13 @@ h1 {
   font-weight: 560;
 }
 
+.field small {
+  min-height: 16px;
+  color: var(--quiet);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
 .field input,
 .field select,
 .field textarea {
