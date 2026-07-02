@@ -33,6 +33,7 @@ import {
   sortByOrder
 } from "@/domain/home-document";
 import { SiteIcon } from "@/components/site-icon";
+import { useI18n } from "@/hooks/use-i18n";
 
 type DragItem =
   | { kind: "group"; groupId: string }
@@ -113,6 +114,7 @@ export function SiteCollection({
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
+  const { t } = useI18n();
 
   useEffect(() => {
     if (!openActionSiteId && !openActionGroupId) {
@@ -210,7 +212,7 @@ export function SiteCollection({
         ...(ungroupedGroup ? [ungroupedGroup] : []),
         ...arrayMove(groups, activeIndex, overIndex)
       ])
-    }, "分组排序已保存");
+    }, t("site.groupOrderSaved"));
   }
 
   function moveSite(activeSite: Extract<DragItem, { kind: "site" }>, overData: DragItem) {
@@ -248,7 +250,7 @@ export function SiteCollection({
       onCommitDocument({
         ...documentValue,
         groups: applyCurrentOrder(groups)
-      }, "网站排序已保存");
+      }, t("site.siteOrderSaved"));
       return;
     }
 
@@ -263,7 +265,7 @@ export function SiteCollection({
     onCommitDocument({
       ...documentValue,
       groups: applyCurrentOrder(groups)
-    }, "网站已移动");
+    }, t("site.siteMoved"));
   }
 
   function closeActionMenus() {
@@ -294,7 +296,7 @@ export function SiteCollection({
       }}
     >
       <SortableContext items={regularGroups.map(({ group }) => groupDragId(group.id))} strategy={verticalListSortingStrategy}>
-        <section className="sections" aria-label="常用网站导航">
+        <section className="sections" aria-label={t("site.collectionAria")}>
           {ungroupedEntry ? (
             <UngroupedSection
               group={ungroupedEntry.group}
@@ -326,19 +328,19 @@ export function SiteCollection({
               onCloseActionMenu={closeActionMenus}
             />
           ))}
-          <div className="add-group-row" aria-label="新增分组">
+          <div className="add-group-row" aria-label={t("site.addGroupRowAria")}>
             <button
               className="ungrouped-add-button add-group-button"
               type="button"
               onClick={() => onOpenGroupEditor()}
-              aria-label="新增分组"
-              title="新增分组"
+              aria-label={t("site.addGroupAria")}
+              title={t("site.addGroupTitle")}
             >
               +
             </button>
           </div>
           {visibleCount === 0 && !editMode ? (
-            <p className="empty-state is-visible">没有匹配的网站。</p>
+            <p className="empty-state is-visible">{t("site.emptySearch")}</p>
           ) : null}
         </section>
       </SortableContext>
@@ -388,6 +390,7 @@ function UngroupedSection({
   onToggleActionMenu,
   onCloseActionMenu
 }: UngroupedSectionProps) {
+  const { t } = useI18n();
   const {
     isOver,
     setNodeRef: setDropRef
@@ -398,13 +401,13 @@ function UngroupedSection({
   });
 
   return (
-    <article className="ungrouped-section" aria-label="未分组网站">
+    <article className="ungrouped-section" aria-label={t("site.ungroupedAria")}>
       <button
         className="ungrouped-add-button"
         type="button"
         onClick={() => onOpenSiteEditor(group.id)}
-        aria-label="在未分组中新增网站"
-        title="新增网站"
+        aria-label={t("site.addUngroupedSiteAria")}
+        title={t("site.addSiteTitle")}
       >
         +
       </button>
@@ -445,6 +448,7 @@ function SortableGroup({
   onToggleGroupActionMenu,
   onCloseActionMenu
 }: SortableGroupProps) {
+  const { t } = useI18n();
   const {
     attributes,
     listeners,
@@ -475,14 +479,14 @@ function SortableGroup({
       <div className="section-meta">
         <div className="section-heading-row">
           <h2 className="section-title">{group.title}</h2>
-          <div className="group-action-shell" aria-label={`${group.title} 操作`}>
+          <div className="group-action-shell" aria-label={t("site.groupActionShellAria", { group: group.title })}>
             <button
               className="site-action-toggle group-action-toggle"
               type="button"
               onClick={() => onToggleGroupActionMenu(group.id)}
-              aria-label={`打开 ${group.title} 的操作菜单`}
+              aria-label={t("site.groupMenuOpenAria", { group: group.title })}
               aria-expanded={actionMenuOpen}
-              title="分组操作"
+              title={t("site.groupActionTitle")}
               data-action-toggle
             >
               ⋯
@@ -496,22 +500,22 @@ function SortableGroup({
                     onOpenGroupEditor(group.id);
                     onCloseActionMenu();
                   }}
-                  aria-label={`编辑 ${group.title}`}
+                  aria-label={t("site.editGroupAria", { group: group.title })}
                 >
                   <span aria-hidden="true">✎</span>
-                  <span>编辑</span>
+                  <span>{t("common.edit")}</span>
                 </button>
                 <button
                   className="site-menu-button site-drag-menu-button"
                   type="button"
-                  aria-label={`拖拽排序分组 ${group.title}`}
-                  title={dragDisabled ? "搜索时不可拖拽排序" : "拖拽排序分组"}
+                  aria-label={t("site.dragGroupAria", { group: group.title })}
+                  title={dragDisabled ? t("site.dragDisabledTitle") : t("site.dragGroupTitle")}
                   disabled={dragDisabled}
                   {...attributes}
                   {...listeners}
                 >
                   <span aria-hidden="true">⋮⋮</span>
-                  <span>拖动</span>
+                  <span>{t("common.drag")}</span>
                 </button>
                 <button
                   className="site-menu-button"
@@ -520,10 +524,10 @@ function SortableGroup({
                     onOpenSiteEditor(group.id);
                     onCloseActionMenu();
                   }}
-                  aria-label={`在 ${group.title} 中新增网站`}
+                  aria-label={t("site.addSiteToGroupAria", { group: group.title })}
                 >
                   <span aria-hidden="true">+</span>
-                  <span>新增网站</span>
+                  <span>{t("site.addSiteTitle")}</span>
                 </button>
                 <button
                   className="site-menu-button is-danger"
@@ -532,10 +536,10 @@ function SortableGroup({
                     onDeleteGroup(group.id);
                     onCloseActionMenu();
                   }}
-                  aria-label={`删除 ${group.title}`}
+                  aria-label={t("site.deleteGroupAria", { group: group.title })}
                 >
                   <span aria-hidden="true">×</span>
-                  <span>删除</span>
+                  <span>{t("common.delete")}</span>
                 </button>
               </div>
             ) : null}
@@ -588,6 +592,7 @@ function SortableSiteTile({
   onToggleActionMenu,
   onCloseActionMenu
 }: SortableSiteTileProps) {
+  const { t } = useI18n();
   const {
     attributes,
     listeners,
@@ -618,14 +623,14 @@ function SortableSiteTile({
           <span className="site-name">{site.name}</span>
         </a>
       )}
-      <div className="site-action-shell" aria-label={`${site.name} 操作`}>
+      <div className="site-action-shell" aria-label={t("site.siteActionShellAria", { site: site.name })}>
         <button
           className="site-action-toggle"
           type="button"
           onClick={() => onToggleActionMenu(site.id)}
-          aria-label={`打开 ${site.name} 的操作菜单`}
+          aria-label={t("site.siteMenuOpenAria", { site: site.name })}
           aria-expanded={actionMenuOpen}
-          title="网站操作"
+          title={t("site.siteActionTitle")}
           data-action-toggle
         >
           ⋯
@@ -639,22 +644,22 @@ function SortableSiteTile({
                 onOpenSiteEditor(groupId, site.id);
                 onCloseActionMenu();
               }}
-              aria-label={`编辑 ${site.name}`}
+              aria-label={t("site.editSiteAria", { site: site.name })}
             >
               <span aria-hidden="true">✎</span>
-              <span>编辑</span>
+              <span>{t("common.edit")}</span>
             </button>
             <button
               className="site-menu-button site-drag-menu-button"
               type="button"
-              aria-label={`拖拽移动网站 ${site.name}`}
-              title={dragDisabled ? "搜索时不可拖拽排序" : "拖拽移动网站"}
+              aria-label={t("site.dragSiteAria", { site: site.name })}
+              title={dragDisabled ? t("site.dragDisabledTitle") : t("site.dragSiteTitle")}
               disabled={dragDisabled}
               {...attributes}
               {...listeners}
             >
               <span aria-hidden="true">⋮⋮</span>
-              <span>拖动</span>
+              <span>{t("common.drag")}</span>
             </button>
             <button
               className="site-menu-button is-danger"
@@ -663,10 +668,10 @@ function SortableSiteTile({
                 onDeleteSite(groupId, site.id);
                 onCloseActionMenu();
               }}
-              aria-label={`删除 ${site.name}`}
+              aria-label={t("site.deleteSiteAria", { site: site.name })}
             >
               <span aria-hidden="true">×</span>
-              <span>删除</span>
+              <span>{t("common.delete")}</span>
             </button>
           </div>
         ) : null}

@@ -28,6 +28,7 @@ import {
   renumberTodoItems,
   type TodoItem
 } from "@/domain/todo-widget";
+import { useI18n } from "@/hooks/use-i18n";
 
 interface TodoListWidgetProps {
   widget: HomeWidget;
@@ -36,15 +37,12 @@ interface TodoListWidgetProps {
 
 type TodoFilter = "all" | "active" | "completed";
 
-const TODO_FILTERS: Array<{ value: TodoFilter; label: string }> = [
-  { value: "all", label: "全部" },
-  { value: "active", label: "未完成" },
-  { value: "completed", label: "已完成" }
-];
+const TODO_FILTERS: TodoFilter[] = ["all", "active", "completed"];
 
 const todoDragId = (itemId: string) => `todo:${itemId}`;
 
 export function TodoListWidget({ widget, onUpdate }: TodoListWidgetProps) {
+  const { t, format } = useI18n();
   const [newTitle, setNewTitle] = useState("");
   const [filter, setFilter] = useState<TodoFilter>("all");
   const [openMenuItemId, setOpenMenuItemId] = useState<string | null>(null);
@@ -88,7 +86,7 @@ export function TodoListWidget({ widget, onUpdate }: TodoListWidgetProps) {
       return;
     }
 
-    updateItems([...items, createTodoItem(createId("todo"), title, items.length + 1)], "任务已添加");
+    updateItems([...items, createTodoItem(createId("todo"), title, items.length + 1)], t("todo.message.added"));
     setNewTitle("");
     addInputRef.current?.focus();
   }
@@ -96,7 +94,7 @@ export function TodoListWidget({ widget, onUpdate }: TodoListWidgetProps) {
   function toggleItem(itemId: string) {
     updateItems(items.map((item) => item.id === itemId
       ? { ...item, completed: !item.completed }
-      : item), "任务已更新");
+      : item), t("todo.message.updated"));
   }
 
   function renameItem(itemId: string, value: string) {
@@ -107,11 +105,11 @@ export function TodoListWidget({ widget, onUpdate }: TodoListWidgetProps) {
       return;
     }
 
-    updateItems(items.map((item) => item.id === itemId ? { ...item, title } : item), "任务已更新");
+    updateItems(items.map((item) => item.id === itemId ? { ...item, title } : item), t("todo.message.updated"));
   }
 
   function deleteItem(itemId: string) {
-    updateItems(items.filter((item) => item.id !== itemId), "任务已删除");
+    updateItems(items.filter((item) => item.id !== itemId), t("todo.message.deleted"));
   }
 
   function clearCompleted() {
@@ -119,11 +117,11 @@ export function TodoListWidget({ widget, onUpdate }: TodoListWidgetProps) {
       return;
     }
 
-    if (!window.confirm(`清除 ${stats.completed} 个已完成任务？`)) {
+    if (!window.confirm(t("todo.clearCompletedConfirm", { count: format.number(stats.completed) }))) {
       return;
     }
 
-    updateItems(items.filter((item) => !item.completed), "已清除完成任务");
+    updateItems(items.filter((item) => !item.completed), t("todo.message.clearedCompleted"));
   }
 
   function handleDragStart(event: DragStartEvent) {
@@ -148,7 +146,7 @@ export function TodoListWidget({ widget, onUpdate }: TodoListWidgetProps) {
       return;
     }
 
-    updateItems(arrayMove(items, activeIndex, overIndex), "任务顺序已更新");
+    updateItems(arrayMove(items, activeIndex, overIndex), t("todo.message.orderUpdated"));
   }
 
   function handleTitleKeyDown(event: KeyboardEvent<HTMLInputElement>, item: TodoItem) {
@@ -171,8 +169,8 @@ export function TodoListWidget({ widget, onUpdate }: TodoListWidgetProps) {
           ref={addInputRef}
           className="todo-add-input"
           type="text"
-          placeholder="添加任务，按 Enter 保存"
-          aria-label="添加任务"
+          placeholder={t("todo.addPlaceholder")}
+          aria-label={t("todo.addAria")}
           value={newTitle}
           maxLength={120}
           onChange={(event) => setNewTitle(event.target.value)}
@@ -181,34 +179,34 @@ export function TodoListWidget({ widget, onUpdate }: TodoListWidgetProps) {
           className="todo-add-button"
           type="submit"
           disabled={!newTitleReady}
-          aria-label="添加任务"
-          title={newTitleReady ? "添加任务" : "输入任务后添加"}
+          aria-label={t("todo.addAria")}
+          title={newTitleReady ? t("todo.addReadyTitle") : t("todo.addDisabledTitle")}
         >
           +
         </button>
       </form>
 
       <div className="todo-summary">
-        <span>{stats.active} 未完成</span>
-        <span>{stats.completed} 已完成</span>
-        <span>{stats.total} 总计</span>
+        <span>{t("todo.activeCount", { count: format.number(stats.active) })}</span>
+        <span>{t("todo.completedCount", { count: format.number(stats.completed) })}</span>
+        <span>{t("todo.totalCount", { count: format.number(stats.total) })}</span>
         {stats.completed > 0 ? (
           <button className="todo-clear-button" type="button" onClick={clearCompleted}>
-            清除完成
+            {t("todo.clearCompleted")}
           </button>
         ) : null}
       </div>
 
       {items.length > 0 ? (
-        <div className="todo-filter-tabs" role="group" aria-label="任务筛选">
+        <div className="todo-filter-tabs" role="group" aria-label={t("todo.filterAria")}>
           {TODO_FILTERS.map((item) => (
             <button
-              key={item.value}
+              key={item}
               type="button"
-              aria-pressed={filter === item.value}
-              onClick={() => setFilter(item.value)}
+              aria-pressed={filter === item}
+              onClick={() => setFilter(item)}
             >
-              {item.label}
+              {getTodoFilterLabel(item, t)}
             </button>
           ))}
         </div>
@@ -249,7 +247,7 @@ export function TodoListWidget({ widget, onUpdate }: TodoListWidgetProps) {
           </DragOverlay>
         </DndContext>
       ) : (
-        <p className="todo-empty">{getTodoEmptyMessage(items.length, filter)}</p>
+        <p className="todo-empty">{getTodoEmptyMessage(items.length, filter, t)}</p>
       )}
     </div>
   );
@@ -274,6 +272,7 @@ function SortableTodoItem({
   onDeleteItem: () => void;
   onTitleKeyDown: (event: KeyboardEvent<HTMLInputElement>, item: TodoItem) => void;
 }) {
+  const { t } = useI18n();
   const {
     attributes,
     listeners,
@@ -307,7 +306,7 @@ function SortableTodoItem({
         <input
           type="checkbox"
           checked={item.completed}
-          aria-label={item.completed ? `标记 ${item.title} 为未完成` : `完成 ${item.title}`}
+          aria-label={item.completed ? t("todo.markActiveAria", { title: item.title }) : t("todo.markCompletedAria", { title: item.title })}
           onChange={onToggleItem}
         />
         <span aria-hidden="true" />
@@ -317,7 +316,7 @@ function SortableTodoItem({
         className="todo-title-input"
         type="text"
         defaultValue={item.title}
-        aria-label={`编辑任务 ${item.title}`}
+        aria-label={t("todo.editTaskAria", { title: item.title })}
         maxLength={120}
         onBlur={(event) => {
           if (!normalizeTodoTitle(event.currentTarget.value)) {
@@ -332,8 +331,8 @@ function SortableTodoItem({
           className="todo-item-menu-button"
           type="button"
           aria-expanded={menuOpen}
-          aria-label={`${item.title}更多操作`}
-          title="更多操作"
+          aria-label={t("todo.moreActionsAria", { title: item.title })}
+          title={t("todo.moreActionsTitle")}
           onClick={onToggleMenu}
         >
           ⋯
@@ -345,20 +344,20 @@ function SortableTodoItem({
               className="todo-menu-action todo-menu-drag-action"
               type="button"
               disabled={itemsLength < 2}
-              aria-label={`拖动${item.title}排序`}
-              title="拖动排序"
+              aria-label={t("todo.dragTaskAria", { title: item.title })}
+              title={t("todo.dragTitle")}
               {...attributes}
               {...listeners}
             >
-              拖动
+              {t("common.drag")}
             </button>
             <button
               className="todo-menu-action is-danger"
               type="button"
-              aria-label={`删除${item.title}`}
+              aria-label={t("todo.deleteTaskAria", { title: item.title })}
               onClick={onDeleteItem}
             >
-              删除
+              {t("common.delete")}
             </button>
           </div>
         ) : null}
@@ -367,20 +366,32 @@ function SortableTodoItem({
   );
 }
 
-function getTodoEmptyMessage(totalItems: number, filter: TodoFilter): string {
-  if (totalItems === 0) {
-    return "暂无任务，添加第一项";
-  }
-
+function getTodoFilterLabel(filter: TodoFilter, t: ReturnType<typeof useI18n>["t"]): string {
   if (filter === "active") {
-    return "没有未完成任务";
+    return t("todo.filter.active");
   }
 
   if (filter === "completed") {
-    return "没有已完成任务";
+    return t("todo.filter.completed");
   }
 
-  return "暂无任务";
+  return t("todo.filter.all");
+}
+
+function getTodoEmptyMessage(totalItems: number, filter: TodoFilter, t: ReturnType<typeof useI18n>["t"]): string {
+  if (totalItems === 0) {
+    return t("todo.emptyInitial");
+  }
+
+  if (filter === "active") {
+    return t("todo.emptyActive");
+  }
+
+  if (filter === "completed") {
+    return t("todo.emptyCompleted");
+  }
+
+  return t("todo.empty");
 }
 
 function readTodoIdFromDragId(value: unknown): string | null {

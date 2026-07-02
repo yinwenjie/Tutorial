@@ -2,6 +2,7 @@
 
 import { type CSSProperties, type FormEvent, type ReactNode, useState } from "react";
 import { normalizeText } from "@/domain/home-document";
+import { useI18n } from "@/hooks/use-i18n";
 
 interface WidgetShellProps {
   title: string;
@@ -44,6 +45,7 @@ export function WidgetShell({
   onMove,
   onDelete
 }: WidgetShellProps) {
+  const { t } = useI18n();
   const [titleDraftState, setTitleDraftState] = useState({
     sourceTitle: title,
     value: title
@@ -84,7 +86,7 @@ export function WidgetShell({
               <input
                 className="widget-title-input"
                 value={titleDraft}
-                aria-label={`${title}标题`}
+                aria-label={t("widgetShell.titleInputAria", { title })}
                 onBlur={commitTitle}
                 onChange={(event) => setTitleDraftState({
                   sourceTitle: title,
@@ -102,8 +104,8 @@ export function WidgetShell({
             <button
               className="mini-button widget-shell-settings-action"
               type="button"
-              aria-label={`配置${title}`}
-              title="设置"
+              aria-label={t("widgetShell.configureAria", { title })}
+              title={t("widgetShell.settingsTitle")}
               onClick={onOpenSettings}
             >
               ⚙
@@ -113,8 +115,8 @@ export function WidgetShell({
             className="mini-button widget-shell-primary-action"
             type="button"
             aria-expanded={!collapsed}
-            aria-label={collapsed ? `展开${title}` : `折叠${title}`}
-            title={collapsed ? "展开" : "折叠"}
+            aria-label={collapsed ? t("widgetShell.expandAria", { title }) : t("widgetShell.collapseAria", { title })}
+            title={collapsed ? t("widgetShell.expandTitle") : t("widgetShell.collapseTitle")}
             onClick={onToggleCollapsed}
           >
             {collapsed ? "▾" : "▴"}
@@ -125,8 +127,8 @@ export function WidgetShell({
                 className="mini-button"
                 type="button"
                 disabled={widgetIndex === 0}
-                aria-label={`上移${title}`}
-                title="上移"
+                aria-label={t("widgetShell.moveUpAria", { title })}
+                title={t("widgetShell.moveUpTitle")}
                 onClick={() => onMove(-1)}
               >
                 ↑
@@ -135,8 +137,8 @@ export function WidgetShell({
                 className="mini-button"
                 type="button"
                 disabled={widgetIndex === widgetsLength - 1}
-                aria-label={`下移${title}`}
-                title="下移"
+                aria-label={t("widgetShell.moveDownAria", { title })}
+                title={t("widgetShell.moveDownTitle")}
                 onClick={() => onMove(1)}
               >
                 ↓
@@ -144,8 +146,8 @@ export function WidgetShell({
               <button
                 className="mini-button"
                 type="button"
-                aria-label={`删除${title}`}
-                title="删除"
+                aria-label={t("widgetShell.deleteAria", { title })}
+                title={t("common.delete")}
                 onClick={onDelete}
               >
                 ×

@@ -15,6 +15,7 @@ import {
   renumberSites,
   sortByOrder
 } from "@/domain/home-document";
+import { useI18n } from "@/hooks/use-i18n";
 import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
 
 export type EditorState =
@@ -50,6 +51,7 @@ export function useHomeDocumentEditor({ homeDocument, commitHomeDocument }: UseH
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [formValues, setFormValues] = useState<FormValues>(EMPTY_FORM_VALUES);
   const [formError, setFormError] = useState("");
+  const { t, format } = useI18n();
 
   function openGroupEditor(groupId?: string) {
     const group = groupId ? findGroup(homeDocument, groupId) : undefined;
@@ -95,27 +97,30 @@ export function useHomeDocumentEditor({ homeDocument, commitHomeDocument }: UseH
 
   function deleteGroup(groupId: string) {
     const group = findGroup(homeDocument, groupId);
-    if (!group || !window.confirm(`删除分组“${group.title}”及其中 ${group.sites.length} 个网站？`)) {
+    if (!group || !window.confirm(t("editor.deleteGroupConfirm", {
+      group: group.title,
+      count: format.number(group.sites.length)
+    }))) {
       return;
     }
 
     commitHomeDocument({
       ...homeDocument,
       groups: renumberGroups(homeDocument.groups.filter((item) => item.id !== groupId))
-    }, "分组已删除");
+    }, t("editor.groupDeleted"));
   }
 
   function deleteSite(groupId: string, siteId: string) {
     const group = findGroup(homeDocument, groupId);
     const site = findSite(group, siteId);
-    if (!group || !site || !window.confirm(`删除网站“${site.name}”？`)) {
+    if (!group || !site || !window.confirm(t("editor.deleteSiteConfirm", { site: site.name }))) {
       return false;
     }
 
     const groups = homeDocument.groups.map((item) => item.id === groupId
       ? { ...item, sites: renumberSites(item.sites.filter((candidate) => candidate.id !== siteId)) }
       : item);
-    commitHomeDocument({ ...homeDocument, groups: renumberGroups(groups) }, "网站已删除");
+    commitHomeDocument({ ...homeDocument, groups: renumberGroups(groups) }, t("editor.siteDeleted"));
     return true;
   }
 
@@ -129,7 +134,7 @@ export function useHomeDocumentEditor({ homeDocument, commitHomeDocument }: UseH
       const title = normalizeText(formValues.groupTitle);
       const keywords = normalizeText(formValues.groupKeywords);
       if (!title) {
-        setFormError("请输入分组名称。");
+        setFormError(t("editor.groupNameRequired"));
         return;
       }
 
@@ -148,12 +153,12 @@ export function useHomeDocumentEditor({ homeDocument, commitHomeDocument }: UseH
     const mark = normalizeText(formValues.siteMark).slice(0, 3) || generateMark(name);
 
     if (!name) {
-      setFormError("请输入网站名称。");
+      setFormError(t("editor.siteNameRequired"));
       return;
     }
 
     if (!isValidUrl(rawUrl)) {
-      setFormError("URL 只支持 http:// 或 https://。");
+      setFormError(t("editor.siteUrlInvalid"));
       return;
     }
 
@@ -181,7 +186,7 @@ export function useHomeDocumentEditor({ homeDocument, commitHomeDocument }: UseH
       order: groups.length + 1,
       sites: []
     });
-    commitHomeDocument({ ...homeDocument, groups: renumberGroups(groups) }, "分组已保存");
+    commitHomeDocument({ ...homeDocument, groups: renumberGroups(groups) }, t("editor.groupSaved"));
     trackProductEvent("group.added", {
       source: "editor"
     });
@@ -191,7 +196,7 @@ export function useHomeDocumentEditor({ homeDocument, commitHomeDocument }: UseH
     const groups = homeDocument.groups.map((group) => group.id === groupId
       ? { ...group, title, keywords }
       : group);
-    commitHomeDocument({ ...homeDocument, groups: renumberGroups(groups) }, "分组已保存");
+    commitHomeDocument({ ...homeDocument, groups: renumberGroups(groups) }, t("editor.groupSaved"));
   }
 
   function addSite(groupId: string, values: Pick<HomeSite, "name" | "url" | "keywords" | "mark">) {
@@ -209,7 +214,7 @@ export function useHomeDocumentEditor({ homeDocument, commitHomeDocument }: UseH
       return { ...group, sites: renumberSites(sites) };
     });
 
-    commitHomeDocument({ ...homeDocument, groups: renumberGroups(groups) }, "网站已保存");
+    commitHomeDocument({ ...homeDocument, groups: renumberGroups(groups) }, t("editor.siteSaved"));
     trackProductEvent("site.added", {
       source: "editor"
     });
@@ -227,7 +232,7 @@ export function useHomeDocumentEditor({ homeDocument, commitHomeDocument }: UseH
       };
     });
 
-    commitHomeDocument({ ...homeDocument, groups: renumberGroups(groups) }, "网站已保存");
+    commitHomeDocument({ ...homeDocument, groups: renumberGroups(groups) }, t("editor.siteSaved"));
   }
 
   return {

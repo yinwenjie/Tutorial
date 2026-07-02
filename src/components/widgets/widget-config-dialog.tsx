@@ -5,6 +5,14 @@ import { normalizeCalendarConfig, type WeekStart } from "@/domain/calendar-widge
 import { normalizeText, type HomeWidget } from "@/domain/home-document";
 import { getTodoStats, readTodoItems } from "@/domain/todo-widget";
 import { getWidgetDefinition } from "@/domain/widget-registry";
+import { useI18n } from "@/hooks/use-i18n";
+import {
+  formatHomeWidgetDefaultTitle,
+  formatHomeWidgetDescription,
+  formatHomeWidgetSettingsDescription,
+  formatHomeWidgetSettingsTitle,
+  formatHomeWidgetTitle
+} from "@/i18n/home-presentation";
 
 interface WidgetConfigDialogProps {
   widget: HomeWidget;
@@ -13,9 +21,12 @@ interface WidgetConfigDialogProps {
 }
 
 export function WidgetConfigDialog({ widget, onCancel, onSave }: WidgetConfigDialogProps) {
+  const { t, format } = useI18n();
   const definition = getWidgetDefinition(widget.type);
-  const dialogTitle = definition.settings?.title ?? "组件设置";
-  const dialogDescription = definition.settings?.description ?? definition.description;
+  const dialogTitle = definition.settings ? formatHomeWidgetSettingsTitle(widget.type, t) : t("widgetConfig.fallbackTitle");
+  const dialogDescription = definition.settings
+    ? formatHomeWidgetSettingsDescription(widget.type, t)
+    : formatHomeWidgetDescription(widget.type, t);
   const [titleDraft, setTitleDraft] = useState(widget.title);
   const [weekStartsOn, setWeekStartsOn] = useState<WeekStart>(() => normalizeCalendarConfig(widget.config).weekStartsOn);
   const todoStats = useMemo(() => {
@@ -29,7 +40,7 @@ export function WidgetConfigDialog({ widget, onCancel, onSave }: WidgetConfigDia
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const title = normalizeText(titleDraft) || definition.defaultTitle;
+    const title = normalizeText(titleDraft) || formatHomeWidgetDefaultTitle(widget.type, t);
     const nextWidget: HomeWidget = {
       ...widget,
       title,
@@ -56,16 +67,16 @@ export function WidgetConfigDialog({ widget, onCancel, onSave }: WidgetConfigDia
         <div className="settings-dialog-header">
           <div>
             <h2 id="widget-config-title">{dialogTitle}</h2>
-            <p>{definition.title} · {dialogDescription}</p>
+            <p>{formatHomeWidgetTitle(widget.type, t)} · {dialogDescription}</p>
           </div>
-          <button className="mini-button" type="button" aria-label="关闭组件设置" title="关闭" onClick={onCancel}>
+          <button className="mini-button" type="button" aria-label={t("widgetConfig.closeAria")} title={t("common.close")} onClick={onCancel}>
             ×
           </button>
         </div>
 
         <div className="settings-dialog-body">
           <label className="widget-config-field">
-            <span>名称</span>
+            <span>{t("widgetConfig.name")}</span>
             <input
               type="text"
               value={titleDraft}
@@ -74,56 +85,56 @@ export function WidgetConfigDialog({ widget, onCancel, onSave }: WidgetConfigDia
             />
           </label>
 
-          <div className="widget-config-readonly-grid" aria-label="组件状态">
+          <div className="widget-config-readonly-grid" aria-label={t("widgetConfig.statusAria")}>
             <div>
-              <span>类型</span>
-              <strong>{definition.title}</strong>
+              <span>{t("widgetConfig.type")}</span>
+              <strong>{formatHomeWidgetTitle(widget.type, t)}</strong>
             </div>
             <div>
-              <span>折叠</span>
-              <strong>{widget.layout.collapsed ? "是" : "否"}</strong>
+              <span>{t("widgetConfig.collapsed")}</span>
+              <strong>{widget.layout.collapsed ? t("widgetConfig.yes") : t("widgetConfig.no")}</strong>
             </div>
           </div>
 
           {todoStats ? (
-            <section className="widget-config-section" aria-label="Todo 状态">
-              <h3>任务状态</h3>
+            <section className="widget-config-section" aria-label={t("widgetConfig.todoStatusAria")}>
+              <h3>{t("widgetConfig.todoStatusTitle")}</h3>
               <div className="widget-config-readonly-grid">
                 <div>
-                  <span>未完成</span>
-                  <strong>{todoStats.active}</strong>
+                  <span>{t("widgetConfig.active")}</span>
+                  <strong>{format.number(todoStats.active)}</strong>
                 </div>
                 <div>
-                  <span>已完成</span>
-                  <strong>{todoStats.completed}</strong>
+                  <span>{t("widgetConfig.completed")}</span>
+                  <strong>{format.number(todoStats.completed)}</strong>
                 </div>
                 <div>
-                  <span>总计</span>
-                  <strong>{todoStats.total}</strong>
+                  <span>{t("widgetConfig.total")}</span>
+                  <strong>{format.number(todoStats.total)}</strong>
                 </div>
               </div>
             </section>
           ) : null}
 
           {widget.type === "calendar.month" ? (
-            <section className="widget-config-section" aria-label="月历设置">
-              <h3>月历设置</h3>
+            <section className="widget-config-section" aria-label={t("widgetConfig.calendarSettingsAria")}>
+              <h3>{t("widgetConfig.calendarSettingsTitle")}</h3>
               <div className="widget-config-option-row">
-                <span>周起始</span>
-                <div className="widget-config-segmented" role="group" aria-label="周起始">
+                <span>{t("widgetConfig.weekStart")}</span>
+                <div className="widget-config-segmented" role="group" aria-label={t("widgetConfig.weekStart")}>
                   <button
                     type="button"
                     aria-pressed={weekStartsOn === 1}
                     onClick={() => setWeekStartsOn(1)}
                   >
-                    周一
+                    {t("widgetConfig.weekStartMondayShort")}
                   </button>
                   <button
                     type="button"
                     aria-pressed={weekStartsOn === 0}
                     onClick={() => setWeekStartsOn(0)}
                   >
-                    周日
+                    {t("widgetConfig.weekStartSundayShort")}
                   </button>
                 </div>
               </div>
@@ -133,10 +144,10 @@ export function WidgetConfigDialog({ widget, onCancel, onSave }: WidgetConfigDia
 
         <div className="settings-dialog-footer">
           <button className="utility-button" type="button" onClick={onCancel}>
-            取消
+            {t("common.cancel")}
           </button>
           <button className="utility-button" type="submit">
-            保存
+            {t("common.save")}
           </button>
         </div>
       </form>

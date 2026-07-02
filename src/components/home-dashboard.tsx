@@ -31,6 +31,7 @@ import { useHomeDocumentEditor } from "@/hooks/use-home-document-editor";
 import { useI18n } from "@/hooks/use-i18n";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 import { useUiPreferences } from "@/hooks/use-ui-preferences";
+import { formatHomeTemplateName } from "@/i18n/home-presentation";
 import type { LocalHomeSnapshotSource } from "@/infrastructure/local-home-snapshot-repository";
 import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
 
@@ -62,7 +63,7 @@ export function HomeDashboard() {
     deleteGroup,
     deleteSite
   } = useHomeDocumentEditor({ homeDocument, commitHomeDocument });
-  const { format } = useI18n();
+  const { t, format } = useI18n();
   const [activeQuery, setActiveQuery] = useState("");
   const [todayLabel, setTodayLabel] = useState("");
   const [showWelcome, setShowWelcome] = useState(false);
@@ -189,11 +190,13 @@ export function HomeDashboard() {
 
   function applyTemplate(template: HomeTemplate) {
     if (!protectBeforeDangerousOverwrite("before-template-apply").canContinue) {
-      window.alert("未能保存当前首页，已取消应用模板。");
+      window.alert(t("home.templateProtectFailed"));
       return;
     }
 
-    replaceHomeDocument(createHomeDocumentFromTemplate(template.id), `已使用${template.name}`);
+    replaceHomeDocument(createHomeDocumentFromTemplate(template.id), t("home.templateApplied", {
+      template: formatHomeTemplateName(template.id, t)
+    }));
     trackProductEvent("template.applied", {
       source: "welcome",
       templateId: template.id
@@ -231,7 +234,7 @@ export function HomeDashboard() {
     titleCommitGuardRef.current = true;
     const nextTitle = normalizeHomeDocumentTitle(titleDraft);
     if (!normalizeText(titleDraft)) {
-      window.alert("首页标题不能为空，已保留原标题。");
+      window.alert(t("home.titleEmptyAlert"));
       cancelTitleEditing();
       window.setTimeout(() => {
         titleCommitGuardRef.current = false;
@@ -292,7 +295,7 @@ export function HomeDashboard() {
     commitHomeDocument({
       ...homeDocument,
       documentTitle: titlePendingConfirmation
-    }, "首页标题已更新");
+    }, t("home.titleUpdatedMessage"));
     setTitlePendingConfirmation(null);
     setTitleDraft("");
     titleCommitGuardRef.current = false;
@@ -339,13 +342,13 @@ export function HomeDashboard() {
                   onBlur={completeTitleEditing}
                   onChange={(event) => setTitleDraft(event.target.value)}
                   onKeyDown={handleTitleKeyDown}
-                  aria-label="首页标题"
+                  aria-label={t("home.titleInputAria")}
                 />
               </form>
             ) : (
               <h1
                 className="home-title-display"
-                title="单击编辑首页标题"
+                title={t("home.titleDisplayTitle")}
                 role="button"
                 tabIndex={0}
                 onClick={startTitleEditing}
@@ -360,28 +363,28 @@ export function HomeDashboard() {
 
       {showWelcome ? (
         <div className="welcome-template-shell">
-          <section className="welcome-strip" aria-label="新用户启动选项">
+          <section className="welcome-strip" aria-label={t("home.welcomeAria")}>
             <div className="welcome-copy">
-              <strong>开始设置你的首页</strong>
-              <span>选择模板生成一个可编辑首页，或输入同步码恢复已有首页。</span>
+              <strong>{t("home.welcomeTitle")}</strong>
+              <span>{t("home.welcomeDescription")}</span>
             </div>
             <div className="welcome-actions">
-              <button className="utility-button" type="button" onClick={openSyncCodeSetup}>输入同步码</button>
-              <button className="mini-button" type="button" onClick={dismissWelcome} aria-label="稍后再设置">稍后</button>
+              <button className="utility-button" type="button" onClick={openSyncCodeSetup}>{t("home.welcomeSyncCode")}</button>
+              <button className="mini-button" type="button" onClick={dismissWelcome} aria-label={t("home.welcomeLater")}>{t("home.welcomeLater")}</button>
             </div>
           </section>
           <div className="welcome-template-panel">
             <TemplateLibraryPanel
-              actionLabel="使用模板"
-              description="先选一个接近的起点，之后可以在首页直接删改、拖动和添加网站。"
-              title="选择首页模板"
+              actionLabel={t("home.templateAction")}
+              description={t("home.templateDescription")}
+              title={t("home.templateTitle")}
               onApply={applyTemplate}
             />
           </div>
         </div>
       ) : null}
 
-      <section className="search-panel" aria-label="搜索和过滤">
+      <section className="search-panel" aria-label={t("home.searchSectionAria")}>
         <form className="search-box" onSubmit={handleSearchSubmit}>
           <span
             className={`search-engine-logo search-engine-logo-${searchEngineDefinition.id}`}
@@ -394,18 +397,18 @@ export function HomeDashboard() {
             ref={searchInputRef}
             className="search-input"
             type="search"
-            placeholder="搜索网站，或直接输入关键词"
-            aria-label={`搜索网站或使用 ${searchEngineName} 搜索`}
+            placeholder={t("home.searchPlaceholder")}
+            aria-label={t("home.searchInputAria", { engine: searchEngineName })}
             value={activeQuery}
             onChange={(event) => setActiveQuery(event.target.value)}
           />
-          <button className="search-button" type="submit" aria-label={`使用 ${searchEngineName} 搜索`}>
+          <button className="search-button" type="submit" aria-label={t("home.searchSubmitAria", { engine: searchEngineName })}>
             <span className="search-icon" aria-hidden="true" />
           </button>
         </form>
         <div className="search-meta">
-          <span>{searchEngineName} Search</span>
-          <span><span className="search-count">{visibleCount}</span> 个入口可用</span>
+          <span>{t("home.searchEngineMeta", { engine: searchEngineName })}</span>
+          <span><span className="search-count">{format.number(visibleCount)}</span> {t("home.searchVisibleUnit")}</span>
         </div>
       </section>
 
@@ -465,17 +468,17 @@ export function HomeDashboard() {
           <section className="settings-dialog home-title-confirm-dialog">
             <header className="settings-dialog-header">
               <div>
-                <h2 id="homeTitleConfirmTitle">确认修改首页标题</h2>
-                <p id="homeTitleConfirmDescription">修改后会保存到当前首页空间，并参与后续同步和历史版本。</p>
+                <h2 id="homeTitleConfirmTitle">{t("home.titleConfirmTitle")}</h2>
+                <p id="homeTitleConfirmDescription">{t("home.titleConfirmDescription")}</p>
               </div>
-              <button className="mini-button" type="button" onClick={cancelTitleConfirmation} aria-label="关闭">×</button>
+              <button className="mini-button" type="button" onClick={cancelTitleConfirmation} aria-label={t("common.close")}>×</button>
             </header>
             <div className="settings-dialog-body">
-              <p className="home-title-confirm-preview">将首页标题改为“{titlePendingConfirmation}”？</p>
+              <p className="home-title-confirm-preview">{t("home.titleConfirmPreview", { title: titlePendingConfirmation })}</p>
             </div>
             <footer className="settings-dialog-footer">
-              <button className="utility-button" type="button" onClick={cancelTitleConfirmation}>取消</button>
-              <button ref={titleConfirmButtonRef} className="utility-button" type="button" onClick={confirmTitleChange}>确认</button>
+              <button className="utility-button" type="button" onClick={cancelTitleConfirmation}>{t("common.cancel")}</button>
+              <button ref={titleConfirmButtonRef} className="utility-button" type="button" onClick={confirmTitleChange}>{t("common.confirm")}</button>
             </footer>
           </section>
         </div>

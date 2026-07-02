@@ -38,6 +38,12 @@ import { WidgetConfigDialog } from "@/components/widgets/widget-config-dialog";
 import { WidgetShell } from "@/components/widgets/widget-shell";
 import type { I18nFormatters } from "@/i18n/formatters";
 import type { I18nTranslate } from "@/i18n/messages";
+import {
+  formatHomeWidgetDefaultTitle,
+  formatHomeWidgetDescription,
+  formatHomeWidgetTitle,
+  formatSyncStatus
+} from "@/i18n/home-presentation";
 import { useI18n } from "@/hooks/use-i18n";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
@@ -78,9 +84,10 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
+  const { t, format } = useI18n();
   const { user, loading } = useSupabaseAuth();
-  const accountLabel = user?.email ?? "Local";
-  const accountSub = loading ? "读取账号状态" : user ? "账号已登录" : "本地模式";
+  const accountLabel = user?.email ?? t("widgetPanel.accountLocal");
+  const accountSub = loading ? t("widgetPanel.accountLoading") : user ? t("widgetPanel.accountSignedIn") : t("widgetPanel.accountLocalMode");
   const accountInitial = getAccountInitial(user?.email);
 
   function commitWidgets(nextWidgets: HomeWidget[], message: string) {
@@ -101,7 +108,7 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
     const currentWidget = widgets.find((widget) => widget.id === nextWidget.id);
 
     if (currentWidget && hasWidgetSettingsChanged(currentWidget, nextWidget)) {
-      updateWidget(nextWidget, "组件设置已更新");
+      updateWidget(nextWidget, t("widgetPanel.settingsUpdated"));
     }
 
     setConfiguringWidgetId(null);
@@ -120,9 +127,12 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
       return;
     }
 
-    const nextWidget = createHomeWidget(type, { order: widgets.length + 1 });
+    const nextWidget = {
+      ...createHomeWidget(type, { order: widgets.length + 1 }),
+      title: formatHomeWidgetDefaultTitle(type, t)
+    };
 
-    commitWidgets([...widgets, nextWidget], "组件已添加");
+    commitWidgets([...widgets, nextWidget], t("widgetPanel.widgetAdded"));
     trackProductEvent("widget.added", {
       widgetType: type
     });
@@ -146,7 +156,7 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
       return;
     }
 
-    commitWidgets(arrayMove(widgets, widgetIndex, targetIndex), "组件顺序已更新");
+    commitWidgets(arrayMove(widgets, widgetIndex, targetIndex), t("widgetPanel.orderUpdated"));
   }
 
   function renameWidget(widgetId: string, title: string) {
@@ -155,7 +165,7 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
       return;
     }
 
-    commitWidgets(widgets.map((item) => item.id === widgetId ? { ...item, title } : item), "组件标题已更新");
+    commitWidgets(widgets.map((item) => item.id === widgetId ? { ...item, title } : item), t("widgetPanel.titleUpdated"));
   }
 
   function toggleWidgetCollapsed(widgetId: string) {
@@ -168,7 +178,7 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
         }
       }
       : widget
-    ), "组件布局已更新");
+    ), t("widgetPanel.layoutUpdated"));
   }
 
   function deleteWidget(widgetId: string) {
@@ -177,11 +187,11 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
       return;
     }
 
-    if (!window.confirm(`删除组件「${widget.title}」？`)) {
+    if (!window.confirm(t("widgetPanel.deleteConfirm", { widget: widget.title }))) {
       return;
     }
 
-    commitWidgets(widgets.filter((item) => item.id !== widgetId), "组件已删除");
+    commitWidgets(widgets.filter((item) => item.id !== widgetId), t("widgetPanel.widgetDeleted"));
     setConfiguringWidgetId((current) => current === widgetId ? null : current);
   }
 
@@ -205,18 +215,18 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
       return;
     }
 
-    commitWidgets(arrayMove(widgets, activeIndex, overIndex), "组件顺序已更新");
+    commitWidgets(arrayMove(widgets, activeIndex, overIndex), t("widgetPanel.orderUpdated"));
   }
 
   return (
-    <aside className="sidebar" aria-label="状态和组件">
+    <aside className="sidebar" aria-label={t("widgetPanel.sidebarAria")}>
       <section className="status-panel">
         <div className="status-head">
           <span className="avatar">{accountInitial}</span>
           <div className="status-copy">
             <div className="status-title-row">
               <p className="status-title">{accountLabel}</p>
-              <Link className="settings-button" href="/edit" aria-label="打开编辑页面" title="编辑首页">
+              <Link className="settings-button" href="/edit" aria-label={t("widgetPanel.openEditAria")} title={t("widgetPanel.openEditTitle")}>
                 <span aria-hidden="true">⚙</span>
               </Link>
             </div>
@@ -226,50 +236,50 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
         <div className="metrics">
           <div>
             <strong>{groupCount}</strong>
-            <span>分组</span>
+            <span>{t("widgetPanel.metricGroups")}</span>
           </div>
           <div>
             <strong>{siteCount}</strong>
-            <span>网站</span>
+            <span>{t("widgetPanel.metricSites")}</span>
           </div>
           <div>
             <strong>{documentValue.widgets.length}</strong>
-            <span>组件</span>
+            <span>{t("widgetPanel.metricWidgets")}</span>
           </div>
           <div>
             <strong>{documentValue.revision}</strong>
-            <span>修订</span>
+            <span>{t("widgetPanel.metricRevision")}</span>
           </div>
         </div>
         <div className="sync-row">
           <span className="dot" />
-          <span>{documentValue.syncMeta.status}</span>
+          <span>{formatSyncStatus(documentValue.syncMeta.status, t)}</span>
         </div>
-        <p className="updated-line">更新于 {updatedLabel}</p>
+        <p className="updated-line">{t("widgetPanel.updatedLine", { time: updatedLabel })}</p>
       </section>
 
       <section className={`widget-panel ${manageMode ? "is-managing" : ""}`}>
         <div className="panel-header">
           <div>
-            <h2>组件</h2>
-            <span>{widgets.length} 个组件</span>
+            <h2>{t("widgetPanel.title")}</h2>
+            <span>{t("widgetPanel.count", { count: format.number(widgets.length) })}</span>
           </div>
           <div className="widget-panel-actions">
             <button
               className={`widget-manage-button ${manageMode ? "is-active" : ""}`}
               type="button"
               aria-pressed={manageMode}
-              title={manageMode ? "完成组件管理" : "管理组件"}
+              title={manageMode ? t("widgetPanel.finishManageTitle") : t("widgetPanel.manageTitle")}
               onClick={toggleManageMode}
             >
-              {manageMode ? "完成" : "管理"}
+              {manageMode ? t("widgetPanel.finish") : t("widgetPanel.manage")}
             </button>
             <button
               className="widget-add-button"
               type="button"
               aria-expanded={pickerOpen}
-              aria-label="添加组件"
-              title="添加组件"
+              aria-label={t("widgetPanel.addAria")}
+              title={t("widgetPanel.addTitle")}
               onClick={() => setPickerOpen((current) => !current)}
             >
               +
@@ -278,7 +288,7 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
         </div>
 
         {pickerOpen ? (
-          <div className="widget-picker" aria-label="可添加组件">
+          <div className="widget-picker" aria-label={t("widgetPanel.pickerAria")}>
             {WIDGET_DEFINITIONS.map((definition) => {
               const disabled = !definition.allowMultiple && widgetTypes.has(definition.type);
 
@@ -288,11 +298,11 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
                   className="widget-option"
                   type="button"
                   disabled={disabled}
-                  title={disabled ? "该组件已添加" : `添加${definition.title}`}
+                  title={disabled ? t("widgetPanel.alreadyAddedTitle") : t("widgetPanel.addWidgetTitle", { widget: formatHomeWidgetTitle(definition.type, t) })}
                   onClick={() => addWidget(definition.type)}
                 >
-                  <strong>{definition.title}</strong>
-                  <span>{disabled ? "已添加" : definition.description}</span>
+                  <strong>{formatHomeWidgetTitle(definition.type, t)}</strong>
+                  <span>{disabled ? t("widgetPanel.alreadyAdded") : formatHomeWidgetDescription(definition.type, t)}</span>
                 </button>
               );
             })}
@@ -323,7 +333,7 @@ export function WidgetPanel({ documentValue, updatedLabel, onCommitDocument }: W
                   onUpdateWidget={updateWidget}
                 />
               )) : (
-                <p className="widget-empty">暂无组件</p>
+                <p className="widget-empty">{t("widgetPanel.empty")}</p>
               )}
             </div>
           </SortableContext>
@@ -359,7 +369,6 @@ function SortableWidgetCard({
   onToggleCollapsed,
   onUpdateWidget
 }: SortableWidgetCardProps) {
-  const definition = getWidgetDefinition(widget.type);
   const { t, format } = useI18n();
   const collapsed = widget.layout.collapsed;
   const {
@@ -383,8 +392,8 @@ function SortableWidgetCard({
       className="widget-drag-handle"
       type="button"
       disabled={widgetsLength < 2}
-      aria-label={`拖动${widget.title}排序`}
-      title="拖动排序"
+      aria-label={t("widgetPanel.dragWidgetAria", { widget: widget.title })}
+      title={t("widgetPanel.dragTitle")}
       {...attributes}
       {...listeners}
     >
@@ -395,8 +404,8 @@ function SortableWidgetCard({
   return (
     <WidgetShell
       title={widget.title}
-      defaultTitle={definition.defaultTitle}
-      description={definition.description}
+      defaultTitle={formatHomeWidgetDefaultTitle(widget.type, t)}
+      description={formatHomeWidgetDescription(widget.type, t)}
       manageMode={manageMode}
       collapsed={collapsed}
       widgetIndex={widgetIndex}

@@ -6,6 +6,12 @@ import {
   type HomeTemplateId,
   summarizeHomeTemplate
 } from "@/domain/home-template";
+import { useI18n } from "@/hooks/use-i18n";
+import {
+  formatHomeTemplateName,
+  formatHomeTemplateSummary,
+  formatHomeWidgetPresetTitle
+} from "@/i18n/home-presentation";
 
 interface TemplateLibraryPanelProps {
   actionLabel?: string;
@@ -19,21 +25,26 @@ interface TemplateLibraryPanelProps {
 }
 
 export function TemplateLibraryPanel({
-  actionLabel = "使用模板",
+  actionLabel,
   className = "",
-  description = "选择一个接近的起点，之后可以自由删除、拖拽、重命名或继续添加网站。",
+  description,
   disabled = false,
   disabledReason,
   selectedTemplateId,
-  title = "模板库",
+  title,
   onApply
 }: TemplateLibraryPanelProps) {
+  const { t } = useI18n();
+  const resolvedTitle = title ?? t("template.libraryTitle");
+  const resolvedDescription = description ?? t("template.libraryDescription");
+  const resolvedActionLabel = actionLabel ?? t("home.templateAction");
+
   return (
-    <section className={`template-library ${className}`.trim()} aria-label={title}>
+    <section className={`template-library ${className}`.trim()} aria-label={resolvedTitle}>
       <div className="template-library-header">
         <div>
-          <h2>{title}</h2>
-          <p>{description}</p>
+          <h2>{resolvedTitle}</h2>
+          <p>{resolvedDescription}</p>
         </div>
       </div>
 
@@ -41,7 +52,7 @@ export function TemplateLibraryPanel({
         {HOME_TEMPLATES.map((template) => (
           <TemplateCard
             key={template.id}
-            actionLabel={actionLabel}
+            actionLabel={resolvedActionLabel}
             disabled={disabled}
             disabledReason={disabledReason}
             selected={selectedTemplateId === template.id}
@@ -69,19 +80,28 @@ function TemplateCard({
   template: HomeTemplate;
   onApply: (template: HomeTemplate) => void;
 }) {
+  const { t, format } = useI18n();
   const summary = summarizeHomeTemplate(template);
-  const metricText = `${summary.groupCount} 个分组 · ${summary.siteCount} 个网站 · ${summary.widgetCount} 个组件`;
-  const sampleText = summary.sampleSites.length > 0 ? summary.sampleSites.join(" / ") : "不预设网站";
-  const widgetText = summary.sampleWidgets.length > 0 ? `组件：${summary.sampleWidgets.join(" / ")}` : "组件：不预设";
+  const templateName = formatHomeTemplateName(template.id, t);
+  const metricText = t("template.metricSummary", {
+    groups: format.number(summary.groupCount),
+    sites: format.number(summary.siteCount),
+    widgets: format.number(summary.widgetCount)
+  });
+  const sampleText = summary.sampleSites.length > 0 ? summary.sampleSites.join(" / ") : t("template.noPresetSites");
+  const widgetNames = template.widgets.map((preset) => formatHomeWidgetPresetTitle(preset, t));
+  const widgetText = widgetNames.length > 0
+    ? t("template.widgetSummary", { widgets: widgetNames.join(" / ") })
+    : t("template.noPresetWidgets");
 
   return (
     <article className={`template-card${selected ? " is-selected" : ""}`}>
       <div className="template-card-main">
         <div className="template-card-title-row">
           <span className="template-accent" style={{ backgroundColor: template.accent }} aria-hidden="true" />
-          <h3>{template.name}</h3>
+          <h3>{templateName}</h3>
         </div>
-        <p>{template.summary}</p>
+        <p>{formatHomeTemplateSummary(template.id, t)}</p>
       </div>
       <div className="template-card-meta">
         <span>{metricText}</span>
@@ -92,10 +112,10 @@ function TemplateCard({
         className="utility-button"
         type="button"
         disabled={disabled}
-        title={disabled ? disabledReason : `从“${template.name}”创建首页`}
+        title={disabled ? disabledReason : t("template.createTitle", { template: templateName })}
         onClick={() => onApply(template)}
       >
-        {selected ? "已选择" : actionLabel}
+        {selected ? t("template.selected") : actionLabel}
       </button>
     </article>
   );
