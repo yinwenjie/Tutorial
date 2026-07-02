@@ -7,9 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
@@ -21,9 +19,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v6
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -68,20 +63,22 @@ jobs:
           NEXT_PUBLIC_BASE_PATH: ${{ steps.base_path.outputs.value }}
         run: npm run verify:export
 
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: ./out
+      - name: Prepare Pages payload
+        run: touch out/.nojekyll
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v5
-        with:
-          timeout: 600000
+      - name: Publish to gh-pages branch
+        env:
+          GH_PAGES_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          DEPLOY_DIR="$(mktemp -d)"
+
+          cp -a out/. "$DEPLOY_DIR"/
+          git -C "$DEPLOY_DIR" init -b gh-pages
+          git -C "$DEPLOY_DIR" config user.name "github-actions[bot]"
+          git -C "$DEPLOY_DIR" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C "$DEPLOY_DIR" add -A
+          git -C "$DEPLOY_DIR" commit -m "Deploy ${GITHUB_SHA}"
+          git -C "$DEPLOY_DIR" remote add origin "https://x-access-token:${GH_PAGES_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          git -C "$DEPLOY_DIR" push --force origin gh-pages
