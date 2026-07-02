@@ -35,14 +35,14 @@
 | Build command | `npm run typecheck && npm run lint && npm run build && npm run verify:export` |
 | Build output directory | `out` |
 | Root directory | 留空或 `/` |
-| Node.js version | `22` |
+| Node.js version | `26.4.0` |
 
 ## 环境变量
 
 Production 和 Preview 都配置同一组公开前端变量：
 
 ```text
-NODE_VERSION=22
+NODE_VERSION=26.4.0
 NEXT_PUBLIC_BASE_PATH=/
 NEXT_PUBLIC_SUPABASE_URL=<current-supabase-url>
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<current-supabase-anon-key>
@@ -51,6 +51,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=<current-supabase-anon-key>
 说明：
 
 - `NEXT_PUBLIC_BASE_PATH=/` 用于显式声明 Cloudflare Pages 使用根路径构建。
+- `NODE_VERSION=26.4.0` 与仓库根目录 `.node-version` 和当前本地开发环境对齐。
 - `NEXT_PUBLIC_SUPABASE_URL` 和 `NEXT_PUBLIC_SUPABASE_ANON_KEY` 是公开前端配置，不是服务端密钥。
 - 不要配置 `PAGES_BASE_PATH=/PersonalHomepge`。
 - 不要配置 Supabase service role。

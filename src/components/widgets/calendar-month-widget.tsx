@@ -10,21 +10,24 @@ import {
   normalizeCalendarConfig,
   startOfMonth
 } from "@/domain/calendar-widget";
+import { useI18n } from "@/hooks/use-i18n";
 
 interface CalendarMonthWidgetProps {
   widget: HomeWidget;
 }
 
 export function CalendarMonthWidget({ widget }: CalendarMonthWidgetProps) {
+  const { locale, t, format } = useI18n();
   const config = useMemo(() => normalizeCalendarConfig(widget.config), [widget.config]);
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
   const today = new Date();
   const todayMonth = startOfMonth(today);
-  const calendar = useMemo(() => buildCalendarMonth(visibleMonth, config.weekStartsOn), [config.weekStartsOn, visibleMonth]);
+  const calendar = useMemo(() => buildCalendarMonth(visibleMonth, config.weekStartsOn, locale), [config.weekStartsOn, locale, visibleMonth]);
   const viewingCurrentMonth = isSameMonth(visibleMonth, todayMonth);
-  const previousMonthLabel = getMonthLabel(addMonths(visibleMonth, -1));
-  const nextMonthLabel = getMonthLabel(addMonths(visibleMonth, 1));
-  const todayLabel = `${today.getMonth() + 1}月${today.getDate()}日`;
+  const previousMonthLabel = getMonthLabel(addMonths(visibleMonth, -1), locale);
+  const nextMonthLabel = getMonthLabel(addMonths(visibleMonth, 1), locale);
+  const todayLabel = format.monthDay(today);
+  const weekStartLabel = t(config.weekStartsOn === 1 ? "calendar.weekStartMonday" : "calendar.weekStartSunday");
 
   return (
     <div className="calendar-widget">
@@ -32,21 +35,21 @@ export function CalendarMonthWidget({ widget }: CalendarMonthWidgetProps) {
         <button
           className="calendar-nav-button"
           type="button"
-          aria-label={`查看${previousMonthLabel}`}
-          title="上个月"
+          aria-label={t("calendar.previousMonthAria", { month: previousMonthLabel })}
+          title={t("calendar.previousMonthTitle")}
           onClick={() => setVisibleMonth((current) => addMonths(current, -1))}
         >
           ‹
         </button>
         <div className="calendar-month-heading">
           <strong>{calendar.label}</strong>
-          <span>{viewingCurrentMonth ? `今日 ${todayLabel}` : `今天 ${todayLabel}`}</span>
+          <span>{t(viewingCurrentMonth ? "calendar.todayCurrent" : "calendar.todayReference", { date: todayLabel })}</span>
         </div>
         <button
           className="calendar-nav-button"
           type="button"
-          aria-label={`查看${nextMonthLabel}`}
-          title="下个月"
+          aria-label={t("calendar.nextMonthAria", { month: nextMonthLabel })}
+          title={t("calendar.nextMonthTitle")}
           onClick={() => setVisibleMonth((current) => addMonths(current, 1))}
         >
           ›
@@ -58,17 +61,17 @@ export function CalendarMonthWidget({ widget }: CalendarMonthWidgetProps) {
           className={["calendar-today-button", viewingCurrentMonth ? "is-current" : ""].filter(Boolean).join(" ")}
           type="button"
           disabled={viewingCurrentMonth}
-          title={viewingCurrentMonth ? "正在查看本月" : "回到今天"}
+          title={t(viewingCurrentMonth ? "calendar.todayButtonCurrentTitle" : "calendar.todayButtonTitle")}
           onClick={() => setVisibleMonth(todayMonth)}
         >
-          回今天
+          {t("calendar.todayButton")}
         </button>
         <span className="calendar-config-summary">
-          {config.weekStartsOn === 1 ? "周一开始" : "周日开始"}
+          {weekStartLabel}
         </span>
       </div>
 
-      <div className="calendar-grid" aria-label={`${calendar.label}月历`}>
+      <div className="calendar-grid" aria-label={t("calendar.ariaLabel", { month: calendar.label })}>
         {calendar.weekLabels.map((label) => (
           <span className="calendar-weekday" key={label}>{label}</span>
         ))}
@@ -83,7 +86,7 @@ export function CalendarMonthWidget({ widget }: CalendarMonthWidgetProps) {
             key={day.key}
             dateTime={day.key}
             aria-current={day.isToday ? "date" : undefined}
-            title={`${day.key}${day.isToday ? " 今天" : ""}`}
+            title={t(day.isToday ? "calendar.todayDayTitle" : "calendar.dayTitle", { date: day.key })}
           >
             {day.day}
           </time>

@@ -39,9 +39,36 @@ v1 采用分层交付：先完成语言数据模型、Supabase 约束和系统�
 - 不修改首页文档、模板、快照、导入导出和同步码数据结构。
 - 不开始大规模 UI 文案翻译；UI 翻译从 Phase 1.15.1 之后继续推进。
 
+## Phase 1.15.1：I18n Provider 与 formatter 底座
+
+已完成：
+
+- 新增静态 dictionary 底座，`zh-CN` 作为 source of truth，其他支持语言可按 key 增量覆盖并回落到 `zh-CN`。
+- 新增 `I18nProvider` 和 `useI18n()`，从 UI 偏好派生 resolved locale，避免把 `system` 传给运行时渲染和格式化。
+- 新增统一 formatter 底座，收口日期时间、短日期时间、年月、月日、日、星期标签和数字格式化。
+- 将 `I18nProvider` 接入应用运行时壳层，挂在 `UiPreferencesProvider` 内部，确保账号/本地语言偏好生效后再派生 i18n 状态。
+- 首页日期标签和更新时间改为使用统一 formatter。
+- 月历组件的月份、星期标签、今天、周起始、aria label 和导航 title 改为使用 i18n runtime。
+- 组件折叠摘要中的 Todo 和月历摘要改为使用 i18n runtime 与 formatter。
+- `src/domain/calendar-widget.ts` 去除硬编码 `zh-CN` 月份和中文星期标签，改为接收 resolved locale。
+
+数据与架构边界：
+
+- 不修改 `HomeDocumentV2`。
+- 不新增 Supabase 表、migration、RPC 或 Storage 配置。
+- 不修改首页文档、模板、快照、导入导出和同步码数据结构。
+- 不把模板、默认首页分组名、用户自定义标题或历史快照内容翻译后写回文档。
+- 不做全站文案翻译；设置页、同步、恢复和剩余组件文案进入后续子阶段。
+
+验证：
+
+- `npm run typecheck` 通过。
+- `npm run lint` 通过。
+- `npm run build` 通过。
+- `npm run verify:export` 通过。
+
 后续任务：
 
-- Phase 1.15.1：I18n Provider 与 formatter 底座。
 - Phase 1.15.2：设置页语言选择落地。
 - Phase 1.15.3：首页主路径本地化。
 - Phase 1.15.4：设置页核心路径本地化。

@@ -1,3 +1,6 @@
+import { DEFAULT_RESOLVED_LOCALE, type ResolvedLocale } from "@/domain/ui-preferences";
+import { formatMonthYear, formatWeekdayLabels } from "@/i18n/formatters";
+
 export type WeekStart = 0 | 1;
 
 export interface CalendarMonthConfig extends Record<string, unknown> {
@@ -21,17 +24,16 @@ export interface CalendarMonth {
   days: CalendarDayCell[];
 }
 
-const WEEK_LABELS: Record<WeekStart, string[]> = {
-  0: ["日", "一", "二", "三", "四", "五", "六"],
-  1: ["一", "二", "三", "四", "五", "六", "日"]
-};
-
 export function normalizeCalendarConfig(input: unknown): CalendarMonthConfig {
   const weekStartsOn = isRecord(input) && Number(input.weekStartsOn) === 0 ? 0 : 1;
   return { weekStartsOn };
 }
 
-export function buildCalendarMonth(anchorDate: Date, weekStartsOn: WeekStart): CalendarMonth {
+export function buildCalendarMonth(
+  anchorDate: Date,
+  weekStartsOn: WeekStart,
+  locale: ResolvedLocale = DEFAULT_RESOLVED_LOCALE
+): CalendarMonth {
   const year = anchorDate.getFullYear();
   const month = anchorDate.getMonth();
   const firstDay = new Date(year, month, 1);
@@ -54,8 +56,8 @@ export function buildCalendarMonth(anchorDate: Date, weekStartsOn: WeekStart): C
   return {
     year,
     month,
-    label: getMonthLabel(anchorDate),
-    weekLabels: WEEK_LABELS[weekStartsOn],
+    label: getMonthLabel(anchorDate, locale),
+    weekLabels: formatWeekdayLabels(locale, weekStartsOn),
     days
   };
 }
@@ -68,11 +70,8 @@ export function startOfMonth(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), 1);
 }
 
-export function getMonthLabel(date: Date): string {
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "long",
-    year: "numeric"
-  }).format(date);
+export function getMonthLabel(date: Date, locale: ResolvedLocale = DEFAULT_RESOLVED_LOCALE): string {
+  return formatMonthYear(date, locale);
 }
 
 export function isSameMonth(left: Date, right: Date): boolean {

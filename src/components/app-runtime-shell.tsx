@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { ErrorMonitorBoundary } from "@/components/error-monitor-boundary";
 import { ErrorMonitoringInstaller } from "@/components/error-monitoring-installer";
 import { SupabaseAuthProvider } from "@/providers/supabase-auth-provider";
+import { I18nProvider } from "@/providers/i18n-provider";
 import { UiPreferencesProvider } from "@/providers/ui-preferences-provider";
 
 interface AppRuntimeShellProps {
@@ -15,7 +16,9 @@ export function AppRuntimeShell({ children }: AppRuntimeShellProps) {
     <ErrorMonitorBoundary>
       <ErrorMonitoringInstaller />
       <SupabaseAuthProvider>
-        <UiPreferencesProvider>{children}</UiPreferencesProvider>
+        <UiPreferencesProvider>
+          <I18nProvider>{children}</I18nProvider>
+        </UiPreferencesProvider>
       </SupabaseAuthProvider>
     </ErrorMonitorBoundary>
   );

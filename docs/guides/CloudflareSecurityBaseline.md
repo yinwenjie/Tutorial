@@ -67,7 +67,7 @@ Get-Content out\_headers
 - Build command 是 `npm run typecheck && npm run lint && npm run build && npm run verify:export`。
 - Output directory 是 `out`。
 - Environment variables 中只有公开前端变量：
-  - `NODE_VERSION=22`
+  - `NODE_VERSION=26.4.0`
   - `NEXT_PUBLIC_BASE_PATH=/`
   - `NEXT_PUBLIC_SUPABASE_URL`
   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`

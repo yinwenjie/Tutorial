@@ -36,6 +36,9 @@ import { CalendarMonthWidget } from "@/components/widgets/calendar-month-widget"
 import { TodoListWidget } from "@/components/widgets/todo-list-widget";
 import { WidgetConfigDialog } from "@/components/widgets/widget-config-dialog";
 import { WidgetShell } from "@/components/widgets/widget-shell";
+import type { I18nFormatters } from "@/i18n/formatters";
+import type { I18nTranslate } from "@/i18n/messages";
+import { useI18n } from "@/hooks/use-i18n";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
 
@@ -357,6 +360,7 @@ function SortableWidgetCard({
   onUpdateWidget
 }: SortableWidgetCardProps) {
   const definition = getWidgetDefinition(widget.type);
+  const { t, format } = useI18n();
   const collapsed = widget.layout.collapsed;
   const {
     attributes,
@@ -397,7 +401,7 @@ function SortableWidgetCard({
       collapsed={collapsed}
       widgetIndex={widgetIndex}
       widgetsLength={widgetsLength}
-      collapsedSummary={getWidgetCollapsedSummary(widget)}
+      collapsedSummary={getWidgetCollapsedSummary(widget, t, format)}
       dragHandle={dragHandle}
       isDragging={isDragging}
       articleRef={setNodeRef}
@@ -436,27 +440,34 @@ function hasWidgetSettingsChanged(currentWidget: HomeWidget, nextWidget: HomeWid
     || JSON.stringify(currentWidget.config) !== JSON.stringify(nextWidget.config);
 }
 
-function getWidgetCollapsedSummary(widget: HomeWidget): string {
+function getWidgetCollapsedSummary(widget: HomeWidget, t: I18nTranslate, format: I18nFormatters): string {
   if (widget.type === "todo.list") {
     const stats = getTodoStats(readTodoItems(widget.config));
     if (stats.total === 0) {
-      return "暂无任务";
+      return t("widget.todoEmpty");
     }
 
-    return `${stats.active} 项待办 / ${stats.total} 项任务`;
+    return t("widget.todoSummary", {
+      active: format.number(stats.active),
+      total: format.number(stats.total)
+    });
   }
 
   if (widget.type === "calendar.month") {
     const config = normalizeCalendarConfig(widget.config);
     const now = new Date();
-    const monthLabel = `${now.getFullYear()}年${now.getMonth() + 1}月`;
-    const todayLabel = `今日 ${now.getDate()}日`;
-    const weekStartLabel = config.weekStartsOn === 1 ? "周一开始" : "周日开始";
+    const monthLabel = format.monthYear(now);
+    const todayLabel = t("calendar.todayCurrent", { date: format.dayOfMonth(now) });
+    const weekStartLabel = t(config.weekStartsOn === 1 ? "calendar.weekStartMonday" : "calendar.weekStartSunday");
 
-    return `${monthLabel} · ${todayLabel} · ${weekStartLabel}`;
+    return t("widget.calendarSummary", {
+      month: monthLabel,
+      today: todayLabel,
+      weekStart: weekStartLabel
+    });
   }
 
-  return "组件已折叠";
+  return t("widget.collapsedFallback");
 }
 
 function readWidgetIdFromDragId(value: unknown): string | null {

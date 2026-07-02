@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import {
   buildSearchUrl,
   getSearchEngineDefinition,
-  resolveLocalePreference,
   searchEngineLabel
 } from "@/domain/ui-preferences";
 import { summarizeDocumentForAnalytics } from "@/domain/product-analytics";
@@ -29,6 +28,7 @@ import { TemplateLibraryPanel } from "@/components/template-library-panel";
 import { WidgetPanel } from "@/components/widget-panel";
 import { useHomeDocumentController } from "@/hooks/use-home-document-controller";
 import { useHomeDocumentEditor } from "@/hooks/use-home-document-editor";
+import { useI18n } from "@/hooks/use-i18n";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 import { useUiPreferences } from "@/hooks/use-ui-preferences";
 import type { LocalHomeSnapshotSource } from "@/infrastructure/local-home-snapshot-repository";
@@ -62,6 +62,7 @@ export function HomeDashboard() {
     deleteGroup,
     deleteSite
   } = useHomeDocumentEditor({ homeDocument, commitHomeDocument });
+  const { format } = useI18n();
   const [activeQuery, setActiveQuery] = useState("");
   const [todayLabel, setTodayLabel] = useState("");
   const [showWelcome, setShowWelcome] = useState(false);
@@ -73,7 +74,6 @@ export function HomeDashboard() {
   const titleConfirmButtonRef = useRef<HTMLButtonElement | null>(null);
   const titleCommitGuardRef = useRef(false);
   const homeViewedTrackedRef = useRef(false);
-  const locale = resolveLocalePreference(preferences.locale);
   const searchEngine = preferences.defaultSearchEngine;
   const searchEngineName = searchEngineLabel(searchEngine);
   const searchEngineDefinition = getSearchEngineDefinition(searchEngine);
@@ -83,15 +83,11 @@ export function HomeDashboard() {
 
   useEffect(() => {
     const timerId = window.setTimeout(() => {
-      setTodayLabel(new Intl.DateTimeFormat(locale, {
-        weekday: "long",
-        month: "long",
-        day: "numeric"
-      }).format(new Date()));
+      setTodayLabel(format.weekdayMonthDay(new Date()));
     }, 0);
 
     return () => window.clearTimeout(timerId);
-  }, [locale]);
+  }, [format]);
 
   useEffect(() => {
     document.title = documentTitle;
@@ -127,13 +123,8 @@ export function HomeDashboard() {
   }, [titlePendingConfirmation]);
 
   const updatedLabel = useMemo(() => {
-    return new Intl.DateTimeFormat(locale, {
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit"
-    }).format(new Date(homeDocument.updatedAt));
-  }, [homeDocument.updatedAt, locale]);
+    return format.shortDateTime(new Date(homeDocument.updatedAt));
+  }, [format, homeDocument.updatedAt]);
 
   useEffect(() => {
     if (!storageReady) {
