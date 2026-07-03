@@ -9,7 +9,6 @@ import {
   calculateBookmarkImportGroupStats,
   createBookmarkImportDraft,
   filterBookmarkImportItems,
-  getBookmarkImportStatusLabel,
   isBookmarkImportItemSelectable,
   resetBookmarkImportDefaultSelection,
   setBookmarkImportGroupMapping,
@@ -34,6 +33,8 @@ import { captureClientError } from "@/infrastructure/error-monitoring-repository
 import { BookmarkImportStorageRepository } from "@/infrastructure/bookmark-import-storage";
 import type { LocalHomeSnapshotSource } from "@/infrastructure/local-home-snapshot-repository";
 import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
+import { useI18n } from "@/hooks/use-i18n";
+import type { I18nTranslate } from "@/i18n/messages";
 
 interface BookmarkImportPanelProps {
   documentValue: HomeDocumentV2;
@@ -83,12 +84,13 @@ export function BookmarkImportPanel({
   onBeforeOverwrite,
   onCommitDocument
 }: BookmarkImportPanelProps) {
+  const { t } = useI18n();
   const storageRepositoryRef = useRef<BookmarkImportStorageRepository | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [draft, setDraft] = useState<BookmarkImportDraft | null>(null);
   const [step, setStep] = useState<ImportDialogStep>("source");
   const [storageRefreshKey, setStorageRefreshKey] = useState(0);
-  const [message, setMessage] = useState("书签文件和 URL 列表只在当前浏览器本地解析。");
+  const [message, setMessage] = useState(() => t("settings.import.panelDefault"));
   const [messageTone, setMessageTone] = useState<StatusTone>("neutral");
   const storageState = useSyncExternalStore(
     subscribeBookmarkImportStorage,
@@ -115,7 +117,7 @@ export function BookmarkImportPanel({
     setDraft(null);
     setStep("source");
     setDialogOpen(true);
-    setMessage("请选择书签 HTML 文件，或粘贴一组 URL。");
+    setMessage(t("settings.import.chooseSource"));
     setMessageTone("neutral");
     trackProductEvent("bookmark_import.opened", {
       source: "settings"
@@ -125,7 +127,7 @@ export function BookmarkImportPanel({
   function continueSavedDraft() {
     const savedDraft = getStorageRepository()?.loadDraft(documentValue.documentId);
     if (!savedDraft) {
-      setMessage("没有可继续的导入草稿，或草稿已过期。");
+      setMessage(t("settings.import.noDraft"));
       setMessageTone("warning");
       refreshSavedState();
       return;
@@ -134,7 +136,7 @@ export function BookmarkImportPanel({
     setDraft(savedDraft);
     setStep("summary");
     setDialogOpen(true);
-    setMessage("已恢复上次导入草稿。");
+    setMessage(t("settings.import.draftRestored"));
     setMessageTone("success");
   }
 
@@ -161,14 +163,14 @@ export function BookmarkImportPanel({
         },
         severity: "warning"
       });
-      setMessage("导入草稿无法写入 localStorage；刷新页面后草稿可能丢失。");
+      setMessage(t("settings.import.draftSaveFailed"));
       setMessageTone("warning");
     }
   }
 
   function closeDialog() {
     if (draft) {
-      setMessage("导入草稿已保留 24 小时。");
+      setMessage(t("settings.import.draftKept"));
       setMessageTone("neutral");
     }
     setDialogOpen(false);
@@ -178,7 +180,7 @@ export function BookmarkImportPanel({
   function discardDraft() {
     persistDraft(null);
     setStep("source");
-    setMessage("导入草稿已丢弃。");
+    setMessage(t("settings.import.draftDiscarded"));
     setMessageTone("neutral");
   }
 
@@ -189,13 +191,13 @@ export function BookmarkImportPanel({
 
     const result = applyBookmarkImportDraft(documentValue, draft);
     if (result.addedSiteCount === 0) {
-      setMessage("没有选中可导入的网站。");
+      setMessage(t("settings.import.noSelectedSites"));
       setMessageTone("warning");
       return;
     }
 
     if (!onBeforeOverwrite("before-bookmark-import")) {
-      setMessage("未能保存当前首页，已取消导入。");
+      setMessage(t("settings.import.protectFailed"));
       setMessageTone("danger");
       return;
     }
@@ -224,7 +226,7 @@ export function BookmarkImportPanel({
       undoSaved = false;
     }
 
-    onCommitDocument(result.document, `已导入 ${result.addedSiteCount} 个网站`);
+    onCommitDocument(result.document, t("settings.import.commitMessage", { count: result.addedSiteCount }));
     trackProductEvent("bookmark_import.completed", {
       groupCountBucket: bucketCount(result.addedGroupIds.length),
       siteCountBucket: bucketCount(result.addedSiteCount),
@@ -235,34 +237,34 @@ export function BookmarkImportPanel({
     setDialogOpen(false);
     refreshSavedState();
     setMessage(undoSaved
-      ? `已导入 ${result.addedSiteCount} 个网站。`
-      : `已导入 ${result.addedSiteCount} 个网站，但撤销记录无法写入 localStorage。`);
+      ? t("settings.import.imported", { count: result.addedSiteCount })
+      : t("settings.import.importedUndoFailed", { count: result.addedSiteCount }));
     setMessageTone(undoSaved ? "success" : "warning");
   }
 
   function undoLastImport() {
     const undo = getStorageRepository()?.loadUndo(documentValue.documentId);
     if (!undo) {
-      setMessage("没有可撤销的最近一次导入，或撤销记录已过期。");
+      setMessage(t("settings.import.noUndo"));
       setMessageTone("warning");
       refreshSavedState();
       return;
     }
 
-    if (!window.confirm("撤销会移除最近一次导入新增的网站；如果之后移动过这些网站，会尽量按网站 ID 清理。继续？")) {
+    if (!window.confirm(t("settings.import.undoConfirm"))) {
       return;
     }
 
     if (!onBeforeOverwrite("before-bookmark-import-undo")) {
-      setMessage("未能保存当前首页，已取消撤销。");
+      setMessage(t("settings.import.undoProtectFailed"));
       setMessageTone("danger");
       return;
     }
 
-    onCommitDocument(applyBookmarkImportUndo(documentValue, undo), "已撤销最近一次导入");
+    onCommitDocument(applyBookmarkImportUndo(documentValue, undo), t("settings.import.undoCommitMessage"));
     getStorageRepository()?.clearUndo();
     refreshSavedState();
-    setMessage("已撤销最近一次导入。");
+    setMessage(t("settings.import.undoDone"));
     setMessageTone("success");
   }
 
@@ -270,27 +272,27 @@ export function BookmarkImportPanel({
     <>
       <div className="advanced-operation-block">
         <div className="advanced-operation-head">
-          <h3>收藏 / 链接导入</h3>
-          <span>Import</span>
+          <h3>{t("settings.import.title")}</h3>
+          <span>{t("settings.import.kicker")}</span>
         </div>
         <div className="settings-actions">
           <button
             className="utility-button"
             type="button"
             disabled={!storageReady}
-            title={storageReady ? "导入浏览器书签 HTML 或 URL 列表" : "本地存储尚未就绪，请稍后重试。"}
+            title={storageReady ? t("settings.import.openTitle") : t("settings.common.storageNotReady")}
             onClick={openNewImportDialog}
           >
-            导入收藏/链接
+            {t("settings.import.open")}
           </button>
           {hasSavedDraft ? (
             <button className="utility-button" type="button" onClick={continueSavedDraft}>
-              继续上次导入
+              {t("settings.import.continueDraft")}
             </button>
           ) : null}
           {hasUndo ? (
             <button className="utility-button" type="button" onClick={undoLastImport}>
-              撤销最近一次导入
+              {t("settings.import.undo")}
             </button>
           ) : null}
         </div>
@@ -304,6 +306,7 @@ export function BookmarkImportPanel({
           documentValue={documentValue}
           draft={draft}
           step={step}
+          t={t}
           onChangeDraft={persistDraft}
           onChangeStep={setStep}
           onClose={closeDialog}
@@ -323,11 +326,13 @@ function BookmarkImportDialog({
   onChangeStep,
   onClose,
   onCommit,
-  onDiscardDraft
+  onDiscardDraft,
+  t
 }: {
   documentValue: HomeDocumentV2;
   draft: BookmarkImportDraft | null;
   step: ImportDialogStep;
+  t: I18nTranslate;
   onChangeDraft: (draft: BookmarkImportDraft | null) => void;
   onChangeStep: (step: ImportDialogStep) => void;
   onClose: () => void;
@@ -337,7 +342,7 @@ function BookmarkImportDialog({
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [sourceKind, setSourceKind] = useState<BookmarkImportSourceKind>("bookmark-html");
   const [urlListText, setUrlListText] = useState("");
-  const [dialogMessage, setDialogMessage] = useState("选择导入来源后，会先生成可预览的本地草稿。");
+  const [dialogMessage, setDialogMessage] = useState(() => t("settings.import.dialogDefault"));
   const [dialogTone, setDialogTone] = useState<StatusTone>("neutral");
   const [statusFilter, setStatusFilter] = useState<BookmarkImportStatusFilter>("all");
   const [groupFilter, setGroupFilter] = useState("all");
@@ -365,12 +370,12 @@ function BookmarkImportDialog({
 
     try {
       if (file.size > BOOKMARK_HTML_MAX_BYTES) {
-        throw new Error("书签 HTML 文件不能超过 10MB。");
+        throw new Error(t("settings.import.htmlTooLarge"));
       }
 
       const sourceItems = parseBookmarkHtml(await file.text());
       if (sourceItems.length === 0) {
-        throw new Error("没有在文件中找到可导入的链接。");
+        throw new Error(t("settings.import.noLinksInFile"));
       }
 
       const nextDraft = createBookmarkImportDraft({
@@ -382,7 +387,7 @@ function BookmarkImportDialog({
       onChangeDraft(nextDraft);
       onChangeStep("summary");
       resetPreviewFilters();
-      setDialogMessage(`已解析 ${nextDraft.stats.totalItems} 条书签。`);
+      setDialogMessage(t("settings.import.parsedBookmarks", { count: nextDraft.stats.totalItems }));
       setDialogTone("success");
       trackProductEvent("bookmark_import.parsed", {
         groupCountBucket: bucketCount(nextDraft.stats.candidateGroups),
@@ -390,7 +395,7 @@ function BookmarkImportDialog({
         sourceKind: "bookmark-html"
       });
     } catch (error) {
-      setDialogMessage(error instanceof Error ? error.message : "书签 HTML 解析失败。");
+      setDialogMessage(error instanceof Error ? error.message : t("settings.import.htmlParseFailed"));
       setDialogTone("danger");
       trackProductEvent("bookmark_import.failed", {
         reasonCode: getImportFailureReason(error),
@@ -407,24 +412,24 @@ function BookmarkImportDialog({
     try {
       const lineCount = urlListText.split(/\r?\n/).length;
       if (lineCount > URL_LIST_MAX_LINES) {
-        throw new Error("URL 列表不能超过 5000 行。");
+        throw new Error(t("settings.import.urlListTooLarge"));
       }
 
       const sourceItems = parseUrlList(urlListText);
       if (sourceItems.length === 0) {
-        throw new Error("没有找到可导入的 URL。");
+        throw new Error(t("settings.import.noUrls"));
       }
 
       const nextDraft = createBookmarkImportDraft({
         documentValue,
         sourceItems,
         sourceKind: "url-list",
-        sourceName: "URL 列表"
+        sourceName: t("settings.import.source.urlList")
       });
       onChangeDraft(nextDraft);
       onChangeStep("summary");
       resetPreviewFilters();
-      setDialogMessage(`已解析 ${nextDraft.stats.totalItems} 条 URL。`);
+      setDialogMessage(t("settings.import.parsedUrls", { count: nextDraft.stats.totalItems }));
       setDialogTone("success");
       trackProductEvent("bookmark_import.parsed", {
         groupCountBucket: bucketCount(nextDraft.stats.candidateGroups),
@@ -432,7 +437,7 @@ function BookmarkImportDialog({
         sourceKind: "url-list"
       });
     } catch (error) {
-      setDialogMessage(error instanceof Error ? error.message : "URL 列表解析失败。");
+      setDialogMessage(error instanceof Error ? error.message : t("settings.import.urlParseFailed"));
       setDialogTone("danger");
       trackProductEvent("bookmark_import.failed", {
         reasonCode: getImportFailureReason(error),
@@ -456,7 +461,7 @@ function BookmarkImportDialog({
   function handleDiscardDraft() {
     onDiscardDraft();
     resetPreviewFilters();
-    setDialogMessage("导入草稿已丢弃。");
+    setDialogMessage(t("settings.import.draftDiscarded"));
     setDialogTone("neutral");
   }
 
@@ -466,7 +471,7 @@ function BookmarkImportDialog({
     updateDraft(setBookmarkImportGroupMapping(draftRequired(draft), group.id, {
       mode: nextMode,
       targetGroupId: nextMode === "merge" ? targetGroup?.id ?? null : nextMode === "ungrouped" ? UNGROUPED_GROUP_ID : null,
-      targetGroupTitle: nextMode === "merge" ? targetGroup?.title ?? group.targetGroupTitle : nextMode === "ungrouped" ? "未分组" : nextMode === "skip" ? "跳过" : group.suggestedTitle
+      targetGroupTitle: nextMode === "merge" ? targetGroup?.title ?? group.targetGroupTitle : nextMode === "ungrouped" ? t("settings.import.ungrouped") : nextMode === "skip" ? t("settings.import.mode.skip") : group.suggestedTitle
     }));
   }
 
@@ -506,13 +511,13 @@ function BookmarkImportDialog({
       <section className="settings-dialog settings-dialog-wide bookmark-import-dialog">
         <div className="settings-dialog-header">
           <div>
-            <h2 id="bookmarkImportTitle">导入收藏 / 链接</h2>
-            <p>普通网页不能自动读取浏览器收藏夹；这里只处理你主动提供的文件或 URL。</p>
+            <h2 id="bookmarkImportTitle">{t("settings.import.dialogTitle")}</h2>
+            <p>{t("settings.import.dialogDescription")}</p>
           </div>
-          <button className="mini-button" type="button" onClick={onClose} aria-label="关闭">×</button>
+          <button className="mini-button" type="button" onClick={onClose} aria-label={t("settings.common.close")}>×</button>
         </div>
 
-        <div className="bookmark-import-stepper" aria-label="导入步骤">
+        <div className="bookmark-import-stepper" aria-label={t("settings.import.stepsAria")}>
           {(["source", "summary", "groups", "preview", "confirm"] as const).map((item, index) => (
             <button
               key={item}
@@ -522,7 +527,7 @@ function BookmarkImportDialog({
               onClick={() => onChangeStep(item)}
             >
               <span>{index + 1}</span>
-              {getStepLabel(item)}
+              {getStepLabel(item, t)}
             </button>
           ))}
         </div>
@@ -532,6 +537,7 @@ function BookmarkImportDialog({
             <BookmarkImportSourceStep
               fileInputRef={fileInputRef}
               sourceKind={sourceKind}
+              t={t}
               urlListText={urlListText}
               onBookmarkFileChange={handleBookmarkFileChange}
               onChangeSourceKind={setSourceKind}
@@ -540,12 +546,13 @@ function BookmarkImportDialog({
             />
           ) : null}
 
-          {draft && step === "summary" ? <BookmarkImportSummaryStep draft={draft} /> : null}
+          {draft && step === "summary" ? <BookmarkImportSummaryStep draft={draft} t={t} /> : null}
 
           {draft && step === "groups" ? (
             <BookmarkImportGroupsStep
               draft={draft}
               existingGroups={existingGroups}
+              t={t}
               onChangeGroupMode={updateGroupMode}
               onChangeGroupTarget={updateGroupTarget}
               onChangeGroupTitle={updateGroupTitle}
@@ -562,6 +569,7 @@ function BookmarkImportDialog({
               pagedItems={pagedItems}
               query={query}
               statusFilter={statusFilter}
+              t={t}
               totalPages={totalPages}
               onBulkSelect={bulkSelect}
               onChangeGroupFilter={(value) => {
@@ -587,7 +595,7 @@ function BookmarkImportDialog({
             />
           ) : null}
 
-          {draft && step === "confirm" ? <BookmarkImportConfirmStep documentValue={documentValue} draft={draft} /> : null}
+          {draft && step === "confirm" ? <BookmarkImportConfirmStep documentValue={documentValue} draft={draft} t={t} /> : null}
 
           <StatusMessage role={dialogTone === "danger" ? "alert" : "status"} tone={dialogTone}>
             {dialogMessage}
@@ -597,19 +605,19 @@ function BookmarkImportDialog({
         <div className="settings-dialog-footer bookmark-import-footer">
           {draft ? (
             <button className="utility-button" type="button" onClick={handleDiscardDraft}>
-              丢弃草稿
+              {t("settings.import.discardDraft")}
             </button>
           ) : null}
           <span className="bookmark-import-footer-spacer" />
-          <button className="utility-button" type="button" onClick={onClose}>关闭</button>
+          <button className="utility-button" type="button" onClick={onClose}>{t("settings.common.close")}</button>
           {step !== "source" ? (
-            <button className="utility-button" type="button" onClick={() => onChangeStep(getPreviousStep(step))}>上一步</button>
+            <button className="utility-button" type="button" onClick={() => onChangeStep(getPreviousStep(step))}>{t("settings.import.previous")}</button>
           ) : null}
           {step !== "confirm" ? (
-            <button className="utility-button" type="button" disabled={!canGoNext} onClick={() => onChangeStep(getNextStep(step))}>下一步</button>
+            <button className="utility-button" type="button" disabled={!canGoNext} onClick={() => onChangeStep(getNextStep(step))}>{t("settings.import.next")}</button>
           ) : (
             <button className="utility-button" type="button" disabled={!draft || draft.stats.selectedItems === 0} onClick={onCommit}>
-              确认导入 {draft?.stats.selectedItems ?? 0} 个网站
+              {t("settings.import.confirmImport", { count: draft?.stats.selectedItems ?? 0 })}
             </button>
           )}
         </div>
@@ -621,6 +629,7 @@ function BookmarkImportDialog({
 function BookmarkImportSourceStep({
   fileInputRef,
   sourceKind,
+  t,
   urlListText,
   onBookmarkFileChange,
   onChangeSourceKind,
@@ -629,6 +638,7 @@ function BookmarkImportSourceStep({
 }: {
   fileInputRef: RefObject<HTMLInputElement | null>;
   sourceKind: BookmarkImportSourceKind;
+  t: I18nTranslate;
   urlListText: string;
   onBookmarkFileChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onChangeSourceKind: (sourceKind: BookmarkImportSourceKind) => void;
@@ -637,21 +647,21 @@ function BookmarkImportSourceStep({
 }) {
   return (
     <div className="bookmark-import-source">
-      <div className="bookmark-import-source-tabs" role="tablist" aria-label="导入来源">
+      <div className="bookmark-import-source-tabs" role="tablist" aria-label={t("settings.import.sourceAria")}>
         <button className={sourceKind === "bookmark-html" ? "is-active" : ""} type="button" onClick={() => onChangeSourceKind("bookmark-html")}>
-          书签 HTML
+          {t("settings.import.source.bookmarkHtml")}
         </button>
         <button className={sourceKind === "url-list" ? "is-active" : ""} type="button" onClick={() => onChangeSourceKind("url-list")}>
-          URL 列表
+          {t("settings.import.source.urlList")}
         </button>
       </div>
 
       {sourceKind === "bookmark-html" ? (
         <div className="bookmark-import-source-card">
-          <strong>导入浏览器导出的书签文件</strong>
-          <p>支持 Chrome、Edge、Firefox、Safari 常见的 bookmarks HTML。文件只在本浏览器本地解析，不会上传原始文件。</p>
+          <strong>{t("settings.import.htmlTitle")}</strong>
+          <p>{t("settings.import.htmlDescription")}</p>
           <div className="settings-actions">
-            <label className="file-button" htmlFor="bookmarkImportHtmlInput">选择 HTML 文件</label>
+            <label className="file-button" htmlFor="bookmarkImportHtmlInput">{t("settings.import.chooseHtml")}</label>
             <input
               ref={fileInputRef}
               id="bookmarkImportHtmlInput"
@@ -665,7 +675,7 @@ function BookmarkImportSourceStep({
       ) : (
         <div className="bookmark-import-source-card">
           <label className="field">
-            <span>URL 列表</span>
+            <span>{t("settings.import.source.urlList")}</span>
             <textarea
               value={urlListText}
               placeholder={"https://example.com/\n[OpenAI](https://openai.com/)"}
@@ -674,7 +684,7 @@ function BookmarkImportSourceStep({
           </label>
           <div className="settings-actions">
             <button className="utility-button" type="button" disabled={!urlListText.trim()} onClick={onSubmitUrlList}>
-              解析 URL 列表
+              {t("settings.import.parseUrls")}
             </button>
           </div>
         </div>
@@ -683,33 +693,33 @@ function BookmarkImportSourceStep({
   );
 }
 
-function BookmarkImportSummaryStep({ draft }: { draft: BookmarkImportDraft }) {
+function BookmarkImportSummaryStep({ draft, t }: { draft: BookmarkImportDraft; t: I18nTranslate }) {
   return (
     <div className="bookmark-import-summary">
-      <BookmarkImportStatsGrid draft={draft} />
+      <BookmarkImportStatsGrid draft={draft} t={t} />
       <div className="bookmark-import-notes">
-        {draft.stats.selectedItems > 500 ? <StatusMessage tone="warning">本次默认选中 {draft.stats.selectedItems} 个网站，建议先按分组分批导入。</StatusMessage> : null}
-        {draft.stats.newGroupCount > 30 ? <StatusMessage tone="warning">预计新建 {draft.stats.newGroupCount} 个分组，建议先检查分组映射。</StatusMessage> : null}
-        {draft.stats.invalidItems > 0 ? <StatusMessage tone="warning">有 {draft.stats.invalidItems} 条无效链接，确认时会跳过。</StatusMessage> : null}
+        {draft.stats.selectedItems > 500 ? <StatusMessage tone="warning">{t("settings.import.noteManySites", { count: draft.stats.selectedItems })}</StatusMessage> : null}
+        {draft.stats.newGroupCount > 30 ? <StatusMessage tone="warning">{t("settings.import.noteManyGroups", { count: draft.stats.newGroupCount })}</StatusMessage> : null}
+        {draft.stats.invalidItems > 0 ? <StatusMessage tone="warning">{t("settings.import.noteInvalid", { count: draft.stats.invalidItems })}</StatusMessage> : null}
       </div>
     </div>
   );
 }
 
-function BookmarkImportStatsGrid({ draft }: { draft: BookmarkImportDraft }) {
+function BookmarkImportStatsGrid({ draft, t }: { draft: BookmarkImportDraft; t: I18nTranslate }) {
   const stats = draft.stats;
 
   return (
     <div className="bookmark-import-stats">
-      <Stat label="总条目" value={stats.totalItems} />
-      <Stat label="有效 URL" value={stats.validItems} />
-      <Stat label="默认选中" value={stats.selectedItems} />
-      <Stat label="当前重复" value={stats.currentDuplicateItems} />
-      <Stat label="批次重复" value={stats.importDuplicateItems} />
-      <Stat label="同域名提示" value={stats.hostMatchItems} />
-      <Stat label="无效 URL" value={stats.invalidItems} />
-      <Stat label="候选分组" value={stats.candidateGroups} />
-      <Stat label="预计新分组" value={stats.newGroupCount} />
+      <Stat label={t("settings.import.stat.total")} value={stats.totalItems} />
+      <Stat label={t("settings.import.stat.valid")} value={stats.validItems} />
+      <Stat label={t("settings.import.stat.selected")} value={stats.selectedItems} />
+      <Stat label={t("settings.import.stat.currentDuplicates")} value={stats.currentDuplicateItems} />
+      <Stat label={t("settings.import.stat.importDuplicates")} value={stats.importDuplicateItems} />
+      <Stat label={t("settings.import.stat.hostMatches")} value={stats.hostMatchItems} />
+      <Stat label={t("settings.import.stat.invalid")} value={stats.invalidItems} />
+      <Stat label={t("settings.import.stat.candidateGroups")} value={stats.candidateGroups} />
+      <Stat label={t("settings.import.stat.newGroups")} value={stats.newGroupCount} />
     </div>
   );
 }
@@ -726,12 +736,14 @@ function Stat({ label, value }: { label: string; value: number }) {
 function BookmarkImportGroupsStep({
   draft,
   existingGroups,
+  t,
   onChangeGroupMode,
   onChangeGroupTarget,
   onChangeGroupTitle
 }: {
   draft: BookmarkImportDraft;
   existingGroups: HomeGroup[];
+  t: I18nTranslate;
   onChangeGroupMode: (group: BookmarkImportDraftGroup, mode: string) => void;
   onChangeGroupTarget: (group: BookmarkImportDraftGroup, targetGroupId: string) => void;
   onChangeGroupTitle: (group: BookmarkImportDraftGroup, targetGroupTitle: string) => void;
@@ -747,31 +759,31 @@ function BookmarkImportGroupsStep({
             <div className="bookmark-import-group-head">
               <div>
                 <strong>{group.suggestedTitle}</strong>
-                <span>{group.sourcePath.length > 0 ? group.sourcePath.join(" / ") : "未分组来源"}</span>
+                <span>{group.sourcePath.length > 0 ? group.sourcePath.join(" / ") : t("settings.import.ungroupedSource")}</span>
               </div>
-              <em>{stats.selectedItems}/{stats.totalItems} 已选</em>
+              <em>{t("settings.import.groupSelected", { selected: stats.selectedItems, total: stats.totalItems })}</em>
             </div>
             <div className="bookmark-import-group-controls">
               <label className="field">
-                <span>映射方式</span>
+                <span>{t("settings.import.mappingMode")}</span>
                 <select value={group.mode} onChange={(event) => onChangeGroupMode(group, event.target.value)}>
-                  <option value="create">创建新分组</option>
-                  <option value="ungrouped">导入到未分组</option>
-                  <option value="skip">跳过该分组</option>
-                  {existingGroups.length > 0 ? <option value="merge">合并到现有分组</option> : null}
+                  <option value="create">{t("settings.import.mode.create")}</option>
+                  <option value="ungrouped">{t("settings.import.mode.ungrouped")}</option>
+                  <option value="skip">{t("settings.import.mode.skip")}</option>
+                  {existingGroups.length > 0 ? <option value="merge">{t("settings.import.mode.merge")}</option> : null}
                 </select>
               </label>
 
               {group.mode === "create" ? (
                 <label className="field">
-                  <span>新分组名称</span>
+                  <span>{t("settings.import.newGroupName")}</span>
                   <input value={group.targetGroupTitle} maxLength={80} onChange={(event) => onChangeGroupTitle(group, event.target.value)} />
                 </label>
               ) : null}
 
               {group.mode === "merge" ? (
                 <label className="field">
-                  <span>目标分组</span>
+                  <span>{t("settings.import.targetGroup")}</span>
                   <select value={group.targetGroupId ?? ""} onChange={(event) => onChangeGroupTarget(group, event.target.value)}>
                     {existingGroups.map((existingGroup) => (
                       <option key={existingGroup.id} value={existingGroup.id}>{existingGroup.title}</option>
@@ -799,6 +811,7 @@ function BookmarkImportPreviewStep({
   pagedItems,
   query,
   statusFilter,
+  t,
   totalPages,
   onBulkSelect,
   onChangeGroupFilter,
@@ -818,6 +831,7 @@ function BookmarkImportPreviewStep({
   pagedItems: BookmarkImportDraftItem[];
   query: string;
   statusFilter: BookmarkImportStatusFilter;
+  t: I18nTranslate;
   totalPages: number;
   onBulkSelect: (selected: boolean) => void;
   onChangeGroupFilter: (groupId: string) => void;
@@ -835,26 +849,26 @@ function BookmarkImportPreviewStep({
     <div className="bookmark-import-preview">
       <div className="bookmark-import-preview-toolbar">
         <label className="field">
-          <span>搜索</span>
-          <input value={query} placeholder="标题、URL、分组" onChange={(event) => onChangeQuery(event.target.value)} />
+          <span>{t("settings.import.search")}</span>
+          <input value={query} placeholder={t("settings.import.searchPlaceholder")} onChange={(event) => onChangeQuery(event.target.value)} />
         </label>
         <label className="field">
-          <span>状态</span>
+          <span>{t("settings.import.status")}</span>
           <select value={statusFilter} onChange={(event) => onChangeStatusFilter(event.target.value as BookmarkImportStatusFilter)}>
-            <option value="all">全部</option>
-            <option value="selected">已选</option>
-            <option value="unselected">未选</option>
-            <option value="new">新链接</option>
-            <option value="duplicate-current-url">当前重复</option>
-            <option value="duplicate-import-url">批次重复</option>
-            <option value="duplicate-current-host">同域名</option>
-            <option value="invalid-url">无效 URL</option>
+            <option value="all">{t("settings.import.filter.all")}</option>
+            <option value="selected">{t("settings.import.filter.selected")}</option>
+            <option value="unselected">{t("settings.import.filter.unselected")}</option>
+            <option value="new">{t("settings.import.status.new")}</option>
+            <option value="duplicate-current-url">{t("settings.import.status.duplicateCurrentUrl")}</option>
+            <option value="duplicate-import-url">{t("settings.import.status.duplicateImportUrl")}</option>
+            <option value="duplicate-current-host">{t("settings.import.status.duplicateCurrentHost")}</option>
+            <option value="invalid-url">{t("settings.import.status.invalidUrl")}</option>
           </select>
         </label>
         <label className="field">
-          <span>分组</span>
+          <span>{t("settings.import.group")}</span>
           <select value={groupFilter} onChange={(event) => onChangeGroupFilter(event.target.value)}>
-            <option value="all">全部分组</option>
+            <option value="all">{t("settings.import.allGroups")}</option>
             {draft.groups.map((group) => (
               <option key={group.id} value={group.id}>{group.targetGroupTitle}</option>
             ))}
@@ -863,11 +877,11 @@ function BookmarkImportPreviewStep({
       </div>
 
       <div className="bookmark-import-bulk-actions">
-        <span>{filteredItems.length} 条结果 · {draft.stats.selectedItems} 条已选</span>
-        <button className="utility-button" type="button" onClick={() => onBulkSelect(true)}>选择当前结果</button>
-        <button className="utility-button" type="button" onClick={() => onBulkSelect(false)}>取消当前结果</button>
-        <button className="utility-button" type="button" onClick={onOnlySelectNewLinks}>只保留新链接</button>
-        <button className="utility-button" type="button" onClick={onResetSelection}>恢复默认选择</button>
+        <span>{t("settings.import.resultSummary", { results: filteredItems.length, selected: draft.stats.selectedItems })}</span>
+        <button className="utility-button" type="button" onClick={() => onBulkSelect(true)}>{t("settings.import.selectCurrent")}</button>
+        <button className="utility-button" type="button" onClick={() => onBulkSelect(false)}>{t("settings.import.unselectCurrent")}</button>
+        <button className="utility-button" type="button" onClick={onOnlySelectNewLinks}>{t("settings.import.onlyNew")}</button>
+        <button className="utility-button" type="button" onClick={onResetSelection}>{t("settings.import.resetSelection")}</button>
       </div>
 
       <div className="bookmark-import-item-list">
@@ -885,21 +899,21 @@ function BookmarkImportPreviewStep({
               <span className="bookmark-import-item-main">
                 <strong>{item.suggestedName}</strong>
                 <small>{item.normalizedUrl || item.rawUrl}</small>
-                <em>{item.sourceFolderPath.length > 0 ? item.sourceFolderPath.join(" / ") : "未分组"}{" -> "}{item.targetGroupTitle}</em>
+                <em>{item.sourceFolderPath.length > 0 ? item.sourceFolderPath.join(" / ") : t("settings.import.ungrouped")}{" -> "}{item.targetGroupTitle}</em>
               </span>
-              <span className={`bookmark-import-status status-${item.duplicateStatus}`}>{getBookmarkImportStatusLabel(item.duplicateStatus)}</span>
-              {item.reason ? <span className="bookmark-import-reason">{item.reason}</span> : null}
+              <span className={`bookmark-import-status status-${item.duplicateStatus}`}>{getBookmarkImportStatusLabel(item.duplicateStatus, t)}</span>
+              {item.reason ? <span className="bookmark-import-reason">{getBookmarkImportReason(item.duplicateStatus, t)}</span> : null}
             </label>
           );
         })}
       </div>
 
       <div className="bookmark-import-pagination">
-        <button className="utility-button" type="button" disabled={currentPage <= 1} onClick={() => onChangePage(currentPage - 1)}>上一页</button>
-        <span>第 {currentPage} / {totalPages} 页</span>
-        <button className="utility-button" type="button" disabled={currentPage >= totalPages} onClick={() => onChangePage(currentPage + 1)}>下一页</button>
+        <button className="utility-button" type="button" disabled={currentPage <= 1} onClick={() => onChangePage(currentPage - 1)}>{t("settings.import.previousPage")}</button>
+        <span>{t("settings.import.pageSummary", { current: currentPage, total: totalPages })}</span>
+        <button className="utility-button" type="button" disabled={currentPage >= totalPages} onClick={() => onChangePage(currentPage + 1)}>{t("settings.import.nextPage")}</button>
         <label>
-          每页
+          {t("settings.import.pageSize")}
           <select value={pageSize} onChange={(event) => onChangePageSize(Number(event.target.value))}>
             {PREVIEW_PAGE_SIZE_OPTIONS.map((value) => <option key={value} value={value}>{value}</option>)}
           </select>
@@ -911,45 +925,52 @@ function BookmarkImportPreviewStep({
 
 function BookmarkImportConfirmStep({
   documentValue,
-  draft
+  draft,
+  t
 }: {
   documentValue: HomeDocumentV2;
   draft: BookmarkImportDraft;
+  t: I18nTranslate;
 }) {
   const currentSiteCount = documentValue.groups.reduce((sum, group) => sum + group.sites.length, 0);
   const nextSiteCount = currentSiteCount + draft.stats.selectedItems;
 
   return (
     <div className="bookmark-import-confirm">
-      <BookmarkImportStatsGrid draft={draft} />
+      <BookmarkImportStatsGrid draft={draft} t={t} />
       <StatusMessage tone={draft.stats.selectedItems > 500 ? "warning" : "neutral"}>
-        将导入 {draft.stats.selectedItems} 个网站，预计新建 {draft.stats.newGroupCount} 个分组。当前首页有 {currentSiteCount} 个网站，导入后约 {nextSiteCount} 个网站。
+        {t("settings.import.confirmSummary", {
+          current: currentSiteCount,
+          groups: draft.stats.newGroupCount,
+          next: nextSiteCount,
+          sites: draft.stats.selectedItems
+        })}
       </StatusMessage>
       <StatusMessage tone="neutral">
-        导入会作为一次普通首页编辑保存；若当前首页已绑定同步空间，之后会沿用现有同步流程上传。
+        {t("settings.import.confirmSyncNote")}
       </StatusMessage>
     </div>
   );
 }
 
-function getStepLabel(step: ImportDialogStep): string {
+function getStepLabel(step: ImportDialogStep, t: I18nTranslate): string {
   if (step === "source") {
-    return "来源";
+    return t("settings.import.step.source");
   }
 
   if (step === "summary") {
-    return "摘要";
+    return t("settings.import.step.summary");
   }
 
   if (step === "groups") {
-    return "分组";
+    return t("settings.import.step.groups");
   }
 
   if (step === "preview") {
-    return "预览";
+    return t("settings.import.step.preview");
   }
 
-  return "确认";
+  return t("settings.import.step.confirm");
 }
 
 function getNextStep(step: ImportDialogStep): ImportDialogStep {
@@ -984,9 +1005,39 @@ function getPreviousStep(step: ImportDialogStep): ImportDialogStep {
   return "source";
 }
 
+function getBookmarkImportStatusLabel(status: BookmarkImportDraftItem["duplicateStatus"], t: I18nTranslate): string {
+  switch (status) {
+    case "duplicate-current-url":
+      return t("settings.import.status.duplicateCurrentUrl");
+    case "duplicate-current-host":
+      return t("settings.import.status.duplicateCurrentHost");
+    case "duplicate-import-url":
+      return t("settings.import.status.duplicateImportUrl");
+    case "invalid-url":
+      return t("settings.import.status.invalidUrl");
+    case "new":
+      return t("settings.import.status.new");
+  }
+}
+
+function getBookmarkImportReason(status: BookmarkImportDraftItem["duplicateStatus"], t: I18nTranslate): string | null {
+  switch (status) {
+    case "duplicate-current-url":
+      return t("settings.import.reason.duplicateCurrentUrl");
+    case "duplicate-current-host":
+      return t("settings.import.reason.duplicateCurrentHost");
+    case "duplicate-import-url":
+      return t("settings.import.reason.duplicateImportUrl");
+    case "invalid-url":
+      return t("settings.import.reason.invalidUrl");
+    case "new":
+      return null;
+  }
+}
+
 function draftRequired(draft: BookmarkImportDraft | null): BookmarkImportDraft {
   if (!draft) {
-    throw new Error("导入草稿不存在。");
+    throw new Error("Import draft is missing.");
   }
 
   return draft;
@@ -1001,7 +1052,7 @@ function getImportFailureReason(error: unknown): string {
     return "too-large";
   }
 
-  if (/没有/.test(error.message)) {
+  if (/no|empty|not found/i.test(error.message)) {
     return "empty";
   }
 

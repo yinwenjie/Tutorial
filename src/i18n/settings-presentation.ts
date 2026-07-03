@@ -1,5 +1,6 @@
 import type { HomeSpace } from "@/domain/account";
 import type { HomeThemeAsset, HomeThemeAssetSlot } from "@/domain/home-document";
+import type { HomeDocumentClass } from "@/domain/home-document-protection";
 import type { HomeThemePresetId } from "@/domain/theme-preset";
 import type { I18nMessageKey, I18nTranslate } from "@/i18n/messages";
 
@@ -104,4 +105,17 @@ export function formatSettingsSnapshotAssets(hasBanner: boolean, hasBackground: 
   }
 
   return t("settings.recovery.assetsNone");
+}
+
+export function formatSettingsHomeDocumentClass(documentClass: HomeDocumentClass, t: I18nTranslate): string {
+  switch (documentClass) {
+    case "system-default":
+      return t("settings.document.class.systemDefault");
+    case "system-blank":
+      return t("settings.document.class.blank");
+    case "system-template":
+      return t("settings.document.class.templateUnedited");
+    case "user-data":
+      return t("settings.document.class.userData");
+  }
 }

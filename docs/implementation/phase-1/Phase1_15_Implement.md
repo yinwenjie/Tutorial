@@ -130,3 +130,58 @@ v1 采用分层交付：先完成语言数据模型、Supabase 约束和系统�
 - Phase 1.15.4：设置页核心路径本地化。
 - Phase 1.15.5：组件、同步和恢复细节本地化收口。
 - Phase 1.15.6：质量回归与文档。
+
+## Phase 1.15.4：设置页核心路径本地化
+
+已完成：
+
+- 设置页外壳、折叠 section、账号、首页空间、主题风格、Banner/背景、数据恢复中心和高级操作入口接入 i18n runtime。
+- 主题 preset、图片 slot、首页空间 access mode、恢复中心资产摘要和历史版本元信息通过展示层 helper 本地化，不回写首页文档。
+- 数据恢复中心的本地/云端历史版本选择、预览、恢复确认、空状态和恢复结果接入 dictionary。
+- 首页空间创建、模板创建、认领、迁移、恢复、激活、重命名、默认空间和移除确认接入 dictionary。
+- 补齐设置页核心路径在 `zh-TW`、`fr-FR`、`es-ES`、`ja-JP`、`ko-KR` 和 `it-IT` 的基础覆盖；英语完整覆盖。
+
+数据与架构边界：
+
+- 不修改 `HomeDocumentV2`。
+- 不新增 Supabase 表、migration、RPC 或 Storage 配置。
+- 不改变账号托管、同步码、历史快照或数据包结构。
+- 用户自定义空间名、组件标题、首页标题、分组名和网站名仍按用户输入显示。
+
+验证：
+
+- `npm run typecheck` 通过。
+- `npm run lint` 通过。
+- `npm run build` 通过。
+- `npm run verify:export` 通过。
+
+## Phase 1.15.5：组件、同步和恢复细节本地化收口
+
+已完成：
+
+- 同步面板接入 `useI18n()`，同步码创建/绑定/复制/解除/废弃、拉取/上传、暂停、冲突、账号托管边界说明和云端/本地覆盖确认全部改为 dictionary 文案。
+- 同步面板日期显示改用统一 i18n formatter，移除本地 `Intl` 和保存值 `system` 的直接格式化。
+- 书签 HTML / URL 列表导入面板接入 i18n，覆盖导入入口、草稿恢复/丢弃、解析结果、分组映射、预览筛选、分页、确认导入和撤销导入。
+- 导入预览中的重复状态和原因改为展示层本地化，不再直接渲染 domain 中的中文 reason。
+- 本机状态、本地审计日志、产品改进/错误诊断设置和 Next route error 页面接入 i18n runtime。
+- 新增 `formatSettingsHomeDocumentClass(...)` 展示层 helper，首页数据分类按当前语言显示。
+- 埋点事件名、审计事件 `type`、监控 operation 和诊断 metadata 保持稳定英文，不做本地化。
+
+数据与架构边界：
+
+- 不修改 `HomeDocumentV2`、同步码格式、同步 RPC、数据包结构或 Supabase 配置。
+- 不翻译用户导入的网站名、URL、源文件名、分组名或已有首页空间名。
+- 同步和导入新增 key 在 `zh-CN` 与 `en-US` 完整覆盖；繁体中文通过 `settings.*` 转换器覆盖；其他 v1 语言本阶段可先回落到英语，翻译精修进入 1.15.6。
+- 本地审计记录 message 保留创建时文本，展示层仅本地化审计面板标题、操作和空状态。
+
+验证：
+
+- `npm run typecheck` 通过。
+- `npm run lint` 通过。
+- `npm run build` 通过。
+- `npm run verify:export` 通过。
+- 本地开发服务已启动，`/` 与 `/edit/` HTTP 校验通过；人工 UI 验证待完成。
+
+后续任务：
+
+- Phase 1.15.6：质量回归与文档，重点检查新增 key 覆盖、非英语翻译精修和长文本布局。

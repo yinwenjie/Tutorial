@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { StatusMessage } from "@/components/status-message";
+import { useI18n } from "@/hooks/use-i18n";
 import {
   ERROR_MONITORING_UPDATED_EVENT,
   loadErrorMonitoringPreferences,
@@ -14,6 +15,7 @@ import {
 } from "@/infrastructure/product-analytics-repository";
 
 export function ProductAnalyticsSettingsPanel() {
+  const { t } = useI18n();
   const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
   const [errorMonitoringEnabled, setErrorMonitoringEnabledState] = useState(false);
   const [ready, setReady] = useState(false);
@@ -52,8 +54,8 @@ export function ProductAnalyticsSettingsPanel() {
   return (
     <div className="advanced-operation-block">
       <div className="advanced-operation-head">
-        <h3>产品改进</h3>
-        <span>Analytics</span>
+        <h3>{t("settings.analytics.title")}</h3>
+        <span>{t("settings.analytics.kicker")}</span>
       </div>
       <label className="analytics-toggle-row">
         <input
@@ -62,7 +64,7 @@ export function ProductAnalyticsSettingsPanel() {
           disabled={!ready}
           onChange={(event) => handleAnalyticsToggle(event.target.checked)}
         />
-        <span>允许匿名基础埋点</span>
+        <span>{t("settings.analytics.allowEvents")}</span>
       </label>
       <label className="analytics-toggle-row">
         <input
@@ -71,10 +73,10 @@ export function ProductAnalyticsSettingsPanel() {
           disabled={!ready}
           onChange={(event) => handleErrorMonitoringToggle(event.target.checked)}
         />
-        <span>允许匿名错误诊断</span>
+        <span>{t("settings.analytics.allowErrors")}</span>
       </label>
       <StatusMessage tone="neutral">
-        只记录白名单功能事件、脱敏错误类型和数量级，不上传网站 URL、搜索词、首页内容、同步码、账号托管凭证或完整错误对象。
+        {t("settings.analytics.description")}
       </StatusMessage>
     </div>
   );

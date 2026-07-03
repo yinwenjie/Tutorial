@@ -7,10 +7,8 @@ import { getErrorMessage } from "@/domain/errors";
 import { HomeDocumentV2, HomeSyncMeta } from "@/domain/home-document";
 import {
   classifyHomeDocument,
-  createHomeDocumentContentFingerprint,
-  getHomeDocumentClassLabel
+  createHomeDocumentContentFingerprint
 } from "@/domain/home-document-protection";
-import { resolveLocalePreference, type LocalePreference } from "@/domain/ui-preferences";
 import {
   createSyncSecrets,
   formatSyncCode,
@@ -18,15 +16,17 @@ import {
   StoredSyncBinding
 } from "@/domain/sync-code";
 import { StatusMessage } from "@/components/status-message";
-import { useUiPreferences } from "@/hooks/use-ui-preferences";
+import { useI18n } from "@/hooks/use-i18n";
 import { captureClientError } from "@/infrastructure/error-monitoring-repository";
 import { recordLocalAuditEvent } from "@/infrastructure/local-audit-log-repository";
 import type { LocalHomeSnapshotSource } from "@/infrastructure/local-home-snapshot-repository";
 import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
-import { isSupabaseConfigured, SUPABASE_CONFIGURATION_MESSAGE } from "@/infrastructure/supabase-client";
+import { isSupabaseConfigured } from "@/infrastructure/supabase-client";
 import { runWithSyncLock, type SyncCoordinatorOperation } from "@/infrastructure/sync-coordinator";
 import { LocalSyncBindingRepository } from "@/infrastructure/sync-binding-repository";
 import { SyncCodeRepository, PullSyncSpaceResult } from "@/infrastructure/sync-code-repository";
+import { formatSettingsHomeDocumentClass } from "@/i18n/settings-presentation";
+import type { I18nTranslate } from "@/i18n/messages";
 
 interface SyncPanelProps {
   documentValue: HomeDocumentV2;
@@ -65,7 +65,7 @@ export function SyncPanel({
   currentAccountHomeSpace = null,
   onRestoreResetBackup
 }: SyncPanelProps) {
-  const { preferences } = useUiPreferences();
+  const { format, t } = useI18n();
   const syncServiceConfigured = isSupabaseConfigured();
   const [binding, setBinding] = useState<StoredSyncBinding | null>(null);
   const [syncCode, setSyncCode] = useState("");
@@ -145,7 +145,7 @@ export function SyncPanel({
       return true;
     }
 
-    setError("未能保存当前云端首页，已取消覆盖云端。");
+    setError(t("settings.sync.cloudProtectFailed"));
     setMessage("");
     recordLocalAuditEvent({
       documentId: cloudDocument.documentId,
@@ -158,7 +158,7 @@ export function SyncPanel({
       type: "sync.cloud_overwrite_protection_failed"
     });
     return false;
-  }, [getSyncRepository, onBeforeCloudOverwrite]);
+  }, [getSyncRepository, onBeforeCloudOverwrite, t]);
 
   const runSyncAction = useCallback(async (
     action: () => Promise<void>,
@@ -173,7 +173,7 @@ export function SyncPanel({
     }
 
     if (!syncServiceConfigured) {
-      setMessage(SUPABASE_CONFIGURATION_MESSAGE);
+      setMessage(t("settings.sync.serviceNotConfigured"));
       setError("");
       return;
     }
@@ -198,7 +198,7 @@ export function SyncPanel({
         }, action);
 
         if (lockResult.status === "busy") {
-          setMessage("其他标签页正在同步这个首页空间，本次操作已跳过。");
+          setMessage(t("settings.sync.otherTabBusy"));
         }
       } else {
         await action();
@@ -217,21 +217,21 @@ export function SyncPanel({
         },
         severity: isLikelyOfflineError(actionError) ? "warning" : "error"
       });
-      setError(getErrorMessage(actionError, "同步操作失败。"));
+      setError(getErrorMessage(actionError, t("settings.sync.actionFailed")));
       if (pausedBinding) {
-        setSyncMetaFromBinding(pausedBinding, "paused", "同步已暂停");
-        setMessage("同步仍暂停，请重试或选择其他操作。");
+        setSyncMetaFromBinding(pausedBinding, "paused", t("settings.sync.paused"));
+        setMessage(t("settings.sync.stillPaused"));
         return;
       }
 
       if (activeBinding) {
-        setSyncMetaFromBinding(activeBinding, isLikelyOfflineError(actionError) ? "offline" : "error", "同步失败");
+        setSyncMetaFromBinding(activeBinding, isLikelyOfflineError(actionError) ? "offline" : "error", t("settings.sync.failed"));
       }
     } finally {
       busyRef.current = false;
       setBusy(false);
     }
-  }, [setSyncMetaFromBinding, syncServiceConfigured]);
+  }, [setSyncMetaFromBinding, syncServiceConfigured, t]);
 
   const applyCloudDocument = useCallback((
     pulled: PullSyncSpaceResult,
@@ -239,7 +239,7 @@ export function SyncPanel({
     statusMessage: string,
     snapshotSource: LocalHomeSnapshotSource
   ): boolean => {
-    if (!protectBeforeOverwrite(snapshotSource, "未能保存当前首页，已取消云端覆盖。")) {
+    if (!protectBeforeOverwrite(snapshotSource, t("settings.sync.localProtectFailed"))) {
       return false;
     }
 
@@ -256,17 +256,17 @@ export function SyncPanel({
       syncMeta: toSyncMeta(nextBinding, "synced")
     }, statusMessage);
     return true;
-  }, [onReplaceDocument, persistBinding, protectBeforeOverwrite]);
+  }, [onReplaceDocument, persistBinding, protectBeforeOverwrite, t]);
 
   const performPull = useCallback(async (options: { forceApply: boolean; source: "auto" | "manual" | "resolve" | "startup" }) => {
     const activeBinding = bindingRef.current;
     if (!activeBinding) {
-      setError("请先创建或输入同步码。");
+      setError(t("settings.sync.createOrEnterRequired"));
       return;
     }
 
     if (documentRef.current.syncMeta.status === "conflict" && !options.forceApply) {
-      setMessage("当前有冲突，请先选择云端版本或本地版本。");
+      setMessage(t("settings.sync.conflictChooseFirst"));
       return;
     }
 
@@ -275,7 +275,7 @@ export function SyncPanel({
       const shouldApplyCloudVersion = options.forceApply
         && (localDocument.syncMeta.status === "conflict" || isSyncPausedForBinding(localDocument, activeBinding));
 
-      setSyncMetaFromBinding(activeBinding, "syncing", "正在拉取云端");
+      setSyncMetaFromBinding(activeBinding, "syncing", t("settings.sync.pulling"));
       const pulled = await getSyncRepository().pull(activeBinding);
       const hasRemoteChanges = hasRemoteSnapshotChanged(pulled.revision, pulled.updatedAt, activeBinding);
       const hasPendingLocalChanges = hasLocalDocumentChanges(localDocument, activeBinding);
@@ -293,16 +293,16 @@ export function SyncPanel({
             : localDocument.updatedAt
         };
         persistBinding(nextBinding);
-        setSyncMetaFromBinding(nextBinding, hasPendingLocalChanges ? "linked" : "synced", hasPendingLocalChanges ? "有本地修改待上传" : "已是最新");
+        setSyncMetaFromBinding(nextBinding, hasPendingLocalChanges ? "linked" : "synced", hasPendingLocalChanges ? t("settings.sync.localChangesPending") : t("settings.sync.upToDate"));
         if (!hasPendingLocalChanges && hasHomeDocumentContentDrift(localDocument, pulled.document)) {
           const refreshed = applyCloudDocument(
             pulled,
             nextBinding,
-            "已刷新本地首页",
+            t("settings.sync.localRefreshed"),
             "before-cloud-pull"
           );
           if (refreshed) {
-            setMessage("已从云端刷新本地首页。");
+            setMessage(t("settings.sync.localRefreshedFromCloud"));
             recordLocalAuditEvent({
               documentId: pulled.document.documentId,
               message: "云端版本号未变化，但本地内容与云端不一致，已重新应用云端首页。",
@@ -317,7 +317,7 @@ export function SyncPanel({
           return;
         }
         if (shouldAuditPullSource(options.source)) {
-          setMessage(hasPendingLocalChanges ? "云端无更新，本地修改待上传。" : "云端无更新。");
+          setMessage(hasPendingLocalChanges ? t("settings.sync.noCloudChangesLocalPending") : t("settings.sync.noCloudChanges"));
           recordLocalAuditEvent({
             documentId: localDocument.documentId,
             message: "已检查云端首页，云端无更新。",
@@ -339,8 +339,8 @@ export function SyncPanel({
           lastSyncedAt: pulled.updatedAt
         };
         persistBinding(conflictBinding);
-        setSyncMetaFromBinding(conflictBinding, "conflict", "云端和本地都有修改");
-        setMessage("检测到冲突：云端和本地都有修改。");
+        setSyncMetaFromBinding(conflictBinding, "conflict", t("settings.sync.cloudAndLocalChanged"));
+        setMessage(t("settings.sync.conflictDetectedCloudLocal"));
         recordLocalAuditEvent({
           documentId: localDocument.documentId,
           level: "warning",
@@ -361,24 +361,24 @@ export function SyncPanel({
       const snapshotSource = options.source === "resolve" && localDocument.syncMeta.status === "conflict"
         ? "before-conflict-cloud-resolve"
         : "before-cloud-pull";
-      if (shouldConfirmCloudPull(options.source) && !window.confirm(getCloudPullConfirmMessage(options.source))) {
-        setSyncMetaFromBinding(activeBinding, getCancelSyncStatus(localDocument), "已取消拉取覆盖");
-        setMessage("已取消拉取，当前本地首页未改变。");
+      if (shouldConfirmCloudPull(options.source) && !window.confirm(getCloudPullConfirmMessage(options.source, t))) {
+        setSyncMetaFromBinding(activeBinding, getCancelSyncStatus(localDocument), t("settings.sync.pullCancelled"));
+        setMessage(t("settings.sync.pullCancelledLocalUnchanged"));
         return;
       }
 
       const cloudDocumentApplied = applyCloudDocument(
         pulled,
         activeBinding,
-        options.source === "auto" ? "已自动拉取云端首页" : "已拉取云端首页",
+        options.source === "auto" ? t("settings.sync.autoPulled") : t("settings.sync.pulled"),
         snapshotSource
       );
       if (!cloudDocumentApplied) {
-        setSyncMetaFromBinding(activeBinding, localDocument.syncMeta.status, "已取消拉取覆盖");
+        setSyncMetaFromBinding(activeBinding, localDocument.syncMeta.status, t("settings.sync.pullCancelled"));
         return;
       }
 
-      setMessage(options.source === "auto" ? "已自动拉取云端首页。" : "已拉取云端首页。");
+      setMessage(options.source === "auto" ? t("settings.sync.autoPulledMessage") : t("settings.sync.pulledMessage"));
       if (shouldAuditPullSource(options.source)) {
         recordLocalAuditEvent({
           documentId: pulled.document.documentId,
@@ -404,7 +404,7 @@ export function SyncPanel({
       operation: "pull",
       spaceId: activeBinding.spaceId
     });
-  }, [applyCloudDocument, getSyncRepository, persistBinding, runSyncAction, setSyncMetaFromBinding]);
+  }, [applyCloudDocument, getSyncRepository, persistBinding, runSyncAction, setSyncMetaFromBinding, t]);
 
   const performAutoRevisionCheck = useCallback(async () => {
     const activeBinding = bindingRef.current;
@@ -436,7 +436,7 @@ export function SyncPanel({
         };
         const hasPendingLocalChanges = hasLocalDocumentChanges(documentRef.current, nextBinding);
         persistBinding(nextBinding);
-        setSyncMetaFromBinding(nextBinding, hasPendingLocalChanges ? "linked" : "synced", hasPendingLocalChanges ? "有本地修改待上传" : "云端无更新");
+        setSyncMetaFromBinding(nextBinding, hasPendingLocalChanges ? "linked" : "synced", hasPendingLocalChanges ? t("settings.sync.localChangesPending") : t("settings.sync.noCloudChangesShort"));
       }
     }, {
       exposeBusy: false,
@@ -447,29 +447,29 @@ export function SyncPanel({
     if (shouldPull && bindingRef.current) {
       await performPull({ forceApply: false, source: "auto" });
     }
-  }, [getSyncRepository, performPull, persistBinding, runSyncAction, setSyncMetaFromBinding]);
+  }, [getSyncRepository, performPull, persistBinding, runSyncAction, setSyncMetaFromBinding, t]);
 
   const performPush = useCallback(async (options: { force: boolean; source: "auto" | "manual" | "resolve" }) => {
     const activeBinding = bindingRef.current;
     if (!activeBinding) {
-      setError("请先创建或输入同步码。");
+      setError(t("settings.sync.createOrEnterRequired"));
       return;
     }
 
     const localDocument = documentRef.current;
     if (localDocument.syncMeta.status === "conflict" && !options.force) {
-      setMessage("当前有冲突，请先选择云端版本或本地版本。");
+      setMessage(t("settings.sync.conflictChooseFirst"));
       return;
     }
 
     if (!options.force && !hasLocalDocumentChanges(localDocument, activeBinding)) {
-      setMessage("没有待上传的本地修改。");
+      setMessage(t("settings.sync.noLocalChangesToUpload"));
       return;
     }
 
     const localClassification = classifyHomeDocument(localDocument);
-    if (options.source !== "auto" && !window.confirm(getCloudOverwriteConfirmMessage(localClassification, options.force))) {
-      setMessage("已取消上传，云端首页未改变。");
+    if (options.source !== "auto" && !window.confirm(getCloudOverwriteConfirmMessage(localClassification, options.force, t))) {
+      setMessage(t("settings.sync.uploadCancelledCloudUnchanged"));
       setError("");
       recordLocalAuditEvent({
         documentId: localDocument.documentId,
@@ -494,7 +494,7 @@ export function SyncPanel({
         }
       }
 
-      setSyncMetaFromBinding(activeBinding, "syncing", "正在上传本地首页");
+      setSyncMetaFromBinding(activeBinding, "syncing", t("settings.sync.uploading"));
       const documentToPush = {
         ...localDocument,
         syncMeta: toSyncMeta(activeBinding, "syncing")
@@ -510,8 +510,8 @@ export function SyncPanel({
           lastSyncedDocumentUpdatedAt: localDocument.updatedAt
         };
         persistBinding(nextBinding);
-        setSyncMetaFromBinding(nextBinding, "synced", "本地版本已覆盖云端");
-        setMessage("本地版本已覆盖云端。");
+        setSyncMetaFromBinding(nextBinding, "synced", t("settings.sync.localOverwroteCloud"));
+        setMessage(t("settings.sync.localOverwroteCloudMessage"));
         recordLocalAuditEvent({
           documentId: localDocument.documentId,
           level: "warning",
@@ -538,8 +538,8 @@ export function SyncPanel({
           lastSyncedAt: result.updatedAt
         };
         persistBinding(conflictBinding);
-        setSyncMetaFromBinding(conflictBinding, "conflict", "云端已有更新");
-        setMessage("检测到冲突：云端已有更新。");
+        setSyncMetaFromBinding(conflictBinding, "conflict", t("settings.sync.cloudUpdated"));
+        setMessage(t("settings.sync.conflictDetectedCloudUpdated"));
         recordLocalAuditEvent({
           documentId: localDocument.documentId,
           level: "warning",
@@ -565,8 +565,8 @@ export function SyncPanel({
         lastSyncedDocumentUpdatedAt: localDocument.updatedAt
       };
       persistBinding(nextBinding);
-      setSyncMetaFromBinding(nextBinding, "synced", options.source === "auto" ? "已自动上传本地首页" : "已上传本地首页");
-      setMessage(options.source === "auto" ? "已自动上传本地首页。" : "已上传本地首页。");
+      setSyncMetaFromBinding(nextBinding, "synced", options.source === "auto" ? t("settings.sync.autoUploaded") : t("settings.sync.uploaded"));
+      setMessage(options.source === "auto" ? t("settings.sync.autoUploadedMessage") : t("settings.sync.uploadedMessage"));
       if (options.source !== "auto") {
         recordLocalAuditEvent({
           documentId: localDocument.documentId,
@@ -588,7 +588,7 @@ export function SyncPanel({
       operation: options.force ? "force-push" : "push",
       spaceId: activeBinding.spaceId
     });
-  }, [getSyncRepository, persistBinding, protectCloudBeforeOverwrite, runSyncAction, setSyncMetaFromBinding]);
+  }, [getSyncRepository, persistBinding, protectCloudBeforeOverwrite, runSyncAction, setSyncMetaFromBinding, t]);
 
   useEffect(() => {
     if (!storageReady) {
@@ -608,25 +608,25 @@ export function SyncPanel({
     setSyncCode(formatSyncCode(storedBinding));
 
     if (!syncServiceConfigured) {
-      setMessage("已读取本机同步码；配置 Supabase 后可继续连接云端同步。");
+      setMessage(t("settings.sync.localBindingLoadedServiceMissing"));
       setError("");
       return;
     }
 
     if (isSyncPausedForBinding(documentRef.current, storedBinding)) {
-      setMessage("同步已暂停。请选择上传本地、拉取云端、解除本机或恢复备份。");
+      setMessage(t("settings.sync.pausedChooseAction"));
       return;
     }
 
     setSyncMetaFromBinding(
       storedBinding,
       "linked",
-      storedBinding.accessMode === "account-managed" ? "已读取本机账号托管绑定" : "已读取本机同步码"
+      storedBinding.accessMode === "account-managed" ? t("settings.sync.accountManagedBindingLoaded") : t("settings.sync.syncCodeLoaded")
     );
     window.setTimeout(() => {
       performPull({ forceApply: false, source: "startup" });
     }, 0);
-  }, [onBindingChange, performPull, persistBinding, setSyncMetaFromBinding, storageReady, syncServiceConfigured]);
+  }, [onBindingChange, performPull, persistBinding, setSyncMetaFromBinding, storageReady, syncServiceConfigured, t]);
 
   useEffect(() => {
     function requestAutoPull() {
@@ -677,8 +677,8 @@ export function SyncPanel({
       }
 
       const pauseTimerId = window.setTimeout(() => {
-        setSyncMetaFromBinding(activeBinding, "paused", "同步已暂停");
-        setMessage("当前首页属于系统态，已停止自动上传。请手动选择上传本地或拉取云端。");
+        setSyncMetaFromBinding(activeBinding, "paused", t("settings.sync.paused"));
+        setMessage(t("settings.sync.systemDocumentAutoUploadStopped"));
         setError("");
         recordLocalAuditEvent({
           documentId: documentValue.documentId,
@@ -711,7 +711,7 @@ export function SyncPanel({
         clearTimeout(autoPushTimerRef.current);
       }
     };
-  }, [binding, documentValue, performPush, setSyncMetaFromBinding, syncServiceConfigured]);
+  }, [binding, documentValue, performPush, setSyncMetaFromBinding, syncServiceConfigured, t]);
 
   const isPaused = Boolean(binding && isSyncPausedForBinding(documentValue, binding));
   const isAdvanced = presentation === "advanced";
@@ -727,36 +727,37 @@ export function SyncPanel({
 
   const statusText = useMemo(() => {
     if (!syncServiceConfigured) {
-      return binding ? "本机已保存同步绑定，云端未配置" : "云端未配置";
+      return binding ? t("settings.sync.statusBindingSavedServiceMissing") : t("settings.sync.statusServiceMissing");
     }
 
     if (!binding) {
-      return "未绑定";
+      return t("settings.sync.statusUnbound");
     }
 
-    const syncedAt = binding.lastSyncedAt ? formatShortDateTime(binding.lastSyncedAt, preferences.locale) : "未同步";
+    const syncedAt = binding.lastSyncedAt ? format.shortDateTime(binding.lastSyncedAt) : t("settings.sync.neverSynced");
+    const accessMode = binding.accessMode === "account-managed" ? t("settings.sync.access.accountManaged") : t("settings.sync.access.syncCode");
     if (isConflict) {
       if (isAccountSyncContext && shouldUseAccountManagedStatusSlot) {
-        return `账号同步冲突见账号栏，最后同步 ${syncedAt}`;
+        return t("settings.sync.statusConflictInAccount", { time: syncedAt });
       }
 
-      return `${binding.accessMode === "account-managed" ? "账号托管" : "同步码"} 同步冲突，最后同步 ${syncedAt}`;
+      return t("settings.sync.statusConflict", { mode: accessMode, time: syncedAt });
     }
 
     if (isPaused) {
       if (isAccountSyncContext && shouldUseAccountManagedStatusSlot) {
-        return `账号同步状态见账号栏，最后同步 ${syncedAt}`;
+        return t("settings.sync.statusPausedInAccount", { time: syncedAt });
       }
 
-      return `${binding.accessMode === "account-managed" ? "账号托管" : "同步码"} 已暂停，最后同步 ${syncedAt}`;
+      return t("settings.sync.statusPaused", { mode: accessMode, time: syncedAt });
     }
 
-    return `${binding.accessMode === "account-managed" ? "账号托管" : "同步码"} rev ${binding.remoteRevision}，最后同步 ${syncedAt}`;
-  }, [binding, isAccountSyncContext, isConflict, isPaused, preferences.locale, shouldUseAccountManagedStatusSlot, syncServiceConfigured]);
-  const panelTitle = isAdvanced ? "离线同步码与恢复" : "同步码";
+    return t("settings.sync.statusSynced", { mode: accessMode, revision: binding.remoteRevision, time: syncedAt });
+  }, [binding, format, isAccountSyncContext, isConflict, isPaused, shouldUseAccountManagedStatusSlot, syncServiceConfigured, t]);
+  const panelTitle = isAdvanced ? t("settings.advanced.syncTitleSignedIn") : t("settings.advanced.syncTitleLocal");
   const syncStatusMessage = error
     || (shouldUseAccountManagedStatusSlot ? "" : message)
-    || (!syncServiceConfigured ? SUPABASE_CONFIGURATION_MESSAGE : "");
+    || (!syncServiceConfigured ? t("settings.sync.serviceNotConfigured") : "");
   const syncStatusTone = error ? "danger" : !syncServiceConfigured ? "warning" : message ? "success" : "neutral";
   const syncStatusRole = error ? "alert" : "status";
 
@@ -778,8 +779,8 @@ export function SyncPanel({
 
       persistBinding(nextBinding);
       setSyncCode(formatSyncCode(nextBinding));
-      setSyncMetaFromBinding(nextBinding, "synced", "同步码已创建");
-      setMessage("同步码已创建，请保存到安全位置。");
+      setSyncMetaFromBinding(nextBinding, "synced", t("settings.sync.codeCreated"));
+      setMessage(t("settings.sync.codeCreatedSave"));
       trackProductEvent("sync.code_created", {
         source: "sync-panel"
       });
@@ -800,7 +801,7 @@ export function SyncPanel({
       const parsed = parseSyncCode(inputCode);
       const pulled = await getSyncRepository().pull(parsed);
 
-      if (!window.confirm(getBindConfirmMessage(isAdvanced))) {
+      if (!window.confirm(getBindConfirmMessage(isAdvanced, t))) {
         return;
       }
 
@@ -813,7 +814,7 @@ export function SyncPanel({
         lastSyncedDocumentUpdatedAt: pulled.document.updatedAt
       };
 
-      if (!protectBeforeOverwrite("before-sync-code-bind", "未能保存当前首页，已取消绑定同步码。")) {
+      if (!protectBeforeOverwrite("before-sync-code-bind", t("settings.sync.bindProtectFailed"))) {
         return;
       }
 
@@ -823,8 +824,8 @@ export function SyncPanel({
       onReplaceDocument({
         ...pulled.document,
         syncMeta: toSyncMeta(nextBinding, "synced")
-      }, "已绑定同步码并拉取云端首页");
-      setMessage("已绑定同步码。");
+      }, t("settings.sync.boundAndPulled"));
+      setMessage(t("settings.sync.bound"));
       trackProductEvent("sync.code_bound", {
         source: isAdvanced ? "advanced" : "primary"
       });
@@ -847,15 +848,15 @@ export function SyncPanel({
 
     try {
       await navigator.clipboard.writeText(syncCode);
-      setMessage("同步码已复制。");
+      setMessage(t("settings.sync.codeCopied"));
       setError("");
     } catch {
-      setError("复制失败，请手动选择同步码。");
+      setError(t("settings.sync.copyFailed"));
     }
   }
 
   function unbindLocal() {
-    if (!window.confirm(getUnbindConfirmMessage(currentAccountHomeSpace))) {
+    if (!window.confirm(getUnbindConfirmMessage(currentAccountHomeSpace, t))) {
       return;
     }
 
@@ -865,8 +866,8 @@ export function SyncPanel({
     setBinding(null);
     onBindingChange?.(null);
     setSyncCode("");
-    onSyncMetaChange(localSyncMeta(), previousBinding?.accessMode === "account-managed" ? "已解除本机账号托管绑定" : "已解除本机同步码");
-    setMessage("已解除本机绑定。");
+    onSyncMetaChange(localSyncMeta(), previousBinding?.accessMode === "account-managed" ? t("settings.sync.accountManagedUnbound") : t("settings.sync.syncCodeUnbound"));
+    setMessage(t("settings.sync.localUnbound"));
     setError("");
     recordLocalAuditEvent({
       documentId: documentRef.current.documentId,
@@ -885,7 +886,7 @@ export function SyncPanel({
     }
 
     onRestoreResetBackup();
-    setMessage("已恢复上一次重置前页面。");
+    setMessage(t("settings.sync.resetBackupRestored"));
     setError("");
   }
 
@@ -896,12 +897,12 @@ export function SyncPanel({
     }
 
     if (activeBinding.accessMode === "account-managed") {
-      setMessage("账号托管空间不能在离线同步码区域废弃；如需取消账号恢复入口，请在首页空间中从账号移除。");
+      setMessage(t("settings.sync.accountManagedCannotRevokeHere"));
       setError("");
       return;
     }
 
-    if (!window.confirm(getRevokeConfirmMessage(currentAccountHomeSpace))) {
+    if (!window.confirm(getRevokeConfirmMessage(currentAccountHomeSpace, t))) {
       return;
     }
 
@@ -912,8 +913,8 @@ export function SyncPanel({
       setBinding(null);
       onBindingChange?.(null);
       setSyncCode("");
-      onSyncMetaChange(localSyncMeta(), "同步码已废弃");
-      setMessage("同步码已废弃。");
+      onSyncMetaChange(localSyncMeta(), t("settings.sync.codeRevoked"));
+      setMessage(t("settings.sync.codeRevokedMessage"));
       recordLocalAuditEvent({
         documentId: documentRef.current.documentId,
         level: "warning",
@@ -934,27 +935,27 @@ export function SyncPanel({
   const pausedNotice = (
     <div className="sync-paused" role="status">
       <div>
-        <strong>同步已暂停</strong>
-        <p>当前本地首页暂未自动上传。请选择下一步，避免误覆盖已有同步空间。</p>
+        <strong>{t("settings.sync.paused")}</strong>
+        <p>{t("settings.sync.pausedDescription")}</p>
       </div>
       <div className="sync-panel-actions">
-        <button className="utility-button" type="button" onClick={() => performPush({ force: false, source: "manual" })} disabled={!syncServiceConfigured || busy} title={getRemoteActionDisabledReason(syncServiceConfigured, busy) ?? "把当前本地首页上传到当前同步空间"}>上传本地</button>
-        <button className="utility-button" type="button" onClick={() => performPull({ forceApply: true, source: "manual" })} disabled={!syncServiceConfigured || busy} title={getRemoteActionDisabledReason(syncServiceConfigured, busy) ?? "用云端首页覆盖当前本地首页"}>拉取云端</button>
-        <button className="utility-button" type="button" onClick={unbindLocal} disabled={busy} title={busy ? "同步操作处理中，请稍后。" : "只解除当前浏览器绑定，保留本地首页"}>解除本机</button>
-        <button className="utility-button" type="button" onClick={restoreResetBackupFromPause} disabled={busy || !hasResetBackup || !onRestoreResetBackup} title={getRestoreBackupDisabledReason(busy, hasResetBackup, Boolean(onRestoreResetBackup)) ?? "恢复重置前自动保存的本地备份"}>恢复备份</button>
+        <button className="utility-button" type="button" onClick={() => performPush({ force: false, source: "manual" })} disabled={!syncServiceConfigured || busy} title={getRemoteActionDisabledReason(syncServiceConfigured, busy, t) ?? t("settings.sync.uploadLocalTitle")}>{t("settings.sync.uploadLocal")}</button>
+        <button className="utility-button" type="button" onClick={() => performPull({ forceApply: true, source: "manual" })} disabled={!syncServiceConfigured || busy} title={getRemoteActionDisabledReason(syncServiceConfigured, busy, t) ?? t("settings.sync.pullCloudTitle")}>{t("settings.sync.pullCloud")}</button>
+        <button className="utility-button" type="button" onClick={unbindLocal} disabled={busy} title={busy ? t("settings.sync.operationPending") : t("settings.sync.unbindLocalTitle")}>{t("settings.sync.unbindLocal")}</button>
+        <button className="utility-button" type="button" onClick={restoreResetBackupFromPause} disabled={busy || !hasResetBackup || !onRestoreResetBackup} title={getRestoreBackupDisabledReason(busy, hasResetBackup, Boolean(onRestoreResetBackup), t) ?? t("settings.sync.restoreBackupTitle")}>{t("settings.sync.restoreBackup")}</button>
       </div>
     </div>
   );
   const conflictNotice = (
     <div className="sync-conflict" role="status">
       <div>
-        <strong>云端和本地都有修改</strong>
-        <p>自动同步已暂停。请选择保留哪一份数据。</p>
+        <strong>{t("settings.sync.cloudAndLocalChanged")}</strong>
+        <p>{t("settings.sync.conflictDescription")}</p>
       </div>
       <div className="sync-panel-actions">
-        <button className="utility-button" type="button" onClick={() => performPull({ forceApply: true, source: "resolve" })} disabled={!syncServiceConfigured || busy} title={getRemoteActionDisabledReason(syncServiceConfigured, busy) ?? "用云端首页覆盖当前本地首页"}>使用云端版本</button>
-        <button className="danger-button" type="button" onClick={() => performPush({ force: true, source: "resolve" })} disabled={!syncServiceConfigured || busy} title={getRemoteActionDisabledReason(syncServiceConfigured, busy) ?? "把当前本地首页强制上传并覆盖云端"}>本地覆盖云端</button>
-        <button className="utility-button" type="button" onClick={() => setMessage("已暂停自动同步，冲突状态会保留。")} disabled={busy} title={busy ? "同步操作处理中，请稍后。" : "保留冲突状态，稍后再处理"}>暂不处理</button>
+        <button className="utility-button" type="button" onClick={() => performPull({ forceApply: true, source: "resolve" })} disabled={!syncServiceConfigured || busy} title={getRemoteActionDisabledReason(syncServiceConfigured, busy, t) ?? t("settings.sync.useCloudTitle")}>{t("settings.sync.useCloud")}</button>
+        <button className="danger-button" type="button" onClick={() => performPush({ force: true, source: "resolve" })} disabled={!syncServiceConfigured || busy} title={getRemoteActionDisabledReason(syncServiceConfigured, busy, t) ?? t("settings.sync.localOverwriteCloudTitle")}>{t("settings.sync.localOverwriteCloud")}</button>
+        <button className="utility-button" type="button" onClick={() => setMessage(t("settings.sync.conflictKept"))} disabled={busy} title={busy ? t("settings.sync.operationPending") : t("settings.sync.keepConflictTitle")}>{t("settings.sync.keepConflict")}</button>
       </div>
     </div>
   );
@@ -975,10 +976,10 @@ export function SyncPanel({
             className="utility-button"
             type="button"
             disabled={needsAttention}
-            title={needsAttention ? "请先处理暂停同步或同步冲突。" : controlsVisible ? "收起离线同步码操作" : "展开离线同步码操作"}
+            title={needsAttention ? t("settings.sync.handleAttentionFirst") : controlsVisible ? t("settings.sync.collapseAdvancedTitle") : t("settings.sync.expandAdvancedTitle")}
             onClick={() => setAdvancedOpen((value) => !value)}
           >
-            {controlsVisible ? "收起高级" : "展开高级"}
+            {controlsVisible ? t("settings.sync.collapseAdvanced") : t("settings.sync.expandAdvanced")}
           </button>
         ) : (
           <SyncActionButtons
@@ -1016,45 +1017,45 @@ export function SyncPanel({
           ) : null}
 
           {isAccountManaged ? (
-            <p className="sync-managed-note">当前空间由账号可信托管，不显示完整同步码；账号会保存恢复凭证，云端历史可用于恢复和审计。</p>
+            <p className="sync-managed-note">{t("settings.sync.accountManagedNote")}</p>
           ) : (
             <div className="sync-code-grid">
               <label className="field">
-                <span>当前同步码</span>
+                <span>{t("settings.sync.currentCode")}</span>
                 <input
                   value={syncCode}
                   readOnly
-                  placeholder="创建后显示，用于其他设备绑定"
+                  placeholder={t("settings.sync.currentCodePlaceholder")}
                 />
               </label>
-              <button className="utility-button" type="button" onClick={copyCode} disabled={!syncCode} title={syncCode ? "复制当前同步码" : "当前没有可复制的同步码"}>复制</button>
+              <button className="utility-button" type="button" onClick={copyCode} disabled={!syncCode} title={syncCode ? t("settings.sync.copyCodeTitle") : t("settings.sync.noCodeToCopyTitle")}>{t("settings.sync.copy")}</button>
             </div>
           )}
 
           <div className="sync-code-grid">
             <label className="field">
-              <span>{isAdvanced ? "输入同步码恢复" : "输入同步码"}</span>
+              <span>{isAdvanced ? t("settings.sync.enterCodeRestore") : t("settings.sync.enterCode")}</span>
               <input value={inputCode} onChange={(event) => setInputCode(event.target.value)} placeholder="hp1_..." />
             </label>
-            <button className="utility-button" type="button" onClick={bindCode} disabled={!syncServiceConfigured || busy || !inputCode.trim()} title={getBindDisabledReason(syncServiceConfigured, busy, inputCode) ?? "绑定输入的同步码，并用云端首页覆盖当前本地首页"}>绑定</button>
+            <button className="utility-button" type="button" onClick={bindCode} disabled={!syncServiceConfigured || busy || !inputCode.trim()} title={getBindDisabledReason(syncServiceConfigured, busy, inputCode, t) ?? t("settings.sync.bindCodeTitle")}>{t("settings.sync.bind")}</button>
           </div>
 
           {isAdvanced ? (
-            <p className="sync-boundary-note">{getBoundaryNote(currentAccountHomeSpace, isAccountManaged)}</p>
+            <p className="sync-boundary-note">{getBoundaryNote(currentAccountHomeSpace, isAccountManaged, t)}</p>
           ) : null}
 
           <div className="sync-panel-footer">
             <div className="sync-panel-actions">
-              <button className="utility-button" type="button" onClick={unbindLocal} disabled={!binding} title={binding ? "只解除当前浏览器绑定，保留本地首页" : "当前浏览器未绑定同步空间"}>解除本机</button>
+              <button className="utility-button" type="button" onClick={unbindLocal} disabled={!binding} title={binding ? t("settings.sync.unbindLocalTitle") : t("settings.sync.noBindingTitle")}>{t("settings.sync.unbindLocal")}</button>
               {!isAccountManaged ? (
                 <button
                   className="danger-button"
                   type="button"
                   onClick={revokeCode}
                   disabled={!syncServiceConfigured || busy || !binding}
-                  title={getRevokeDisabledReason(syncServiceConfigured, busy, binding) ?? "废弃当前同步码，所有设备都不能继续使用这个同步码"}
+                  title={getRevokeDisabledReason(syncServiceConfigured, busy, binding, t) ?? t("settings.sync.revokeCodeTitle")}
                 >
-                  废弃同步码
+                  {t("settings.sync.revokeCode")}
                 </button>
               ) : null}
             </div>
@@ -1065,7 +1066,7 @@ export function SyncPanel({
         </>
       ) : (
         <StatusMessage role={syncStatusRole} tone={syncStatusTone}>
-          {syncStatusMessage || "同步码创建、绑定和旧空间维护已收起。"}
+          {syncStatusMessage || t("settings.sync.advancedCollapsed")}
         </StatusMessage>
       )}
     </section>
@@ -1094,9 +1095,10 @@ function SyncActionButtons({
   onPull: () => void;
   onPush: () => void;
 }) {
-  const createDisabledReason = getCreateDisabledReason(serviceConfigured, busy, isPaused);
-  const pullDisabledReason = getPullDisabledReason(serviceConfigured, busy, binding, isPaused);
-  const pushDisabledReason = getPushDisabledReason(serviceConfigured, busy, binding, isPaused, status);
+  const { t } = useI18n();
+  const createDisabledReason = getCreateDisabledReason(serviceConfigured, busy, isPaused, t);
+  const pullDisabledReason = getPullDisabledReason(serviceConfigured, busy, binding, isPaused, t);
+  const pushDisabledReason = getPushDisabledReason(serviceConfigured, busy, binding, isPaused, status, t);
 
   return (
     <div className="sync-panel-actions">
@@ -1106,9 +1108,9 @@ function SyncActionButtons({
           type="button"
           onClick={onCreate}
           disabled={!serviceConfigured || busy || isPaused}
-          title={createDisabledReason ?? "为当前首页创建普通同步码"}
+          title={createDisabledReason ?? t("settings.sync.createCodeTitle")}
         >
-          创建
+          {t("settings.sync.create")}
         </button>
       ) : null}
       <button
@@ -1116,46 +1118,46 @@ function SyncActionButtons({
         type="button"
         onClick={onPull}
         disabled={!serviceConfigured || busy || !binding || isPaused}
-        title={pullDisabledReason ?? "从当前同步空间拉取云端首页"}
+        title={pullDisabledReason ?? t("settings.sync.pullTitle")}
       >
-        拉取
+        {t("settings.sync.pull")}
       </button>
       <button
         className="utility-button"
         type="button"
         onClick={onPush}
         disabled={!serviceConfigured || busy || !binding || isPaused || status === "conflict"}
-        title={pushDisabledReason ?? "把当前本地首页上传到同步空间"}
+        title={pushDisabledReason ?? t("settings.sync.pushTitle")}
       >
-        上传
+        {t("settings.sync.push")}
       </button>
     </div>
   );
 }
 
-function getCreateDisabledReason(serviceConfigured: boolean, busy: boolean, isPaused: boolean): string | undefined {
+function getCreateDisabledReason(serviceConfigured: boolean, busy: boolean, isPaused: boolean, t: I18nTranslate): string | undefined {
   if (!serviceConfigured) {
-    return "账号与云端同步服务尚未配置 Supabase 环境变量。";
+    return t("settings.sync.serviceNotConfigured");
   }
 
   if (busy) {
-    return "同步操作处理中，请稍后。";
+    return t("settings.sync.operationPending");
   }
 
   if (isPaused) {
-    return "同步已暂停，请先选择上传本地、拉取云端、解除本机或恢复备份。";
+    return t("settings.sync.pausedChooseAction");
   }
 
   return undefined;
 }
 
-function getRemoteActionDisabledReason(serviceConfigured: boolean, busy: boolean): string | undefined {
+function getRemoteActionDisabledReason(serviceConfigured: boolean, busy: boolean, t: I18nTranslate): string | undefined {
   if (!serviceConfigured) {
-    return "账号与云端同步服务尚未配置 Supabase 环境变量。";
+    return t("settings.sync.serviceNotConfigured");
   }
 
   if (busy) {
-    return "同步操作处理中，请稍后。";
+    return t("settings.sync.operationPending");
   }
 
   return undefined;
@@ -1165,22 +1167,23 @@ function getPullDisabledReason(
   serviceConfigured: boolean,
   busy: boolean,
   binding: StoredSyncBinding | null,
-  isPaused: boolean
+  isPaused: boolean,
+  t: I18nTranslate
 ): string | undefined {
   if (!serviceConfigured) {
-    return "账号与云端同步服务尚未配置 Supabase 环境变量。";
+    return t("settings.sync.serviceNotConfigured");
   }
 
   if (busy) {
-    return "同步操作处理中，请稍后。";
+    return t("settings.sync.operationPending");
   }
 
   if (!binding) {
-    return "请先创建或绑定同步码。";
+    return t("settings.sync.createOrBindRequired");
   }
 
   if (isPaused) {
-    return "同步已暂停，请使用提示区中的“拉取云端”。";
+    return t("settings.sync.pausedUsePull");
   }
 
   return undefined;
@@ -1191,58 +1194,59 @@ function getPushDisabledReason(
   busy: boolean,
   binding: StoredSyncBinding | null,
   isPaused: boolean,
-  status: HomeSyncMeta["status"]
+  status: HomeSyncMeta["status"],
+  t: I18nTranslate
 ): string | undefined {
   if (!serviceConfigured) {
-    return "账号与云端同步服务尚未配置 Supabase 环境变量。";
+    return t("settings.sync.serviceNotConfigured");
   }
 
   if (busy) {
-    return "同步操作处理中，请稍后。";
+    return t("settings.sync.operationPending");
   }
 
   if (!binding) {
-    return "请先创建或绑定同步码。";
+    return t("settings.sync.createOrBindRequired");
   }
 
   if (isPaused) {
-    return "同步已暂停，请使用提示区中的“上传本地”。";
+    return t("settings.sync.pausedUseUpload");
   }
 
   if (status === "conflict") {
-    return "当前存在同步冲突，请先选择云端版本或本地版本。";
+    return t("settings.sync.conflictChooseFirst");
   }
 
   return undefined;
 }
 
-function getBindDisabledReason(serviceConfigured: boolean, busy: boolean, inputCode: string): string | undefined {
+function getBindDisabledReason(serviceConfigured: boolean, busy: boolean, inputCode: string, t: I18nTranslate): string | undefined {
   if (!serviceConfigured) {
-    return "账号与云端同步服务尚未配置 Supabase 环境变量。";
+    return t("settings.sync.serviceNotConfigured");
   }
 
   if (busy) {
-    return "同步操作处理中，请稍后。";
+    return t("settings.sync.operationPending");
   }
 
   if (!inputCode.trim()) {
-    return "请输入完整同步码。";
+    return t("settings.sync.enterFullCode");
   }
 
   return undefined;
 }
 
-function getRevokeDisabledReason(serviceConfigured: boolean, busy: boolean, binding: StoredSyncBinding | null): string | undefined {
+function getRevokeDisabledReason(serviceConfigured: boolean, busy: boolean, binding: StoredSyncBinding | null, t: I18nTranslate): string | undefined {
   if (!serviceConfigured) {
-    return "账号与云端同步服务尚未配置 Supabase 环境变量。";
+    return t("settings.sync.serviceNotConfigured");
   }
 
   if (busy) {
-    return "同步操作处理中，请稍后。";
+    return t("settings.sync.operationPending");
   }
 
   if (!binding) {
-    return "当前浏览器未绑定同步码。";
+    return t("settings.sync.noCodeBinding");
   }
 
   return undefined;
@@ -1251,116 +1255,118 @@ function getRevokeDisabledReason(serviceConfigured: boolean, busy: boolean, bind
 function getRestoreBackupDisabledReason(
   busy: boolean,
   hasResetBackup: boolean,
-  canRestoreResetBackup: boolean
+  canRestoreResetBackup: boolean,
+  t: I18nTranslate
 ): string | undefined {
   if (busy) {
-    return "同步操作处理中，请稍后。";
+    return t("settings.sync.operationPending");
   }
 
   if (!canRestoreResetBackup) {
-    return "当前页面不支持从这里恢复重置前备份。";
+    return t("settings.sync.restoreBackupUnsupported");
   }
 
   if (!hasResetBackup) {
-    return "没有可恢复的重置前备份。";
+    return t("settings.sync.noResetBackup");
   }
 
   return undefined;
 }
 
-function getBoundaryNote(homeSpace: HomeSpace | null, isAccountManaged: boolean): string {
+function getBoundaryNote(homeSpace: HomeSpace | null, isAccountManaged: boolean, t: I18nTranslate): string {
   if (isAccountManaged) {
     return homeSpace
-      ? `当前账号托管空间“${homeSpace.name}”采用账号可信托管模型：账号保存恢复凭证，有效用户首页可进入云端历史。这里的解除本机只影响当前浏览器；账号空间仍保留。`
-      : "当前账号托管空间采用账号可信托管模型：账号保存恢复凭证，有效用户首页可进入云端历史。这里的解除本机只影响当前浏览器；账号空间仍保留。";
+      ? t("settings.sync.boundaryAccountManagedNamed", { space: homeSpace.name })
+      : t("settings.sync.boundaryAccountManaged");
   }
 
   if (homeSpace?.accessMode === "sync-code") {
-    return `当前普通同步码已在账号中记录为首页空间“${homeSpace.name}”。账号只保存索引，完整同步码仍由用户持有；废弃同步码只会让底层同步码失效，不会自动从账号移除该空间。`;
+    return t("settings.sync.boundarySyncCodeInAccount", { space: homeSpace.name });
   }
 
-  return "这里只管理当前浏览器的普通同步码绑定；输入同步码不会自动认领到账号，也不会迁移为账号托管。普通同步码空间云端默认只保存密文。";
+  return t("settings.sync.boundaryLocalSyncCode");
 }
 
-function getBindConfirmMessage(isAdvanced: boolean): string {
+function getBindConfirmMessage(isAdvanced: boolean, t: I18nTranslate): string {
   return [
-    "输入同步码会用云端首页覆盖当前本地首页。",
-    isAdvanced ? "这只会绑定当前浏览器，不会自动认领到账号，也不会迁移为账号托管；账号空间请在上方“首页空间”中处理。" : "",
-    "继续？"
+    t("settings.sync.confirmBindOverwrite"),
+    isAdvanced ? t("settings.sync.confirmBindAdvancedBoundary") : "",
+    t("settings.common.confirm")
   ].filter(Boolean).join("\n");
 }
 
-function getUnbindConfirmMessage(homeSpace: HomeSpace | null): string {
+function getUnbindConfirmMessage(homeSpace: HomeSpace | null, t: I18nTranslate): string {
   if (homeSpace?.accessMode === "account-managed") {
     return [
-      `解除本机账号托管空间“${homeSpace.name}”？`,
-      "这只会清除当前浏览器的本机绑定，本地首页内容会保留。",
-      "账号中的首页空间、恢复凭证和账号托管云端历史不会删除，之后仍可在“首页空间”中恢复。",
-      "继续？"
+      t("settings.sync.confirmUnbindManagedTitle", { space: homeSpace.name }),
+      t("settings.sync.confirmUnbindKeepsLocal"),
+      t("settings.sync.confirmUnbindManagedKeepsAccount"),
+      t("settings.common.confirm")
     ].join("\n");
   }
 
   if (homeSpace?.accessMode === "sync-code") {
     return [
-      `解除本机同步码空间“${homeSpace.name}”？`,
-      "这只会清除当前浏览器的本机同步码绑定，本地首页内容会保留。",
-      "账号中的首页空间索引不会删除，云端同步空间和同步码也不会废弃。",
-      "继续？"
+      t("settings.sync.confirmUnbindSyncTitle", { space: homeSpace.name }),
+      t("settings.sync.confirmUnbindSyncKeepsLocal"),
+      t("settings.sync.confirmUnbindSyncKeepsAccount"),
+      t("settings.common.confirm")
     ].join("\n");
   }
 
-  return "解除后，本机不再同步，但云端同步空间不会删除。继续？";
+  return t("settings.sync.confirmUnbindLocal");
 }
 
-function getRevokeConfirmMessage(homeSpace: HomeSpace | null): string {
+function getRevokeConfirmMessage(homeSpace: HomeSpace | null, t: I18nTranslate): string {
   if (homeSpace?.accessMode === "sync-code") {
     return [
-      `废弃当前同步码空间“${homeSpace.name}”？`,
-      "废弃后，所有设备都无法继续使用这个同步码上传或拉取。",
-      "这不会自动从账号移除该首页空间索引；账号列表中仍可能保留一个无法用旧同步码激活的空间。",
-      "如只想让当前浏览器停止同步，请使用“解除本机”。",
-      "继续废弃？"
+      t("settings.sync.confirmRevokeSyncTitle", { space: homeSpace.name }),
+      t("settings.sync.confirmRevokeAllDevices"),
+      t("settings.sync.confirmRevokeKeepsAccountIndex"),
+      t("settings.sync.confirmRevokeUseUnbind"),
+      t("settings.sync.confirmRevoke")
     ].join("\n");
   }
 
-  return "废弃后，所有设备都无法继续使用这个同步码。继续？";
+  return t("settings.sync.confirmRevokeGeneric");
 }
 
 function shouldConfirmCloudPull(source: "auto" | "manual" | "resolve" | "startup"): boolean {
   return source === "manual" || source === "resolve";
 }
 
-function getCloudPullConfirmMessage(source: "auto" | "manual" | "resolve" | "startup"): string {
-  const action = source === "resolve" ? "使用云端版本" : "拉取云端首页";
+function getCloudPullConfirmMessage(source: "auto" | "manual" | "resolve" | "startup", t: I18nTranslate): string {
+  const action = source === "resolve" ? t("settings.sync.useCloud") : t("settings.sync.pullCloudHome");
 
   return [
-    `${action}会用云端首页覆盖当前本地首页。`,
-    "覆盖前会先保存当前有效本地首页到数据恢复中心。",
-    "继续？"
+    t("settings.sync.confirmCloudPullOverwrite", { action }),
+    t("settings.sync.confirmSaveLocalBeforeOverwrite"),
+    t("settings.common.confirm")
   ].join("\n");
 }
 
 function getCloudOverwriteConfirmMessage(
   classification: ReturnType<typeof classifyHomeDocument>,
-  force: boolean
+  force: boolean,
+  t: I18nTranslate
 ): string {
   const overwriteLine = force
-    ? "继续会强制用当前本地首页覆盖云端版本。"
-    : "继续会用当前本地首页上传并覆盖云端版本。";
+    ? t("settings.sync.confirmForceCloudOverwrite")
+    : t("settings.sync.confirmCloudOverwrite");
 
   if (classification.isUserData) {
     return [
       overwriteLine,
-      "覆盖前会先把当前云端版本保存到本机数据恢复中心。",
-      "继续？"
+      t("settings.sync.confirmSaveCloudBeforeOverwrite"),
+      t("settings.common.confirm")
     ].join("\n");
   }
 
   return [
-    `当前本地首页是${getHomeDocumentClassLabel(classification)}，系统不会自动上传这类首页。`,
+    t("settings.sync.confirmSystemDocument", { class: formatSettingsHomeDocumentClass(classification.documentClass, t) }),
     overwriteLine,
-    "覆盖前会先把当前云端版本保存到本机数据恢复中心。",
-    "继续？"
+    t("settings.sync.confirmSaveCloudBeforeOverwrite"),
+    t("settings.common.confirm")
   ].join("\n");
 }
 
@@ -1384,15 +1390,6 @@ function localSyncMeta(): HomeSyncMeta {
     remoteRevision: null,
     lastSyncedAt: null
   };
-}
-
-function formatShortDateTime(value: string, locale: LocalePreference): string {
-  return new Intl.DateTimeFormat(resolveLocalePreference(locale), {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit"
-  }).format(new Date(value));
 }
 
 function hasRemoteSnapshotChanged(revision: number, updatedAt: string, binding: StoredSyncBinding): boolean {

@@ -4,17 +4,18 @@ import { useEffect, useState } from "react";
 import type { HomeSpace } from "@/domain/account";
 import type { HomeDocumentV2 } from "@/domain/home-document";
 import {
-  getHomeDocumentClassLabel,
   type DocumentProtectionState
 } from "@/domain/home-document-protection";
-import { resolveLocalePreference, type LocalePreference } from "@/domain/ui-preferences";
-import { useUiPreferences } from "@/hooks/use-ui-preferences";
+import { useI18n } from "@/hooks/use-i18n";
 import {
   formatDeviceShortId,
   loadOrTouchLocalDevice,
   type LocalDeviceRecord
 } from "@/infrastructure/local-device-repository";
 import type { StoredSyncBinding } from "@/domain/sync-code";
+import { formatSyncStatus } from "@/i18n/home-presentation";
+import type { I18nTranslate } from "@/i18n/messages";
+import { formatSettingsHomeDocumentClass } from "@/i18n/settings-presentation";
 
 interface DeviceStatusPanelProps {
   currentBinding: StoredSyncBinding | null;
@@ -31,7 +32,7 @@ export function DeviceStatusPanel({
   documentValue,
   signedIn
 }: DeviceStatusPanelProps) {
-  const { preferences } = useUiPreferences();
+  const { format, t } = useI18n();
   const [device, setDevice] = useState<LocalDeviceRecord | null>(null);
 
   useEffect(() => {
@@ -44,26 +45,26 @@ export function DeviceStatusPanel({
 
   const bindingLabel = currentBinding
     ? currentBinding.accessMode === "account-managed"
-      ? "账号托管"
-      : "同步码"
-    : "未绑定";
+      ? t("settings.sync.access.accountManaged")
+      : t("settings.sync.access.syncCode")
+    : t("settings.sync.statusUnbound");
 
   return (
     <div className="advanced-operation-block">
       <div className="advanced-operation-head">
-        <h3>本机状态</h3>
-        <span>Device</span>
+        <h3>{t("settings.device.title")}</h3>
+        <span>{t("settings.device.kicker")}</span>
       </div>
       <div className="device-status-grid">
-        <DeviceStatusItem label="本机 ID" value={formatDeviceShortId(device?.id)} />
-        <DeviceStatusItem label="账号状态" value={signedIn ? "已登录" : "未登录"} />
-        <DeviceStatusItem label="同步方式" value={bindingLabel} />
-        <DeviceStatusItem label="首页空间" value={currentHomeSpace?.name ?? currentBinding?.spaceId ?? "本地首页"} />
-        <DeviceStatusItem label="首页状态" value={documentValue.syncMeta.status} />
-        <DeviceStatusItem label="数据分类" value={getHomeDocumentClassLabel(documentProtection)} />
-        <DeviceStatusItem label="本地版本" value={`rev ${documentValue.revision}`} />
-        <DeviceStatusItem label="文档更新" value={formatDateTime(documentValue.updatedAt, preferences.locale)} />
-        <DeviceStatusItem label="最后在线" value={formatDateTime(device?.lastSeenAt, preferences.locale)} />
+        <DeviceStatusItem label={t("settings.device.localId")} value={formatDeviceShortId(device?.id)} />
+        <DeviceStatusItem label={t("settings.device.accountStatus")} value={signedIn ? t("settings.device.signedIn") : t("settings.device.signedOut")} />
+        <DeviceStatusItem label={t("settings.device.syncMode")} value={bindingLabel} />
+        <DeviceStatusItem label={t("settings.device.homeSpace")} value={currentHomeSpace?.name ?? currentBinding?.spaceId ?? t("settings.device.localHome")} />
+        <DeviceStatusItem label={t("settings.device.homeStatus")} value={formatSyncStatus(documentValue.syncMeta.status, t)} />
+        <DeviceStatusItem label={t("settings.device.documentClass")} value={formatSettingsHomeDocumentClass(documentProtection.documentClass, t)} />
+        <DeviceStatusItem label={t("settings.device.localRevision")} value={t("settings.device.revisionValue", { revision: String(documentValue.revision) })} />
+        <DeviceStatusItem label={t("settings.device.documentUpdated")} value={formatOptionalDateTime(documentValue.updatedAt, format.shortDateTime, t)} />
+        <DeviceStatusItem label={t("settings.device.lastSeen")} value={formatOptionalDateTime(device?.lastSeenAt, format.shortDateTime, t)} />
       </div>
     </div>
   );
@@ -78,20 +79,15 @@ function DeviceStatusItem({ label, value }: { label: string; value: string }) {
   );
 }
 
-function formatDateTime(value: string | null | undefined, locale: LocalePreference): string {
+function formatOptionalDateTime(value: string | null | undefined, format: (value: string) => string, t: I18nTranslate): string {
   if (!value) {
-    return "未知";
+    return t("settings.device.unknown");
   }
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return "未知";
+    return t("settings.device.unknown");
   }
 
-  return new Intl.DateTimeFormat(resolveLocalePreference(locale), {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit"
-  }).format(date);
+  return format(value);
 }
