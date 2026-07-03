@@ -171,7 +171,7 @@ v1 采用分层交付：先完成语言数据模型、Supabase 约束和系统�
 
 - 不修改 `HomeDocumentV2`、同步码格式、同步 RPC、数据包结构或 Supabase 配置。
 - 不翻译用户导入的网站名、URL、源文件名、分组名或已有首页空间名。
-- 同步和导入新增 key 在 `zh-CN` 与 `en-US` 完整覆盖；繁体中文通过 `settings.*` 转换器覆盖；其他 v1 语言本阶段可先回落到英语，翻译精修进入 1.15.6。
+- 同步和导入新增 key 在 `zh-CN`、`en-US`、`fr-FR`、`es-ES`、`ja-JP`、`ko-KR`、`it-IT` 已补齐关键路径覆盖；繁体中文继续通过 `settings.*` 转换器覆盖。
 - 本地审计记录 message 保留创建时文本，展示层仅本地化审计面板标题、操作和空状态。
 
 验证：
@@ -185,3 +185,31 @@ v1 采用分层交付：先完成语言数据模型、Supabase 约束和系统�
 后续任务：
 
 - Phase 1.15.6：质量回归与文档，重点检查新增 key 覆盖、非英语翻译精修和长文本布局。
+
+## Phase 1.15.6：质量回归与文档
+
+已完成实现：
+
+- 新增 `scripts/verify-i18n-messages.mjs` 和 `npm run verify:i18n`，通过运行时转译 `src/i18n/messages.ts` 校验 dictionary placeholder、一致性和关键路径的 locale 覆盖。
+- 将 `settings.document.class.*`、`settings.sync.*`、`settings.import.*`、`settings.error.*`、`settings.audit.*`、`settings.device.*`、`settings.analytics.*` 的 `fr-FR`、`es-ES`、`ja-JP`、`ko-KR`、`it-IT` 覆盖补齐，消除这些高风险设置路径对英语 fallback 的依赖。
+- 明确共享词边界：模板 preset 名、`Magic Link`、埋点事件名、监控 operation 和用户自定义内容允许保持原样，不纳入强制翻译覆盖。
+- 更新 Phase 1 计划与实施记录，收口多语言 v1 的自动校验和支持边界。
+
+数据与架构边界：
+
+- 不修改 `HomeDocumentV2`、同步码格式、同步 RPC、历史快照、数据包结构或 Supabase 配置。
+- 不翻译用户自定义首页标题、组件标题、分组名、网站名、导入文件名或外部网站标题。
+- 不回溯改写本地审计历史 message；只保证新展示层和当前会话 UI 文案可本地化。
+
+验证：
+
+- `npm run typecheck` 通过。
+- `npm run lint` 通过。
+- `npm run build` 通过。
+- `npm run verify:export` 待本轮复跑。
+- `npm run verify:i18n` 通过。
+
+人工回归建议：
+
+- 桌面、平板、移动端分别检查 `fr-FR`、`es-ES`、`ja-JP`、`ko-KR`、`it-IT` 下的设置页长文本按钮、同步冲突提示、恢复中心和导入弹窗。
+- 走通账号偏好、本地偏好、Magic Link、账号托管恢复、同步码绑定、图片设置和数据恢复中心主路径。
