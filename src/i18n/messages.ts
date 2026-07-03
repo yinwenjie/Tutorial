@@ -1355,6 +1355,12 @@ const PHASE_1_15_4_LOCALE_ROWS = [
   ["settings.homeSpaces.access.syncCode", "Code de synchro", "Código de sincronización", "同期コード", "동기화 코드", "Codice sync"]
 ] as const satisfies ReadonlyArray<readonly [I18nMessageKey, string, string, string, string, string]>;
 
+function createSettingsMessagesFromRows(index: 1 | 2 | 3 | 4 | 5): Partial<MessageDictionary> {
+  return Object.fromEntries(
+    PHASE_1_15_4_LOCALE_ROWS.map((row) => [row[0], row[index]])
+  ) as Partial<MessageDictionary>;
+}
+
 const PHASE_1_15_4_FR_FR_MESSAGES = createSettingsMessagesFromRows(1);
 const PHASE_1_15_4_ES_ES_MESSAGES = createSettingsMessagesFromRows(2);
 const PHASE_1_15_4_JA_JP_MESSAGES = createSettingsMessagesFromRows(3);
@@ -2680,12 +2686,6 @@ function createSettingsMessageOverrides(transform: (message: string) => string):
     Object.entries(DEFAULT_MESSAGES)
       .filter(([key]) => key.startsWith("settings."))
       .map(([key, message]) => [key, transform(message)])
-  ) as Partial<MessageDictionary>;
-}
-
-function createSettingsMessagesFromRows(index: 1 | 2 | 3 | 4 | 5): Partial<MessageDictionary> {
-  return Object.fromEntries(
-    PHASE_1_15_4_LOCALE_ROWS.map((row) => [row[0], row[index]])
   ) as Partial<MessageDictionary>;
 }
 
