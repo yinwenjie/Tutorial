@@ -2,13 +2,22 @@
 
 ## 当前部署方式
 
-本项目使用 Next.js static export + GitHub Pages Actions。
+本项目使用 Next.js static export + `gh-pages` 分支发布 GitHub Pages legacy 站点。
 
+- 源码分支：`production`
+- GitHub Pages 发布分支：`gh-pages`
 - 构建命令：`npm run build`
 - 构建后校验：`npm run verify:export`
 - 发布产物目录：`out/`
 - 工作流文件：`.github/workflows/deploy-pages.yml`
 - Pages 兼容文件：`public/.nojekyll`
+
+说明：
+
+- `production` 是源码发布分支，推送后工作流会构建静态产物。
+- 工作流会把 `out/` 内容强制更新到 `gh-pages` 分支。
+- GitHub Pages Dashboard 中 `Build and deployment` 应使用 `Deploy from a branch`，source 绑定 `gh-pages` 分支根目录 `/`。
+- 不再使用 `actions/deploy-pages` artifact 部署链路；该链路曾在 GitHub Pages 后端 `deployment_queued` 状态超时。
 
 ## URL 规则
 
@@ -23,11 +32,14 @@
 2. 打开仓库页面。
 3. 进入 `Settings`。
 4. 在左侧进入 `Pages`。
-5. 在 `Build and deployment` 里把 `Source` 改成 `GitHub Actions`。
+5. 在 `Build and deployment` 里把 `Source` 改成 `Deploy from a branch`。
 6. 确认要发布的代码已经合并到 `production` 分支。当前工作流监听的是 `production`。
-7. 推送 `production` 分支，或者在 `Actions` 页手动运行 `Deploy to GitHub Pages`。
-8. 等工作流里的 `build` 和 `deploy` 两个 job 都变绿。
-9. 回到 `Settings > Pages` 查看最终站点地址。
+7. 设置 branch 为 `gh-pages`，folder 为 `/`。
+8. 确认 `github-pages` environment 的 deployment branch policy 允许 `gh-pages`。
+9. 推送 `production` 分支，或者在 `Actions` 页手动运行 `Deploy to GitHub Pages`。
+10. 等工作流里的 `build` job 变绿，并确认 GitHub Pages hidden run `pages-build-deployment` 变绿。
+11. 如果 hidden run 曾因 `deployment_queued` 超时失败，重新触发 Pages build 或重新推送 `gh-pages` 空提交；最近一次成功记录为 `pages-build-deployment` run `28632799733`。
+12. 回到 `Settings > Pages` 查看最终站点地址。
 
 ## 自定义路径
 

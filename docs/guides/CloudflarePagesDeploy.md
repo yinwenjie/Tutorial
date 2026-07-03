@@ -27,6 +27,13 @@
 6. Project name 建议使用产品名或仓库名，例如 `personal-homepage`。
 7. Production branch 选择 `production`。
 
+分支策略：
+
+- Production branch 必须保持为 `production`。
+- `gh-pages` 仅用于 GitHub Pages legacy 静态产物，不是源码分支。
+- 在 Cloudflare Pages 的 preview branch control 中排除 `gh-pages`，否则 Cloudflare 会尝试在该静态产物分支上执行源码构建命令并失败。
+- 推荐配置：Preview branch control 使用 `Custom branches`，include `*`，exclude `gh-pages`；如果暂时不需要 preview，可设为 `None`。
+
 构建配置：
 
 | 字段 | 值 |
