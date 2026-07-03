@@ -9,7 +9,12 @@ import {
   VISIBLE_HOME_THEME_PRESETS,
   type HomeThemePreset
 } from "@/domain/theme-preset";
+import { useI18n } from "@/hooks/use-i18n";
 import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
+import {
+  formatSettingsThemePresetDescription,
+  formatSettingsThemePresetName
+} from "@/i18n/settings-presentation";
 
 interface ThemePresetPanelProps {
   documentValue: HomeDocumentV2;
@@ -24,12 +29,13 @@ export function ThemePresetPanel({
   storageReady,
   onCommitDocument
 }: ThemePresetPanelProps) {
+  const { t } = useI18n();
   const activePresetId = normalizeHomeThemePresetId(documentValue.theme.presetId, documentValue.theme.accent);
   const activePreset = getHomeThemePreset(activePresetId);
   const visiblePresets = activePreset.family === "v2"
     ? VISIBLE_HOME_THEME_PRESETS
     : [activePreset, ...VISIBLE_HOME_THEME_PRESETS];
-  const disabledReason = storageReady ? undefined : "本地存储尚未就绪，请稍后重试。";
+  const disabledReason = storageReady ? undefined : t("settings.common.storageNotReady");
 
   function applyPreset(preset: HomeThemePreset) {
     if (preset.id === activePresetId || !storageReady) {
@@ -43,7 +49,7 @@ export function ThemePresetPanel({
         presetId: preset.id,
         accent: preset.accent
       }
-    }, `已切换为${preset.name}`);
+    }, t("settings.theme.switched", { theme: formatSettingsThemePresetName(preset.id, t) }));
     trackProductEvent("theme.changed", {
       source: "settings",
       themePresetId: preset.id
@@ -60,13 +66,14 @@ export function ThemePresetPanel({
             disabledReason={disabledReason}
             preset={preset}
             selected={preset.id === activePresetId}
+            t={t}
             onApply={applyPreset}
           />
         ))}
       </div>
 
       <StatusMessage tone="neutral">
-        当前主题：{activePreset.name}
+        {t("settings.theme.current", { theme: formatSettingsThemePresetName(activePreset.id, t) })}
       </StatusMessage>
     </>
   );
@@ -76,10 +83,10 @@ export function ThemePresetPanel({
   }
 
   return (
-    <section className="settings-panel" aria-label="主题风格">
+    <section className="settings-panel" aria-label={t("settings.section.themeStyle.title")}>
       <div className="panel-header">
-        <h2>主题风格</h2>
-        <span>Theme</span>
+        <h2>{t("settings.section.themeStyle.title")}</h2>
+        <span>{t("settings.section.themeStyle.kicker")}</span>
       </div>
       {content}
     </section>
@@ -91,12 +98,14 @@ function ThemePresetButton({
   disabledReason,
   preset,
   selected,
+  t,
   onApply
 }: {
   disabled: boolean;
   disabledReason?: string;
   preset: HomeThemePreset;
   selected: boolean;
+  t: ReturnType<typeof useI18n>["t"];
   onApply: (preset: HomeThemePreset) => void;
 }) {
   const style = {
@@ -113,7 +122,7 @@ function ThemePresetButton({
       style={style}
       aria-pressed={selected}
       disabled={disabled}
-      title={disabled ? disabledReason : `切换为${preset.name}`}
+      title={disabled ? disabledReason : t("settings.theme.switchTitle", { theme: formatSettingsThemePresetName(preset.id, t) })}
       onClick={() => onApply(preset)}
     >
       <span className="theme-preset-preview" aria-hidden="true">
@@ -121,11 +130,11 @@ function ThemePresetButton({
         <span />
       </span>
       <span className="theme-preset-copy">
-        <strong>{preset.name}</strong>
-        <span>{preset.description}</span>
+        <strong>{formatSettingsThemePresetName(preset.id, t)}</strong>
+        <span>{formatSettingsThemePresetDescription(preset.id, t)}</span>
       </span>
-      <span className="theme-preset-family">{preset.family === "legacy" ? "旧版" : "v2"}</span>
-      <span className="theme-preset-state">{selected ? "已使用" : "应用"}</span>
+      <span className="theme-preset-family">{preset.family === "legacy" ? t("settings.theme.familyLegacy") : t("settings.theme.familyV2")}</span>
+      <span className="theme-preset-state">{selected ? t("settings.theme.selected") : t("settings.theme.apply")}</span>
     </button>
   );
 }

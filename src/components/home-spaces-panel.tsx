@@ -14,9 +14,12 @@ import {
 } from "@/domain/home-template";
 import { parseSyncCode, type StoredSyncBinding } from "@/domain/sync-code";
 import type { AccountDataState } from "@/hooks/use-account-data";
+import { useI18n } from "@/hooks/use-i18n";
 import { captureClientError } from "@/infrastructure/error-monitoring-repository";
 import type { LocalHomeSnapshotSource } from "@/infrastructure/local-home-snapshot-repository";
 import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
+import { formatHomeTemplateName } from "@/i18n/home-presentation";
+import { formatSettingsHomeSpaceAccessMode } from "@/i18n/settings-presentation";
 
 interface HomeSpacesPanelProps {
   accountData: AccountDataState;
@@ -35,7 +38,6 @@ interface HomeSpacesPanelProps {
 
 type CreateSpaceDialog = "current" | "template-select" | "template-name" | null;
 
-const DEFAULT_MANAGED_SPACE_NAME = "我的首页";
 const DEFAULT_TEMPLATE_ID = HOME_TEMPLATES.find((template) => template.id === "minimal")?.id ?? HOME_TEMPLATES[0].id;
 
 export function HomeSpacesPanel({
@@ -52,9 +54,10 @@ export function HomeSpacesPanel({
   onMigrateSyncCodeHomeSpace,
   onManagedHomeSpaceCreated
 }: HomeSpacesPanelProps) {
-  const [claimSpaceName, setClaimSpaceName] = useState("我的首页");
+  const { format, t } = useI18n();
+  const [claimSpaceName, setClaimSpaceName] = useState(() => t("settings.homeSpaces.defaultName"));
   const [createDialog, setCreateDialog] = useState<CreateSpaceDialog>(null);
-  const [currentCreateName, setCurrentCreateName] = useState(DEFAULT_MANAGED_SPACE_NAME);
+  const [currentCreateName, setCurrentCreateName] = useState(() => t("settings.homeSpaces.defaultName"));
   const [selectedTemplateId, setSelectedTemplateId] = useState<HomeTemplateId>(DEFAULT_TEMPLATE_ID);
   const [templateSpaceName, setTemplateSpaceName] = useState("");
   const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
@@ -84,14 +87,14 @@ export function HomeSpacesPanel({
 
     return accountData.homeSpaces.find((homeSpace) => homeSpace.syncSpaceId === currentBinding.spaceId) ?? null;
   }, [accountData.homeSpaces, currentBinding]);
-  const migrationBlockReason = getMigrationBlockReason(documentValue.syncMeta.status);
+  const migrationBlockReason = getMigrationBlockReason(documentValue.syncMeta.status, t);
   const canMigrateCurrentHomeSpace = Boolean(
     currentHomeSpace
       && currentBinding?.accessMode === "sync-code"
       && currentHomeSpace.accessMode === "sync-code"
   );
-  const createManagedDisabledReason = getCreateManagedDisabledReason(storageReady, accountReady, accountActionPending);
-  const claimDisabledReason = accountActionPending ? "账号空间操作处理中，请稍后。" : undefined;
+  const createManagedDisabledReason = getCreateManagedDisabledReason(storageReady, accountReady, accountActionPending, t);
+  const claimDisabledReason = accountActionPending ? t("settings.homeSpaces.actionPending") : undefined;
   const panelHasError = Boolean(
     accountData.homeSpaceError
       || accountData.claimError
@@ -112,7 +115,7 @@ export function HomeSpacesPanel({
     || accountData.managedCreateMessage
     || accountData.claimMessage
     || accountData.activationMessage
-    || "账号托管空间由账号保存恢复凭证，可用于跨设备恢复、云端历史和审计；普通同步码空间继续保持用户持有码和云端密文边界。";
+    || t("settings.homeSpaces.panelDefault");
   const panelStatusTone = panelHasError
     ? "danger"
     : accountData.homeSpaceMessage
@@ -139,14 +142,14 @@ export function HomeSpacesPanel({
       return;
     }
 
-    const binding = await accountData.createAccountManagedHomeSpace(currentCreateName.trim() || DEFAULT_MANAGED_SPACE_NAME, documentValue);
+    const binding = await accountData.createAccountManagedHomeSpace(currentCreateName.trim() || t("settings.homeSpaces.defaultName"), documentValue);
     if (binding) {
       onManagedHomeSpaceCreated(binding, documentValue);
       trackProductEvent("home_space.account_managed_created", {
         source: "current"
       });
       setCreateDialog(null);
-      setCurrentCreateName(DEFAULT_MANAGED_SPACE_NAME);
+      setCurrentCreateName(t("settings.homeSpaces.defaultName"));
     }
   }
 
@@ -160,7 +163,7 @@ export function HomeSpacesPanel({
     const templateDocument = createHomeDocumentFromTemplate(selectedTemplate.id);
     const spaceName = templateSpaceName.trim() || selectedTemplate.recommendedSpaceName;
     if (!onBeforeOverwrite("before-template-home-space-switch")) {
-      window.alert("未能保存当前首页，已取消创建并切换模板空间。");
+      window.alert(t("settings.homeSpaces.createTemplateProtectFailed"));
       return;
     }
 
@@ -195,20 +198,20 @@ export function HomeSpacesPanel({
     try {
       const parsed = parseSyncCode(normalizedCode);
       if (parsed.spaceId !== homeSpace.syncSpaceId) {
-        setActivationError("同步码不属于所选首页空间。");
+        setActivationError(t("settings.homeSpaces.activateWrongSpace"));
         return;
       }
     } catch (error) {
-      setActivationError(error instanceof Error ? error.message : "同步码格式不正确。");
+      setActivationError(error instanceof Error ? error.message : t("settings.homeSpaces.activateInvalid"));
       return;
     }
 
-    if (!window.confirm("激活该首页空间会拉取云端首页并覆盖当前浏览器本地首页，继续？")) {
+    if (!window.confirm(t("settings.homeSpaces.confirmActivateMessage"))) {
       return;
     }
 
     if (!onBeforeOverwrite("before-home-space-activate")) {
-      setActivationError("未能保存当前首页，已取消激活首页空间。");
+      setActivationError(t("settings.homeSpaces.activateProtectFailed"));
       return;
     }
 
@@ -232,7 +235,7 @@ export function HomeSpacesPanel({
         },
         severity: "error"
       });
-      setActivationError(error instanceof Error ? error.message : "首页空间激活失败。");
+      setActivationError(error instanceof Error ? error.message : t("settings.homeSpaces.activateFailed"));
     } finally {
       setActivationPending(false);
     }
@@ -243,12 +246,12 @@ export function HomeSpacesPanel({
     setActivationCode("");
     setActiveSpaceId(null);
 
-    if (!window.confirm("恢复该账号托管空间会拉取云端首页并覆盖当前浏览器本地首页，继续？")) {
+    if (!window.confirm(t("settings.homeSpaces.confirmRestoreManaged"))) {
       return;
     }
 
     if (!onBeforeOverwrite("before-managed-home-space-restore")) {
-      setActivationError("未能保存当前首页，已取消恢复账号托管空间。");
+      setActivationError(t("settings.homeSpaces.restoreProtectFailed"));
       return;
     }
 
@@ -270,7 +273,7 @@ export function HomeSpacesPanel({
         },
         severity: "error"
       });
-      setActivationError(error instanceof Error ? error.message : "账号托管空间恢复失败。");
+      setActivationError(error instanceof Error ? error.message : t("settings.homeSpaces.restoreFailed"));
     } finally {
       setManagedRestoreSpaceId(null);
     }
@@ -285,7 +288,7 @@ export function HomeSpacesPanel({
       return;
     }
 
-    if (!window.confirm("迁移为账号托管后，当前账号会保存该空间的恢复凭证，并为有效用户首页建立可恢复、可预览、可审计的账号托管云端历史。账号托管不是严格端到端加密模式；旧同步码本阶段不会自动废弃，仍可继续使用。继续？")) {
+    if (!window.confirm(t("settings.homeSpaces.confirmMigrate"))) {
       return;
     }
 
@@ -307,7 +310,7 @@ export function HomeSpacesPanel({
         },
         severity: "error"
       });
-      setActivationError(error instanceof Error ? error.message : "账号托管迁移失败。");
+      setActivationError(error instanceof Error ? error.message : t("settings.homeSpaces.migrateFailed"));
     } finally {
       setManagedMigrationSpaceId(null);
     }
@@ -352,7 +355,7 @@ export function HomeSpacesPanel({
       return;
     }
 
-    if (!window.confirm(removeConfirmMessage(homeSpace, isCurrent))) {
+    if (!window.confirm(removeConfirmMessage(homeSpace, isCurrent, t))) {
       return;
     }
 
@@ -380,17 +383,17 @@ export function HomeSpacesPanel({
     <>
       {authLoading ? (
         <div className="settings-placeholder">
-          <strong>正在读取账号状态</strong>
-          <p>账号状态确认后，可以管理当前账号下的首页空间。</p>
+          <strong>{t("settings.homeSpaces.loadingTitle")}</strong>
+          <p>{t("settings.homeSpaces.loadingDescription")}</p>
         </div>
       ) : !signedIn ? (
         <div className="settings-placeholder">
-          <strong>登录后认领同步码首页</strong>
-          <p>普通同步码空间只保存账号索引；迁移为账号托管后才会由账号保存恢复凭证。</p>
+          <strong>{t("settings.homeSpaces.signedOutTitle")}</strong>
+          <p>{t("settings.homeSpaces.signedOutDescription")}</p>
         </div>
       ) : accountData.error ? (
         <div className="settings-placeholder">
-          <strong>首页空间暂不可用</strong>
+          <strong>{t("settings.homeSpaces.unavailableTitle")}</strong>
           <StatusMessage role="alert" tone="danger">{accountData.error}</StatusMessage>
         </div>
       ) : (
@@ -400,48 +403,48 @@ export function HomeSpacesPanel({
               className="utility-button"
               type="button"
               disabled={Boolean(createManagedDisabledReason)}
-              title={createManagedDisabledReason ?? "使用当前浏览器首页创建账号托管空间"}
+              title={createManagedDisabledReason ?? t("settings.homeSpaces.createCurrentTitle")}
               onClick={() => {
-                setCurrentCreateName(DEFAULT_MANAGED_SPACE_NAME);
+                setCurrentCreateName(t("settings.homeSpaces.defaultName"));
                 setCreateDialog("current");
               }}
             >
-              使用当前首页创建空间
+              {t("settings.homeSpaces.createCurrent")}
             </button>
             <button
               className="utility-button"
               type="button"
               disabled={Boolean(createManagedDisabledReason)}
-              title={createManagedDisabledReason ?? "从模板创建新的账号托管空间"}
+              title={createManagedDisabledReason ?? t("settings.homeSpaces.createTemplateTitle")}
               onClick={() => {
                 setSelectedTemplateId(DEFAULT_TEMPLATE_ID);
                 setTemplateSpaceName("");
                 setCreateDialog("template-select");
               }}
             >
-              从模板创建新空间
+              {t("settings.homeSpaces.createTemplate")}
             </button>
           </div>
 
           {!currentBinding ? (
             <div className="settings-placeholder">
-              <strong>当前浏览器未绑定同步码</strong>
-              <p>可创建账号托管空间，或在离线同步码与恢复中创建/绑定普通同步码后再认领。</p>
+              <strong>{t("settings.homeSpaces.noBindingTitle")}</strong>
+              <p>{t("settings.homeSpaces.noBindingDescription")}</p>
             </div>
           ) : currentHomeSpace ? (
             <div className="settings-placeholder">
-              <strong>当前首页空间已在账号中</strong>
-              <p>{currentHomeSpace.name} 已在当前账号的首页空间列表中。</p>
+              <strong>{t("settings.homeSpaces.currentInAccountTitle")}</strong>
+              <p>{t("settings.homeSpaces.currentInAccountDescription", { space: currentHomeSpace.name })}</p>
               {canMigrateCurrentHomeSpace ? (
                 <>
                   <button
                     className="utility-button"
                     type="button"
                     disabled={!storageReady || !accountReady || accountActionPending || Boolean(migrationBlockReason)}
-                    title={migrationBlockReason || createManagedDisabledReason || "把当前已认领普通同步码空间迁移为账号托管"}
+                    title={migrationBlockReason || createManagedDisabledReason || t("settings.homeSpaces.migrateTitle")}
                     onClick={() => handleMigrateSyncCode(currentHomeSpace)}
                   >
-                    {accountData.migratingManaged && managedMigrationSpaceId === currentHomeSpace.id ? "迁移中" : "迁移为账号托管"}
+                    {accountData.migratingManaged && managedMigrationSpaceId === currentHomeSpace.id ? t("settings.homeSpaces.migrating") : t("settings.homeSpaces.migrate")}
                   </button>
                   {migrationBlockReason ? <StatusMessage role="alert" tone="warning">{migrationBlockReason}</StatusMessage> : null}
                 </>
@@ -450,7 +453,7 @@ export function HomeSpacesPanel({
           ) : (
             <form className="home-space-claim-form" onSubmit={handleClaim}>
               <label className="field">
-                <span>空间名称</span>
+                <span>{t("settings.homeSpaces.nameLabel")}</span>
                 <input
                   type="text"
                   value={claimSpaceName}
@@ -460,8 +463,8 @@ export function HomeSpacesPanel({
                   onChange={(event) => setClaimSpaceName(event.target.value)}
                 />
               </label>
-              <button className="utility-button" type="submit" disabled={accountActionPending} title={claimDisabledReason ?? "把当前同步码空间记录到账号首页空间列表"}>
-                {accountData.claiming ? "认领中" : "认领当前首页空间"}
+              <button className="utility-button" type="submit" disabled={accountActionPending} title={claimDisabledReason ?? t("settings.homeSpaces.claimTitle")}>
+                {accountData.claiming ? t("settings.homeSpaces.claiming") : t("settings.homeSpaces.claim")}
               </button>
             </form>
           )}
@@ -498,6 +501,7 @@ export function HomeSpacesPanel({
             }}
             onSetDefault={handleSetDefault}
             onStartRename={startRename}
+            t={t}
           />
 
           <StatusMessage role={panelHasError ? "alert" : "status"} tone={panelStatusTone}>
@@ -512,7 +516,8 @@ export function HomeSpacesPanel({
               onCancel={() => setCreateDialog(null)}
               onChangeName={setCurrentCreateName}
               onSubmit={handleCreateManaged}
-              onUseDefaultName={() => setCurrentCreateName(DEFAULT_MANAGED_SPACE_NAME)}
+              onUseDefaultName={() => setCurrentCreateName(t("settings.homeSpaces.defaultName"))}
+              t={t}
             />
           ) : null}
 
@@ -525,6 +530,8 @@ export function HomeSpacesPanel({
               onCancel={() => setCreateDialog(null)}
               onSelectTemplate={setSelectedTemplateId}
               onSubmit={handleTemplateSelected}
+              formatNumber={format.number}
+              t={t}
             />
           ) : null}
 
@@ -539,6 +546,7 @@ export function HomeSpacesPanel({
               onCancel={() => setCreateDialog(null)}
               onChangeName={setTemplateSpaceName}
               onSubmit={handleCreateManagedFromTemplate}
+              t={t}
             />
           ) : null}
         </>
@@ -551,10 +559,10 @@ export function HomeSpacesPanel({
   }
 
   return (
-    <section className="settings-panel" aria-label="首页空间">
+    <section className="settings-panel" aria-label={t("settings.homeSpaces.panelAria")}>
       <div className="panel-header">
-        <h2>首页空间</h2>
-        <span>{signedIn ? `${accountData.homeSpaces.length} spaces` : "Sign in"}</span>
+        <h2>{t("settings.section.homeSpaces.title")}</h2>
+        <span>{signedIn ? t("settings.section.homeSpaces.count", { count: accountData.homeSpaces.length }) : t("settings.section.homeSpaces.signIn")}</span>
       </div>
       {content}
     </section>
@@ -565,6 +573,7 @@ function CurrentHomeSpaceCreateDialog({
   actionPending,
   disabledReason,
   name,
+  t,
   onCancel,
   onChangeName,
   onSubmit,
@@ -573,6 +582,7 @@ function CurrentHomeSpaceCreateDialog({
   actionPending: boolean;
   disabledReason?: string;
   name: string;
+  t: ReturnType<typeof useI18n>["t"];
   onCancel: () => void;
   onChangeName: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -583,35 +593,35 @@ function CurrentHomeSpaceCreateDialog({
       <form className="settings-dialog home-space-create-dialog" onSubmit={onSubmit}>
         <div className="settings-dialog-header">
           <div>
-            <h2 id="currentHomeSpaceCreateTitle">使用当前首页创建空间</h2>
-            <p>创建成功后，当前浏览器会切换到新的账号托管空间。</p>
+            <h2 id="currentHomeSpaceCreateTitle">{t("settings.homeSpaces.createCurrentDialogTitle")}</h2>
+            <p>{t("settings.homeSpaces.createCurrentDialogDescription")}</p>
           </div>
-          <button className="mini-button" type="button" onClick={onCancel} aria-label="关闭">×</button>
+          <button className="mini-button" type="button" onClick={onCancel} aria-label={t("settings.common.close")}>×</button>
         </div>
         <div className="settings-dialog-body">
           <label className="field">
-            <span>空间名称</span>
+            <span>{t("settings.homeSpaces.nameLabel")}</span>
             <input
               type="text"
               value={name}
               maxLength={80}
               autoFocus
               disabled={actionPending}
-              placeholder={DEFAULT_MANAGED_SPACE_NAME}
+              placeholder={t("settings.homeSpaces.defaultName")}
               onChange={(event) => onChangeName(event.target.value)}
             />
           </label>
           <button className="utility-button" type="button" disabled={actionPending} onClick={onUseDefaultName}>
-            使用默认名称
+            {t("settings.homeSpaces.useDefaultName")}
           </button>
           <StatusMessage>
-            当前首页内容会复制到新的账号托管空间；账号会保存恢复凭证，有效用户首页会进入可恢复、可预览、可审计的云端历史。已有账号空间、同步码和云端内容不会删除。
+            {t("settings.homeSpaces.createCurrentStatus")}
           </StatusMessage>
         </div>
         <div className="settings-dialog-footer">
-          <button className="utility-button" type="button" disabled={actionPending} onClick={onCancel}>取消</button>
-          <button className="utility-button" type="submit" disabled={actionPending || Boolean(disabledReason)} title={disabledReason ?? "确认创建账号托管空间"}>
-            {actionPending ? "创建中" : "确认创建"}
+          <button className="utility-button" type="button" disabled={actionPending} onClick={onCancel}>{t("settings.common.cancel")}</button>
+          <button className="utility-button" type="submit" disabled={actionPending || Boolean(disabledReason)} title={disabledReason ?? t("settings.homeSpaces.confirmCreateTitle")}>
+            {actionPending ? t("settings.homeSpaces.creating") : t("settings.homeSpaces.confirmCreate")}
           </button>
         </div>
       </form>
@@ -622,16 +632,20 @@ function CurrentHomeSpaceCreateDialog({
 function TemplateHomeSpaceSelectDialog({
   actionPending,
   disabledReason,
+  formatNumber,
   selectedTemplate,
   selectedTemplateId,
+  t,
   onCancel,
   onSelectTemplate,
   onSubmit
 }: {
   actionPending: boolean;
   disabledReason?: string;
+  formatNumber: (value: number) => string;
   selectedTemplate: HomeTemplate;
   selectedTemplateId: HomeTemplateId;
+  t: ReturnType<typeof useI18n>["t"];
   onCancel: () => void;
   onSelectTemplate: (templateId: HomeTemplateId) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -641,16 +655,17 @@ function TemplateHomeSpaceSelectDialog({
       <form className="settings-dialog settings-dialog-wide home-space-template-dialog" onSubmit={onSubmit}>
         <div className="settings-dialog-header">
           <div>
-            <h2 id="templateHomeSpaceCreateTitle">从模板创建新空间</h2>
-            <p>选择模板后会创建新的账号托管空间，并切换当前浏览器到该空间。</p>
+            <h2 id="templateHomeSpaceCreateTitle">{t("settings.homeSpaces.templateSelectTitle")}</h2>
+            <p>{t("settings.homeSpaces.templateSelectDescription")}</p>
           </div>
-          <button className="mini-button" type="button" onClick={onCancel} aria-label="关闭">×</button>
+          <button className="mini-button" type="button" onClick={onCancel} aria-label={t("settings.common.close")}>×</button>
         </div>
         <div className="settings-dialog-body">
-          <div className="template-choice-grid" role="radiogroup" aria-label="模板选择">
+          <div className="template-choice-grid" role="radiogroup" aria-label={t("settings.homeSpaces.templateChoiceAria")}>
             {HOME_TEMPLATES.map((template) => {
               const summary = summarizeHomeTemplate(template);
               const selected = selectedTemplateId === template.id;
+              const templateName = formatHomeTemplateName(template.id, t);
 
               return (
                 <button
@@ -663,20 +678,27 @@ function TemplateHomeSpaceSelectDialog({
                   onClick={() => onSelectTemplate(template.id)}
                 >
                   <span className="template-accent" style={{ backgroundColor: template.accent }} aria-hidden="true" />
-                  <strong>{template.name}</strong>
-                  <span>{summary.groupCount} 个分组 · {summary.siteCount} 个网站 · {summary.widgetCount} 个组件</span>
+                  <strong>{templateName}</strong>
+                  <span>{t("settings.homeSpaces.templateMetric", {
+                    groups: formatNumber(summary.groupCount),
+                    sites: formatNumber(summary.siteCount),
+                    widgets: formatNumber(summary.widgetCount)
+                  })}</span>
                 </button>
               );
             })}
           </div>
           <StatusMessage>
-            将使用“{selectedTemplate.name}”创建“{selectedTemplate.recommendedSpaceName}”。新空间为账号托管模式，当前本地首页会被新空间内容替换。
+            {t("settings.homeSpaces.templateStatus", {
+              space: selectedTemplate.recommendedSpaceName,
+              template: formatHomeTemplateName(selectedTemplate.id, t)
+            })}
           </StatusMessage>
         </div>
         <div className="settings-dialog-footer">
-          <button className="utility-button" type="button" disabled={actionPending} onClick={onCancel}>取消</button>
-          <button className="utility-button" type="submit" disabled={actionPending || Boolean(disabledReason)} title={disabledReason ?? `确认使用“${selectedTemplate.name}”模板`}>
-            确认
+          <button className="utility-button" type="button" disabled={actionPending} onClick={onCancel}>{t("settings.common.cancel")}</button>
+          <button className="utility-button" type="submit" disabled={actionPending || Boolean(disabledReason)} title={disabledReason ?? t("settings.homeSpaces.confirmTemplateTitle", { template: formatHomeTemplateName(selectedTemplate.id, t) })}>
+            {t("settings.common.confirm")}
           </button>
         </div>
       </form>
@@ -691,6 +713,7 @@ function TemplateHomeSpaceNameDialog({
   name,
   selectedTemplate,
   selectedTemplateId,
+  t,
   onCancel,
   onChangeName,
   onSubmit
@@ -701,6 +724,7 @@ function TemplateHomeSpaceNameDialog({
   name: string;
   selectedTemplate: HomeTemplate;
   selectedTemplateId: HomeTemplateId;
+  t: ReturnType<typeof useI18n>["t"];
   onCancel: () => void;
   onChangeName: (value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -710,14 +734,14 @@ function TemplateHomeSpaceNameDialog({
       <form className="settings-dialog home-space-create-dialog" onSubmit={onSubmit}>
         <div className="settings-dialog-header">
           <div>
-            <h2 id="templateHomeSpaceNameTitle">命名新空间</h2>
-            <p>将从“{selectedTemplate.name}”创建新的账号托管空间。</p>
+            <h2 id="templateHomeSpaceNameTitle">{t("settings.homeSpaces.templateNameTitle")}</h2>
+            <p>{t("settings.homeSpaces.templateNameDescription", { template: formatHomeTemplateName(selectedTemplate.id, t) })}</p>
           </div>
-          <button className="mini-button" type="button" onClick={onCancel} aria-label="关闭">×</button>
+          <button className="mini-button" type="button" onClick={onCancel} aria-label={t("settings.common.close")}>×</button>
         </div>
         <div className="settings-dialog-body">
           <label className="field">
-            <span>空间名称</span>
+            <span>{t("settings.homeSpaces.nameLabel")}</span>
             <input
               type="text"
               value={name}
@@ -729,13 +753,13 @@ function TemplateHomeSpaceNameDialog({
             />
           </label>
           <StatusMessage>
-            创建成功后，当前浏览器会切换到这个账号托管空间，并显示模板生成的首页。
+            {t("settings.homeSpaces.templateNameStatus")}
           </StatusMessage>
         </div>
         <div className="settings-dialog-footer">
-          <button className="utility-button" type="button" disabled={actionPending} onClick={onCancel}>取消</button>
-          <button className="utility-button" type="submit" disabled={actionPending || Boolean(disabledReason)} title={disabledReason ?? `确认从“${selectedTemplate.name}”创建空间`}>
-            {actionPending && creatingTemplateId === selectedTemplateId ? "创建中" : "确认创建"}
+          <button className="utility-button" type="button" disabled={actionPending} onClick={onCancel}>{t("settings.common.cancel")}</button>
+          <button className="utility-button" type="submit" disabled={actionPending || Boolean(disabledReason)} title={disabledReason ?? t("settings.homeSpaces.confirmTemplateCreateTitle", { template: formatHomeTemplateName(selectedTemplate.id, t) })}>
+            {actionPending && creatingTemplateId === selectedTemplateId ? t("settings.homeSpaces.creating") : t("settings.homeSpaces.confirmCreate")}
           </button>
         </div>
       </form>
@@ -756,6 +780,7 @@ function HomeSpaceList({
   managedRestoreSpaceId,
   removingSpaceId,
   storageReady,
+  t,
   onActivate,
   onCancelRename,
   onChangeActivationCode,
@@ -779,6 +804,7 @@ function HomeSpaceList({
   managedRestoreSpaceId: string | null;
   removingSpaceId: string | null;
   storageReady: boolean;
+  t: ReturnType<typeof useI18n>["t"];
   onActivate: (event: FormEvent<HTMLFormElement>, homeSpace: HomeSpace) => Promise<void>;
   onCancelRename: () => void;
   onChangeActivationCode: (value: string) => void;
@@ -791,11 +817,11 @@ function HomeSpaceList({
   onStartRename: (homeSpace: HomeSpace) => void;
 }) {
   if (accountData.loading) {
-    return <StatusMessage>正在读取首页空间。</StatusMessage>;
+    return <StatusMessage>{t("settings.homeSpaces.listLoading")}</StatusMessage>;
   }
 
   if (accountData.homeSpaces.length === 0) {
-    return <StatusMessage>当前账号还没有认领首页空间。</StatusMessage>;
+    return <StatusMessage>{t("settings.homeSpaces.listEmpty")}</StatusMessage>;
   }
 
   return (
@@ -813,11 +839,11 @@ function HomeSpaceList({
           || activationPending;
         const currentManagedRemovalBlocked = isCurrent && homeSpace.accessMode === "account-managed";
         const removeDisabled = actionPending || currentManagedRemovalBlocked;
-        const actionPendingReason = actionPending ? "首页空间操作处理中，请稍后。" : undefined;
-        const restoreDisabledReason = getRestoreManagedDisabledReason(storageReady, actionPending);
-        const activateDisabledReason = getActivateSpaceDisabledReason(storageReady, actionPending);
+        const actionPendingReason = actionPending ? t("settings.homeSpaces.actionPending") : undefined;
+        const restoreDisabledReason = getRestoreManagedDisabledReason(storageReady, actionPending, t);
+        const activateDisabledReason = getActivateSpaceDisabledReason(storageReady, actionPending, t);
         const removeDisabledReason = currentManagedRemovalBlocked
-          ? "当前本机账号托管空间不能直接从账号移除；请先解除本机或切换到其他空间。"
+          ? t("settings.homeSpaces.removeBlocked")
           : actionPendingReason;
 
         return (
@@ -825,56 +851,56 @@ function HomeSpaceList({
             <div className="home-space-row">
               <div>
                 <strong>{homeSpace.name}</strong>
-                <span>{accessModeLabel(homeSpace.accessMode)} · {shortenId(homeSpace.syncSpaceId)}{isCurrent ? " · 当前本机" : ""}</span>
+                <span>{formatSettingsHomeSpaceAccessMode(homeSpace.accessMode, t)} · {shortenId(homeSpace.syncSpaceId)}{isCurrent ? ` · ${t("settings.homeSpaces.currentLocal")}` : ""}</span>
               </div>
               <div className="home-space-row-actions">
-                <span>{homeSpace.isDefault ? "默认" : "空间"}</span>
+                <span>{homeSpace.isDefault ? t("settings.homeSpaces.defaultBadge") : t("settings.homeSpaces.spaceBadge")}</span>
                 {!homeSpace.isDefault ? (
                   <button
                     className="utility-button"
                     type="button"
                     disabled={actionPending}
-                    title={actionPendingReason ?? "把该空间设为账号默认首页空间"}
+                    title={actionPendingReason ?? t("settings.homeSpaces.setDefaultTitle")}
                     onClick={() => onSetDefault(homeSpace)}
                   >
-                    {accountData.settingDefaultHomeSpace && defaultPendingSpaceId === homeSpace.id ? "设置中" : "设默认"}
+                    {accountData.settingDefaultHomeSpace && defaultPendingSpaceId === homeSpace.id ? t("settings.homeSpaces.settingDefault") : t("settings.homeSpaces.setDefault")}
                   </button>
                 ) : null}
                 {isCurrent ? (
-                  <span>已激活</span>
+                  <span>{t("settings.homeSpaces.activeBadge")}</span>
                 ) : homeSpace.accessMode === "account-managed" ? (
                   <button
                     className="utility-button"
                     type="button"
                     disabled={!storageReady || actionPending}
-                    title={restoreDisabledReason ?? "恢复该账号托管空间到当前浏览器"}
+                    title={restoreDisabledReason ?? t("settings.homeSpaces.restoreTitle")}
                     onClick={() => onRestoreManaged(homeSpace)}
                   >
-                    {accountData.restoringManaged && managedRestoreSpaceId === homeSpace.id ? "恢复中" : "恢复"}
+                    {accountData.restoringManaged && managedRestoreSpaceId === homeSpace.id ? t("settings.homeSpaces.restoring") : t("settings.homeSpaces.restore")}
                   </button>
                 ) : (
                   <button
                     className="utility-button"
                     type="button"
                     disabled={!storageReady || actionPending}
-                    title={activateDisabledReason ?? "输入完整同步码后激活该普通同步码空间"}
+                    title={activateDisabledReason ?? t("settings.homeSpaces.activateTitle")}
                     onClick={() => onSelectSpace(homeSpace.id)}
                   >
-                    {isActive ? "取消" : "激活"}
+                    {isActive ? t("settings.common.cancel") : t("settings.homeSpaces.activate")}
                   </button>
                 )}
                 <button
                   className="utility-button"
                   type="button"
                   disabled={actionPending}
-                  title={actionPendingReason ?? "重命名该首页空间"}
+                  title={actionPendingReason ?? t("settings.homeSpaces.renameTitle")}
                   onClick={() => onStartRename(homeSpace)}
                 >
-                  重命名
+                  {t("settings.homeSpaces.rename")}
                 </button>
                 <span
                   className="home-space-action-tooltip"
-                  title={removeDisabledReason ?? "从账号移除该首页空间索引；不会废弃底层同步空间"}
+                  title={removeDisabledReason ?? t("settings.homeSpaces.removeTitle")}
                 >
                   <button
                     className="danger-button"
@@ -883,7 +909,7 @@ function HomeSpaceList({
                     title={removeDisabledReason}
                     onClick={() => onRemove(homeSpace)}
                   >
-                    {accountData.removingHomeSpace && removingSpaceId === homeSpace.id ? "移除中" : "从账号移除"}
+                    {accountData.removingHomeSpace && removingSpaceId === homeSpace.id ? t("settings.homeSpaces.removing") : t("settings.homeSpaces.remove")}
                   </button>
                 </span>
               </div>
@@ -892,20 +918,20 @@ function HomeSpaceList({
             {isEditing ? (
               <form className="home-space-inline-form" onSubmit={(event) => onRename(event, homeSpace)}>
                 <label className="field">
-                  <span>空间名称</span>
+                  <span>{t("settings.homeSpaces.nameLabel")}</span>
                   <input
                     type="text"
                     value={editingSpaceName}
                     maxLength={80}
                     disabled={accountData.renamingHomeSpace}
-                    title={accountData.renamingHomeSpace ? "首页空间正在重命名，请稍后。" : undefined}
+                    title={accountData.renamingHomeSpace ? t("settings.homeSpaces.renamePending") : undefined}
                     onChange={(event) => onChangeEditingName(event.target.value)}
                   />
                 </label>
                 <div className="home-space-inline-actions">
-                  <button className="utility-button" type="button" disabled={accountData.renamingHomeSpace} title={accountData.renamingHomeSpace ? "首页空间正在重命名，请稍后。" : "取消重命名"} onClick={onCancelRename}>取消</button>
-                  <button className="utility-button" type="submit" disabled={accountData.renamingHomeSpace || !editingSpaceName.trim()} title={getRenameSaveDisabledReason(accountData.renamingHomeSpace, editingSpaceName) ?? "保存新的首页空间名称"}>
-                    {accountData.renamingHomeSpace ? "保存中" : "保存"}
+                  <button className="utility-button" type="button" disabled={accountData.renamingHomeSpace} title={accountData.renamingHomeSpace ? t("settings.homeSpaces.renamePending") : t("settings.homeSpaces.cancelRenameTitle")} onClick={onCancelRename}>{t("settings.common.cancel")}</button>
+                  <button className="utility-button" type="submit" disabled={accountData.renamingHomeSpace || !editingSpaceName.trim()} title={getRenameSaveDisabledReason(accountData.renamingHomeSpace, editingSpaceName, t) ?? t("settings.homeSpaces.saveRenameTitle")}>
+                    {accountData.renamingHomeSpace ? t("settings.homeSpaces.saving") : t("settings.homeSpaces.save")}
                   </button>
                 </div>
               </form>
@@ -914,18 +940,18 @@ function HomeSpaceList({
             {isActive ? (
               <form className="home-space-activate-form" onSubmit={(event) => onActivate(event, homeSpace)}>
                 <label className="field">
-                  <span>完整同步码</span>
+                  <span>{t("settings.homeSpaces.syncCodeLabel")}</span>
                   <input
                     type="text"
                     value={activationCode}
                     placeholder="hp1_..."
                     disabled={accountData.activating || activationPending}
-                    title={accountData.activating || activationPending ? "首页空间正在激活，请稍后。" : "输入该首页空间对应的完整同步码"}
+                    title={accountData.activating || activationPending ? t("settings.homeSpaces.activatePending") : t("settings.homeSpaces.activateInputTitle")}
                     onChange={(event) => onChangeActivationCode(event.target.value)}
                   />
                 </label>
-                <button className="utility-button" type="submit" disabled={accountData.activating || activationPending || !activationCode.trim()} title={getActivationSubmitDisabledReason(accountData.activating || activationPending, activationCode) ?? "确认拉取该空间云端首页并覆盖当前本地首页"}>
-                  {accountData.activating || activationPending ? "激活中" : "确认激活"}
+                <button className="utility-button" type="submit" disabled={accountData.activating || activationPending || !activationCode.trim()} title={getActivationSubmitDisabledReason(accountData.activating || activationPending, activationCode, t) ?? t("settings.homeSpaces.activateSubmitTitle")}>
+                  {accountData.activating || activationPending ? t("settings.homeSpaces.activating") : t("settings.homeSpaces.confirmActivate")}
                 </button>
                 {activationError ? <StatusMessage role="alert" tone="danger">{activationError}</StatusMessage> : null}
               </form>
@@ -940,103 +966,104 @@ function HomeSpaceList({
 function getCreateManagedDisabledReason(
   storageReady: boolean,
   accountReady: boolean,
-  accountActionPending: boolean
+  accountActionPending: boolean,
+  t: ReturnType<typeof useI18n>["t"]
 ): string | undefined {
   if (!storageReady) {
-    return "本地存储尚未就绪，请稍后重试。";
+    return t("settings.common.storageNotReady");
   }
 
   if (!accountReady) {
-    return "账号资料和偏好仍在读取，请稍后。";
+    return t("settings.homeSpaces.disabledAccountLoading");
   }
 
   if (accountActionPending) {
-    return "账号空间操作处理中，请稍后。";
+    return t("settings.homeSpaces.actionPending");
   }
 
   return undefined;
 }
 
-function getRestoreManagedDisabledReason(storageReady: boolean, actionPending: boolean): string | undefined {
+function getRestoreManagedDisabledReason(storageReady: boolean, actionPending: boolean, t: ReturnType<typeof useI18n>["t"]): string | undefined {
   if (!storageReady) {
-    return "本地存储尚未就绪，不能恢复账号托管空间。";
+    return t("settings.homeSpaces.disabledRestoreStorage");
   }
 
   if (actionPending) {
-    return "首页空间操作处理中，请稍后。";
+    return t("settings.homeSpaces.actionPending");
   }
 
   return undefined;
 }
 
-function getActivateSpaceDisabledReason(storageReady: boolean, actionPending: boolean): string | undefined {
+function getActivateSpaceDisabledReason(storageReady: boolean, actionPending: boolean, t: ReturnType<typeof useI18n>["t"]): string | undefined {
   if (!storageReady) {
-    return "本地存储尚未就绪，不能激活首页空间。";
+    return t("settings.homeSpaces.disabledActivateStorage");
   }
 
   if (actionPending) {
-    return "首页空间操作处理中，请稍后。";
+    return t("settings.homeSpaces.actionPending");
   }
 
   return undefined;
 }
 
-function getRenameSaveDisabledReason(renaming: boolean, name: string): string | undefined {
+function getRenameSaveDisabledReason(renaming: boolean, name: string, t: ReturnType<typeof useI18n>["t"]): string | undefined {
   if (renaming) {
-    return "首页空间正在重命名，请稍后。";
+    return t("settings.homeSpaces.renamePending");
   }
 
   if (!name.trim()) {
-    return "请输入首页空间名称。";
+    return t("settings.homeSpaces.renameNameRequired");
   }
 
   return undefined;
 }
 
-function getActivationSubmitDisabledReason(actionPending: boolean, activationCode: string): string | undefined {
+function getActivationSubmitDisabledReason(actionPending: boolean, activationCode: string, t: ReturnType<typeof useI18n>["t"]): string | undefined {
   if (actionPending) {
-    return "首页空间正在激活，请稍后。";
+    return t("settings.homeSpaces.activatePending");
   }
 
   if (!activationCode.trim()) {
-    return "请输入完整同步码。";
+    return t("settings.homeSpaces.activateCodeRequired");
   }
 
   return undefined;
 }
 
-function getMigrationBlockReason(status: HomeDocumentV2["syncMeta"]["status"]): string {
+function getMigrationBlockReason(status: HomeDocumentV2["syncMeta"]["status"], t: ReturnType<typeof useI18n>["t"]): string {
   if (status === "conflict") {
-    return "当前存在同步冲突，请先选择云端版本或本地版本后再迁移。";
+    return t("settings.homeSpaces.migrationConflict");
   }
 
   if (status === "paused") {
-    return "同步已暂停，请先选择上传本地、拉取云端、解除本机或恢复备份。";
+    return t("settings.homeSpaces.migrationPaused");
   }
 
   return "";
 }
 
-function removeConfirmMessage(homeSpace: HomeSpace, isCurrent: boolean): string {
-  const defaultNote = homeSpace.isDefault ? "它当前是默认空间，从账号移除后默认空间设置会被清空。" : "";
+function removeConfirmMessage(homeSpace: HomeSpace, isCurrent: boolean, t: ReturnType<typeof useI18n>["t"]): string {
+  const defaultNote = homeSpace.isDefault ? t("settings.homeSpaces.removeDefaultNote") : "";
   const currentSyncNote = isCurrent && homeSpace.accessMode === "sync-code"
-    ? "当前浏览器仍会保留本机同步码绑定，并可继续作为普通同步码空间同步。"
+    ? t("settings.homeSpaces.removeCurrentSyncNote")
     : "";
 
   if (homeSpace.accessMode === "account-managed") {
     return [
-      `从账号移除“${homeSpace.name}”？`,
-      "这只会删除账号侧首页空间索引和账号托管恢复凭证。",
-      "空白设备将不能再通过账号恢复它。",
-      "该账号空间关联的账号托管历史可能不再可用；底层同步空间不会删除、不会废弃，也不会执行密钥轮换。",
+      t("settings.homeSpaces.removeManagedTitle", { space: homeSpace.name }),
+      t("settings.homeSpaces.removeManagedIndex"),
+      t("settings.homeSpaces.removeManagedDevice"),
+      t("settings.homeSpaces.removeManagedHistory"),
       defaultNote
     ].filter(Boolean).join("\n");
   }
 
   return [
-    `从账号移除“${homeSpace.name}”？`,
-    "这只会删除账号侧首页空间索引。",
-    "同步码本身和云端内容不会删除，也不会废弃旧同步码。",
+    t("settings.homeSpaces.removeSyncTitle", { space: homeSpace.name }),
+    t("settings.homeSpaces.removeSyncIndex"),
+    t("settings.homeSpaces.removeSyncCode"),
     currentSyncNote,
     defaultNote
   ].filter(Boolean).join("\n");
@@ -1044,16 +1071,4 @@ function removeConfirmMessage(homeSpace: HomeSpace, isCurrent: boolean): string 
 
 function shortenId(value: string): string {
   return `${value.slice(0, 8)}...${value.slice(-4)}`;
-}
-
-function accessModeLabel(accessMode: HomeSpace["accessMode"]): string {
-  if (accessMode === "account-managed") {
-    return "账号托管";
-  }
-
-  if (accessMode === "password-protected") {
-    return "密码保护";
-  }
-
-  return "同步码";
 }

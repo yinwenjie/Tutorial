@@ -72,8 +72,8 @@ export function CalendarMonthWidget({ widget }: CalendarMonthWidgetProps) {
       </div>
 
       <div className="calendar-grid" aria-label={t("calendar.ariaLabel", { month: calendar.label })}>
-        {calendar.weekLabels.map((label) => (
-          <span className="calendar-weekday" key={label}>{label}</span>
+        {calendar.weekLabels.map((label, index) => (
+          <span className="calendar-weekday" key={`weekday-${index}`}>{label}</span>
         ))}
         {calendar.days.map((day) => (
           <time

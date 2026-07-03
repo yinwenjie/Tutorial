@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import type { StatusTone } from "@/components/status-message";
 import type { SettingsSectionId } from "@/domain/settings-layout";
+import { useI18n } from "@/hooks/use-i18n";
 
 interface SettingsSectionProps {
   children: ReactNode;
@@ -27,6 +28,7 @@ export function SettingsSection({
   tone = "neutral",
   onToggle
 }: SettingsSectionProps) {
+  const { t } = useI18n();
   const titleId = `settings-section-${id}-title`;
   const bodyId = `settings-section-${id}-body`;
 
@@ -46,7 +48,7 @@ export function SettingsSection({
             <span className="settings-section-summary">{summary}</span>
           </span>
           <span className="settings-section-action" aria-hidden="true">
-            {expanded ? "收起" : "展开"}
+            {expanded ? t("settings.section.collapse") : t("settings.section.expand")}
           </span>
         </button>
         {summarySlot ? <div className="settings-section-summary-slot">{summarySlot}</div> : null}

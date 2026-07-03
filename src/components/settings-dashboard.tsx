@@ -43,6 +43,10 @@ import { summarizeDocumentForAnalytics } from "@/domain/product-analytics";
 import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
 import { LocalSyncBindingRepository } from "@/infrastructure/sync-binding-repository";
 import { SyncCodeRepository } from "@/infrastructure/sync-code-repository";
+import {
+  formatSettingsSnapshotAssets,
+  formatSettingsThemePresetName
+} from "@/i18n/settings-presentation";
 
 interface DataPackageRestoreDialogState extends ParsedHomepageDataRestore {
   fileName: string;
@@ -54,7 +58,7 @@ export function SettingsDashboard() {
   const auth = useSupabaseAuth();
   const accountData = useAccountData(auth.user);
   const uiPreferences = useUiPreferences();
-  const { t } = useI18n();
+  const { format, t } = useI18n();
   const settingsLayout = useSettingsLayoutPreferences();
   const [currentBinding, setCurrentBinding] = useState<StoredSyncBinding | null>(null);
   const [advancedActionMessage, setAdvancedActionMessage] = useState("");
@@ -124,9 +128,9 @@ export function SettingsDashboard() {
     }
 
     resetDefault({
-      confirmMessage: "清空内容并恢复默认会覆盖当前浏览器中的首页，并自动保存一份重置前备份。当前浏览器已绑定同步空间，本次重置后会暂停自动同步，不会立刻覆盖云端首页。继续？",
+      confirmMessage: t("settings.advanced.resetDefaultConfirmBound"),
       syncMeta: toSyncMeta(currentBinding, "paused"),
-      successMessage: "已清空内容并恢复默认，自动同步已暂停，云端暂未覆盖"
+      successMessage: t("settings.advanced.resetDefaultSuccessBound")
     });
   }
 
@@ -160,7 +164,7 @@ export function SettingsDashboard() {
       });
 
       downloadJsonFile(exportValue, "homepage-data-export");
-      setAdvancedActionMessage("数据包已导出，不包含完整同步码、账号托管恢复凭证、登录 session 或云端历史 document_json。");
+      setAdvancedActionMessage(t("settings.advanced.dataPackageExported"));
       trackProductEvent("data_package.exported", {
         ...summarizeDocumentForAnalytics(homeDocument),
         hasSyncBinding: Boolean(currentBinding),
@@ -188,7 +192,7 @@ export function SettingsDashboard() {
         },
         severity: "error"
       });
-      setAdvancedActionError(error instanceof Error ? error.message : "数据包导出失败。");
+      setAdvancedActionError(error instanceof Error ? error.message : t("settings.advanced.dataPackageExportFailed"));
     }
   }
 
@@ -208,7 +212,7 @@ export function SettingsDashboard() {
         ...restore,
         fileName: file.name
       });
-      setAdvancedActionMessage("数据包已读取，请确认恢复内容。");
+      setAdvancedActionMessage(t("settings.advanced.dataPackagePreviewReady"));
       trackProductEvent("data_package.restore_previewed", {
         groupCountBucket: summarizeCount(restore.preview.groupCount),
         hasBanner: restore.preview.hasBanner,
@@ -219,7 +223,7 @@ export function SettingsDashboard() {
       });
     } catch (error) {
       console.error(error);
-      const message = error instanceof Error ? error.message : "数据包读取失败。";
+      const message = error instanceof Error ? error.message : t("settings.advanced.dataPackagePreviewFailed");
       captureClientError(error, {
         eventType: "async_operation_failed",
         operation: "data_package.restore_preview",
@@ -262,7 +266,7 @@ export function SettingsDashboard() {
     const restored = restoreHomeDocumentWithBackup({
       ...dataPackageRestore.documentValue,
       syncMeta: nextSyncMeta
-    }, currentBinding ? "已恢复数据包，自动同步已暂停" : "已恢复数据包");
+    }, currentBinding ? t("settings.advanced.dataPackageRestoredPaused") : t("settings.advanced.dataPackageRestoredLocal"));
 
     if (!restored) {
       return;
@@ -290,7 +294,7 @@ export function SettingsDashboard() {
       widgetCountBucket: summarizeCount(dataPackageRestore.preview.widgetCount)
     });
 
-    setAdvancedActionMessage(currentBinding ? "数据包已恢复；当前同步空间已暂停自动同步，请手动选择上传或拉取。" : "数据包已恢复到当前浏览器。");
+    setAdvancedActionMessage(currentBinding ? t("settings.advanced.dataPackageRestoredPaused") : t("settings.advanced.dataPackageRestoredLocal"));
     setAdvancedActionError("");
     setDataPackageRestore(null);
     setSyncPanelKey((value) => value + 1);
@@ -319,7 +323,7 @@ export function SettingsDashboard() {
     replaceHomeDocument({
       ...pulled.document,
       syncMeta: toSyncMeta(nextBinding)
-    }, "已激活首页空间并拉取云端首页");
+    }, t("settings.homeSpaces.confirmActivate"));
     setSyncPanelKey((value) => value + 1);
     return true;
   }
@@ -335,7 +339,7 @@ export function SettingsDashboard() {
     replaceHomeDocument({
       ...result.document,
       syncMeta: toSyncMeta(result.binding)
-    }, "已恢复账号托管空间到本机");
+    }, t("settings.homeSpaces.restore"));
     setSyncPanelKey((value) => value + 1);
     return true;
   }
@@ -354,7 +358,7 @@ export function SettingsDashboard() {
     setCurrentBinding(binding);
     updateSyncMeta(
       toSyncMeta(binding, homeDocument.syncMeta.status === "linked" ? "linked" : "synced"),
-      "同步码空间已迁移为账号托管"
+      t("settings.homeSpaces.migrate")
     );
     setSyncPanelKey((value) => value + 1);
     return true;
@@ -366,14 +370,14 @@ export function SettingsDashboard() {
     replaceHomeDocument({
       ...createdDocument,
       syncMeta: toSyncMeta(binding)
-    }, "账号托管空间已创建并绑定本机");
+    }, t("settings.homeSpaces.confirmCreate"));
     setSyncPanelKey((value) => value + 1);
   }
 
   const currentAccountHomeSpace = currentBinding
     ? accountData.homeSpaces.find((homeSpace) => homeSpace.syncSpaceId === currentBinding.spaceId) ?? null
     : null;
-  const resetDefaultTitle = getResetDefaultTitle(storageReady, isDefaultDocument, Boolean(currentBinding));
+  const resetDefaultTitle = getResetDefaultTitle(storageReady, isDefaultDocument, Boolean(currentBinding), t);
   const activeThemePreset = getHomeThemePreset(normalizeHomeThemePresetId(homeDocument.theme.presetId, homeDocument.theme.accent));
   const sectionSummaries = {
     account: getAccountSectionSummary({
@@ -383,18 +387,20 @@ export function SettingsDashboard() {
       currentBinding,
       currentHomeSpace: currentAccountHomeSpace,
       signedIn,
-      syncStatus: homeDocument.syncMeta.status
+      syncStatus: homeDocument.syncMeta.status,
+      t
     }),
     homeSpaces: getHomeSpacesSectionSummary({
       accountData,
       currentHomeSpace: currentAccountHomeSpace,
-      signedIn
+      signedIn,
+      t
     }),
     themeStyle: {
-      summary: `当前主题：${activeThemePreset.name}`,
+      summary: t("settings.summary.themeCurrent", { theme: formatSettingsThemePresetName(activeThemePreset.id, t) }),
       tone: "neutral" as StatusTone
     },
-    themeImages: getThemeImagesSectionSummary(homeDocument),
+    themeImages: getThemeImagesSectionSummary(homeDocument, t),
     accountPreferences: {
       summary: `${t(signedIn ? "preferences.summaryAccount" : "preferences.summaryLocal")} · ${formatPreferenceLocaleLabel(uiPreferences.preferences.locale, t)} · ${formatPreferenceSearchEngineLabel(uiPreferences.preferences.defaultSearchEngine)}`,
       tone: uiPreferences.error ? "warning" as StatusTone : "neutral" as StatusTone
@@ -402,11 +408,11 @@ export function SettingsDashboard() {
     dataRecovery: recoverySectionStatus
       ? { summary: recoverySectionStatus.text, tone: recoverySectionStatus.tone }
       : {
-          summary: currentAccountHomeSpace?.accessMode === "account-managed" ? "本地历史 + 账号托管云端历史" : "当前浏览器本地历史",
+          summary: currentAccountHomeSpace?.accessMode === "account-managed" ? t("settings.summary.recoveryCloud") : t("settings.summary.recoveryLocal"),
           tone: "neutral" as StatusTone
         },
     advanced: {
-      summary: advancedActionError || advancedActionMessage || "导入、导出、审计、同步码和本机状态",
+      summary: advancedActionError || advancedActionMessage || t("settings.summary.advancedDefault"),
       tone: advancedActionError ? "danger" as StatusTone : advancedActionMessage ? "success" as StatusTone : "neutral" as StatusTone
     }
   };
@@ -455,17 +461,17 @@ export function SettingsDashboard() {
       <main className="page settings-page">
       <header className="settings-page-header">
         <div>
-          <p className="eyebrow">Settings</p>
-          <h1>设置</h1>
+          <p className="eyebrow">{t("settings.shell.eyebrow")}</p>
+          <h1>{t("settings.shell.title")}</h1>
         </div>
-        <Link className="utility-button" href="/">返回首页</Link>
+        <Link className="utility-button" href="/">{t("settings.shell.backHome")}</Link>
       </header>
 
       <div className="settings-stack">
         <SettingsSection
           id="account"
-          title="账号"
-          kicker={signedIn ? "Signed in" : "Magic Link"}
+          title={t("settings.section.account.title")}
+          kicker={signedIn ? t("settings.section.account.signedIn") : t("settings.section.account.magicLink")}
           summary={sectionSummaries.account.summary}
           tone={sectionSummaries.account.tone}
           expanded={settingsLayout.isSectionExpanded("account")}
@@ -483,8 +489,8 @@ export function SettingsDashboard() {
 
         <SettingsSection
           id="home-spaces"
-          title="首页空间"
-          kicker={signedIn ? `${accountData.homeSpaces.length} spaces` : "Sign in"}
+          title={t("settings.section.homeSpaces.title")}
+          kicker={signedIn ? t("settings.section.homeSpaces.count", { count: accountData.homeSpaces.length }) : t("settings.section.homeSpaces.signIn")}
           summary={sectionSummaries.homeSpaces.summary}
           tone={sectionSummaries.homeSpaces.tone}
           expanded={settingsLayout.isSectionExpanded("home-spaces")}
@@ -495,8 +501,8 @@ export function SettingsDashboard() {
 
         <SettingsSection
           id="theme-style"
-          title="主题风格"
-          kicker="Theme"
+          title={t("settings.section.themeStyle.title")}
+          kicker={t("settings.section.themeStyle.kicker")}
           summary={sectionSummaries.themeStyle.summary}
           tone={sectionSummaries.themeStyle.tone}
           expanded={settingsLayout.isSectionExpanded("theme-style")}
@@ -512,8 +518,8 @@ export function SettingsDashboard() {
 
         <SettingsSection
           id="theme-images"
-          title="Banner / 背景"
-          kicker="Images"
+          title={t("settings.section.themeImages.title")}
+          kicker={t("settings.section.themeImages.kicker")}
           summary={sectionSummaries.themeImages.summary}
           tone={sectionSummaries.themeImages.tone}
           expanded={settingsLayout.isSectionExpanded("theme-images")}
@@ -547,8 +553,8 @@ export function SettingsDashboard() {
 
         <SettingsSection
           id="data-recovery"
-          title="数据恢复中心"
-          kicker="Recovery"
+          title={t("settings.section.dataRecovery.title")}
+          kicker={t("settings.section.dataRecovery.kicker")}
           summary={sectionSummaries.dataRecovery.summary}
           tone={sectionSummaries.dataRecovery.tone}
           expanded={settingsLayout.isSectionExpanded("data-recovery")}
@@ -563,7 +569,7 @@ export function SettingsDashboard() {
             onRestoreCloudSnapshot={(snapshot: CloudHomeSnapshot) => {
               const restored = restoreCloudSnapshot(snapshot, {
                 syncMeta: currentBinding ? toSyncMeta(currentBinding, "paused") : localSyncMeta(),
-                successMessage: currentBinding ? "已恢复云端历史版本，自动同步已暂停" : "已恢复云端历史版本"
+                successMessage: currentBinding ? t("settings.recovery.cloudRestored") : t("settings.recovery.localRestored")
               });
 
               if (restored) {
@@ -575,7 +581,7 @@ export function SettingsDashboard() {
             onRestoreSnapshot={(snapshot) => {
               const restored = restoreLocalSnapshot(snapshot, {
                 syncMeta: currentBinding ? toSyncMeta(currentBinding, "paused") : localSyncMeta(),
-                successMessage: currentBinding ? "已恢复本地历史版本，自动同步已暂停" : "已恢复本地历史版本"
+                successMessage: currentBinding ? t("settings.recovery.localRestoredPaused") : t("settings.recovery.localRestored")
               });
 
               if (restored) {
@@ -589,8 +595,8 @@ export function SettingsDashboard() {
 
         <SettingsSection
           id="advanced"
-          title="高级操作"
-          kicker="Advanced"
+          title={t("settings.section.advanced.title")}
+          kicker={t("settings.section.advanced.kicker")}
           summary={sectionSummaries.advanced.summary}
           tone={sectionSummaries.advanced.tone}
           expanded={settingsLayout.isSectionExpanded("advanced")}
@@ -599,8 +605,8 @@ export function SettingsDashboard() {
           <div className="advanced-operation-grid">
             <div className="advanced-operation-block">
               <div className="advanced-operation-head">
-                <h3>{signedIn ? "离线同步码与恢复" : "同步码"}</h3>
-                <span>Sync</span>
+                <h3>{signedIn ? t("settings.advanced.syncTitleSignedIn") : t("settings.advanced.syncTitleLocal")}</h3>
+                <span>{t("settings.advanced.syncKicker")}</span>
               </div>
               {syncPanel}
             </div>
@@ -622,15 +628,15 @@ export function SettingsDashboard() {
 
             <div className="advanced-operation-block">
               <div className="advanced-operation-head">
-                <h3>配置文件</h3>
-                <span>JSON</span>
+                <h3>{t("settings.advanced.configTitle")}</h3>
+                <span>{t("settings.advanced.configKicker")}</span>
               </div>
               <div className="settings-actions">
-                <button className="utility-button" type="button" onClick={exportJson}>导出 JSON</button>
-                <label className="file-button" htmlFor="settingsImportInput">导入 JSON</label>
+                <button className="utility-button" type="button" onClick={exportJson}>{t("settings.advanced.exportJson")}</button>
+                <label className="file-button" htmlFor="settingsImportInput">{t("settings.advanced.importJson")}</label>
                 <input ref={importInputRef} id="settingsImportInput" type="file" accept="application/json" hidden onChange={handleFileChange} />
                 {hasResetBackup ? (
-                  <button className="utility-button" type="button" onClick={restoreResetBackup} title="用最近一次重置前备份覆盖当前本地首页">恢复上一次重置前页面</button>
+                  <button className="utility-button" type="button" onClick={restoreResetBackup} title={t("settings.advanced.restoreResetBackupTitle")}>{t("settings.advanced.restoreResetBackup")}</button>
                 ) : null}
                 <button
                   className="danger-button"
@@ -639,37 +645,37 @@ export function SettingsDashboard() {
                   disabled={!storageReady || isDefaultDocument}
                   title={resetDefaultTitle}
                 >
-                  清空内容并恢复默认
+                  {t("settings.advanced.clearDefault")}
                 </button>
               </div>
               <StatusMessage tone={saveStatus ? "success" : "neutral"}>
-                {saveStatus || "导入会覆盖当前浏览器中的本地首页配置。"}
+                {saveStatus || t("settings.advanced.importOverwriteHint")}
               </StatusMessage>
             </div>
 
             <div className="advanced-operation-block">
               <div className="advanced-operation-head">
-                <h3>数据包</h3>
-                <span>Export</span>
+                <h3>{t("settings.advanced.dataPackageTitle")}</h3>
+                <span>{t("settings.advanced.dataPackageKicker")}</span>
               </div>
               <div className="settings-actions">
                 <button
                   className="utility-button"
                   type="button"
                   disabled={!storageReady}
-                  title={storageReady ? "导出当前首页、账号摘要、首页空间索引和诊断信息" : "本地存储尚未就绪，请稍后重试。"}
+                  title={storageReady ? t("settings.advanced.exportDataPackageTitle") : t("settings.common.storageNotReady")}
                   onClick={handleExportDataPackage}
                 >
-                  导出数据包
+                  {t("settings.advanced.exportDataPackage")}
                 </button>
                 <button
                   className="utility-button"
                   type="button"
                   disabled={!storageReady}
-                  title={storageReady ? "读取数据包并预览可恢复内容" : "本地存储尚未就绪，请稍后重试。"}
+                  title={storageReady ? t("settings.advanced.importDataPackageTitle") : t("settings.common.storageNotReady")}
                   onClick={() => dataPackageImportInputRef.current?.click()}
                 >
-                  导入/恢复数据包
+                  {t("settings.advanced.importDataPackage")}
                 </button>
                 <input
                   ref={dataPackageImportInputRef}
@@ -681,7 +687,7 @@ export function SettingsDashboard() {
                 />
               </div>
               <StatusMessage role={advancedActionError ? "alert" : "status"} tone={advancedActionError ? "danger" : advancedActionMessage ? "success" : "neutral"}>
-                {advancedActionError || advancedActionMessage || "数据包用于备份和排障，不包含完整同步码、账号托管恢复凭证、登录 session 或云端历史 document_json。"}
+                {advancedActionError || advancedActionMessage || t("settings.advanced.dataPackageDefault")}
               </StatusMessage>
             </div>
 
@@ -698,37 +704,37 @@ export function SettingsDashboard() {
           <section className="settings-dialog settings-dialog-wide data-restore-dialog">
             <header className="settings-dialog-header">
               <div>
-                <h2 id="dataRestoreDialogTitle">恢复数据包</h2>
+                <h2 id="dataRestoreDialogTitle">{t("settings.advanced.dataPackageDialogTitle")}</h2>
                 <p>{dataPackageRestore.fileName}</p>
               </div>
             </header>
             <div className="settings-dialog-body">
               <div className="data-restore-summary">
-                <DataRestoreStat label="标题" value={dataPackageRestore.preview.documentTitle} />
-                <DataRestoreStat label="来源" value={formatRestoreSource(dataPackageRestore.preview.source)} />
-                <DataRestoreStat label="分组" value={String(dataPackageRestore.preview.groupCount)} />
-                <DataRestoreStat label="网站" value={String(dataPackageRestore.preview.siteCount)} />
-                <DataRestoreStat label="组件" value={String(dataPackageRestore.preview.widgetCount)} />
-                <DataRestoreStat label="主题" value={dataPackageRestore.preview.themePresetId} />
-                <DataRestoreStat label="图片" value={formatRestoreAssets(dataPackageRestore.preview.hasBanner, dataPackageRestore.preview.hasBackground)} />
-                <DataRestoreStat label="导出时间" value={formatRestoreDate(dataPackageRestore.preview.exportedAt)} />
-                <DataRestoreStat label="文档更新" value={formatRestoreDate(dataPackageRestore.preview.updatedAt)} />
+                <DataRestoreStat label={t("settings.recovery.stat.title")} value={dataPackageRestore.preview.documentTitle} />
+                <DataRestoreStat label={t("settings.advanced.stat.source")} value={formatRestoreSource(dataPackageRestore.preview.source, t)} />
+                <DataRestoreStat label={t("settings.recovery.stat.groups")} value={String(dataPackageRestore.preview.groupCount)} />
+                <DataRestoreStat label={t("settings.recovery.stat.sites")} value={String(dataPackageRestore.preview.siteCount)} />
+                <DataRestoreStat label={t("settings.recovery.stat.widgets")} value={String(dataPackageRestore.preview.widgetCount)} />
+                <DataRestoreStat label={t("settings.recovery.stat.theme")} value={dataPackageRestore.preview.themePresetId} />
+                <DataRestoreStat label={t("settings.recovery.stat.images")} value={formatRestoreAssets(dataPackageRestore.preview.hasBanner, dataPackageRestore.preview.hasBackground, t)} />
+                <DataRestoreStat label={t("settings.advanced.stat.exportedAt")} value={formatRestoreDate(dataPackageRestore.preview.exportedAt, format.dateTime, t)} />
+                <DataRestoreStat label={t("settings.recovery.stat.updated")} value={formatRestoreDate(dataPackageRestore.preview.updatedAt, format.dateTime, t)} />
               </div>
               <StatusMessage tone="warning">
-                只会恢复数据包里的本机首页内容；账号资料、首页空间索引、同步码摘要、账号托管恢复凭证、云端历史 document_json 和诊断信息不会写回。恢复前会保存当前首页备份。
+                {t("settings.advanced.dataPackageRestoreWarning")}
               </StatusMessage>
               {currentBinding ? (
                 <StatusMessage tone="warning">
-                  当前浏览器已绑定同步空间。恢复后会暂停自动同步，避免立刻覆盖云端首页。
+                  {t("settings.advanced.dataPackageSyncWarning")}
                 </StatusMessage>
               ) : null}
               {dataPackageRestore.ignoredSections.length > 0 ? (
-                <p className="data-restore-ignored">忽略区块：{dataPackageRestore.ignoredSections.join("、")}</p>
+                <p className="data-restore-ignored">{t("settings.advanced.ignoredSections", { sections: dataPackageRestore.ignoredSections.join(", ") })}</p>
               ) : null}
             </div>
             <footer className="settings-dialog-footer">
-              <button className="utility-button" type="button" onClick={() => setDataPackageRestore(null)}>取消</button>
-              <button className="danger-button" type="button" onClick={handleConfirmDataPackageRestore}>确认恢复</button>
+              <button className="utility-button" type="button" onClick={() => setDataPackageRestore(null)}>{t("settings.common.cancel")}</button>
+              <button className="danger-button" type="button" onClick={handleConfirmDataPackageRestore}>{t("settings.advanced.confirmRestore")}</button>
             </footer>
           </section>
         </div>
@@ -753,7 +759,8 @@ function getAccountSectionSummary({
   currentBinding,
   currentHomeSpace,
   signedIn,
-  syncStatus
+  syncStatus,
+  t
 }: {
   accountData: ReturnType<typeof useAccountData>;
   authConfigured: boolean;
@@ -762,9 +769,10 @@ function getAccountSectionSummary({
   currentHomeSpace: HomeSpace | null;
   signedIn: boolean;
   syncStatus: HomeSyncMeta["status"];
+  t: ReturnType<typeof useI18n>["t"];
 }): { summary: string; tone: StatusTone } {
   if (!authConfigured) {
-    return { summary: "账号服务未配置，本地首页仍可编辑", tone: "warning" };
+    return { summary: t("settings.summary.accountServiceMissing"), tone: "warning" };
   }
 
   if (authError || accountData.error) {
@@ -772,29 +780,29 @@ function getAccountSectionSummary({
   }
 
   if (syncStatus === "conflict") {
-    return { summary: "云端和本地都有修改，需要处理同步冲突", tone: "danger" };
+    return { summary: t("settings.summary.syncConflict"), tone: "danger" };
   }
 
   if (syncStatus === "paused") {
-    return { summary: "自动同步已暂停，请选择上传、拉取或解除本机", tone: "warning" };
+    return { summary: t("settings.summary.syncPaused"), tone: "warning" };
   }
 
   if (currentBinding?.accessMode === "account-managed") {
     return {
-      summary: currentHomeSpace ? `账号托管 · ${currentHomeSpace.name}` : "账号托管空间已绑定",
+      summary: currentHomeSpace ? t("settings.summary.accountManagedWithName", { space: currentHomeSpace.name }) : t("settings.summary.accountManagedBound"),
       tone: "success"
     };
   }
 
   if (currentBinding?.accessMode === "sync-code") {
     return {
-      summary: currentHomeSpace ? `普通同步码 · ${currentHomeSpace.name}` : "当前浏览器绑定普通同步码",
+      summary: currentHomeSpace ? t("settings.summary.syncCodeWithName", { space: currentHomeSpace.name }) : t("settings.summary.syncCodeBound"),
       tone: "info"
     };
   }
 
   return {
-    summary: signedIn ? "已登录 · 当前浏览器未绑定同步空间" : "未登录 · 当前首页只保存在本机",
+    summary: signedIn ? t("settings.summary.signedInNoBinding") : t("settings.summary.signedOutLocal"),
     tone: signedIn ? "success" : "neutral"
   };
 }
@@ -802,14 +810,16 @@ function getAccountSectionSummary({
 function getHomeSpacesSectionSummary({
   accountData,
   currentHomeSpace,
-  signedIn
+  signedIn,
+  t
 }: {
   accountData: ReturnType<typeof useAccountData>;
   currentHomeSpace: HomeSpace | null;
   signedIn: boolean;
+  t: ReturnType<typeof useI18n>["t"];
 }): { summary: string; tone: StatusTone } {
   if (!signedIn) {
-    return { summary: "登录后可创建、恢复和管理账号首页空间", tone: "neutral" };
+    return { summary: t("settings.summary.homeSpacesSignedOut"), tone: "neutral" };
   }
 
   if (accountData.homeSpaceError || accountData.error) {
@@ -817,33 +827,34 @@ function getHomeSpacesSectionSummary({
   }
 
   if (accountData.loading) {
-    return { summary: "正在读取首页空间", tone: "neutral" };
+    return { summary: t("settings.summary.homeSpacesLoading"), tone: "neutral" };
   }
 
-  const currentSpaceText = currentHomeSpace ? ` · 当前 ${currentHomeSpace.name}` : "";
   return {
-    summary: `${accountData.homeSpaces.length} 个空间${currentSpaceText}`,
+    summary: currentHomeSpace
+      ? t("settings.summary.homeSpacesCountCurrent", { count: accountData.homeSpaces.length, space: currentHomeSpace.name })
+      : t("settings.summary.homeSpacesCount", { count: accountData.homeSpaces.length }),
     tone: currentHomeSpace ? "success" : "neutral"
   };
 }
 
-function getThemeImagesSectionSummary(documentValue: HomeDocumentV2): { summary: string; tone: StatusTone } {
+function getThemeImagesSectionSummary(documentValue: HomeDocumentV2, t: ReturnType<typeof useI18n>["t"]): { summary: string; tone: StatusTone } {
   const hasBanner = Boolean(documentValue.theme.bannerAsset || documentValue.theme.bannerUrl);
   const hasBackground = Boolean(documentValue.theme.backgroundAsset || documentValue.theme.backgroundUrl);
 
   if (hasBanner && hasBackground) {
-    return { summary: "已设置 Banner 和背景", tone: "success" };
+    return { summary: t("settings.summary.imagesBoth"), tone: "success" };
   }
 
   if (hasBanner) {
-    return { summary: "已设置 Banner，背景未设置", tone: "info" };
+    return { summary: t("settings.summary.imagesBannerOnly"), tone: "info" };
   }
 
   if (hasBackground) {
-    return { summary: "已设置背景，Banner 未设置", tone: "info" };
+    return { summary: t("settings.summary.imagesBackgroundOnly"), tone: "info" };
   }
 
-  return { summary: "未设置图片", tone: "neutral" };
+  return { summary: t("settings.summary.imagesEmpty"), tone: "neutral" };
 }
 
 function toSyncMeta(binding: StoredSyncBinding, status: HomeSyncMeta["status"] = "synced"): HomeSyncMeta {
@@ -868,51 +879,45 @@ function localSyncMeta(): HomeSyncMeta {
   };
 }
 
-function formatRestoreSource(source: DataPackageRestoreDialogState["preview"]["source"]): string {
+function formatRestoreSource(source: DataPackageRestoreDialogState["preview"]["source"], t: ReturnType<typeof useI18n>["t"]): string {
   if (source === "data-package-v1") {
-    return "数据包 v1";
+    return t("settings.advanced.source.dataPackageV1");
   }
 
   if (source === "home-document-v2") {
-    return "首页 JSON v2";
+    return t("settings.advanced.source.homeJsonV2");
   }
 
-  return "旧版首页 JSON";
+  return t("settings.advanced.source.legacyJson");
 }
 
-function formatRestoreAssets(hasBanner: boolean, hasBackground: boolean): string {
+function formatRestoreAssets(hasBanner: boolean, hasBackground: boolean, t: ReturnType<typeof useI18n>["t"]): string {
   if (hasBanner && hasBackground) {
-    return "Banner + 背景";
+    return formatSettingsSnapshotAssets(hasBanner, hasBackground, t);
   }
 
   if (hasBanner) {
-    return "Banner";
+    return formatSettingsSnapshotAssets(hasBanner, hasBackground, t);
   }
 
   if (hasBackground) {
-    return "背景";
+    return formatSettingsSnapshotAssets(hasBanner, hasBackground, t);
   }
 
-  return "无";
+  return t("settings.advanced.assetsNone");
 }
 
-function formatRestoreDate(value: string | null): string {
+function formatRestoreDate(value: string | null, formatDateTime: (value: Date | string | number) => string, t: ReturnType<typeof useI18n>["t"]): string {
   if (!value) {
-    return "未知";
+    return t("settings.recovery.dateUnknown");
   }
 
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return "未知";
+    return t("settings.recovery.dateUnknown");
   }
 
-  return new Intl.DateTimeFormat(undefined, {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit"
-  }).format(date);
+  return formatDateTime(date);
 }
 
 function summarizeCount(value: number): string {
@@ -943,18 +948,18 @@ function summarizeCount(value: number): string {
   return "501+";
 }
 
-function getResetDefaultTitle(storageReady: boolean, isDefaultDocument: boolean, hasSyncBinding: boolean): string {
+function getResetDefaultTitle(storageReady: boolean, isDefaultDocument: boolean, hasSyncBinding: boolean, t: ReturnType<typeof useI18n>["t"]): string {
   if (!storageReady) {
-    return "本地存储尚未就绪，请稍后重试。";
+    return t("settings.common.storageNotReady");
   }
 
   if (isDefaultDocument) {
-    return "当前首页已经是默认内容，不会覆盖重置前备份。";
+    return t("settings.advanced.resetTitleDefault");
   }
 
   if (hasSyncBinding) {
-    return "清空当前本地首页并自动备份；恢复默认后会暂停自动同步，避免立刻覆盖云端。";
+    return t("settings.advanced.resetTitleBound");
   }
 
-  return "清空当前本地首页并自动保存最近一次重置前备份。";
+  return t("settings.advanced.resetTitleLocal");
 }

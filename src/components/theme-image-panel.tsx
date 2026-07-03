@@ -15,9 +15,14 @@ import type {
   HomeThemeAsset,
   HomeThemeAssetSlot
 } from "@/domain/home-document";
+import { useI18n } from "@/hooks/use-i18n";
 import { captureClientError } from "@/infrastructure/error-monitoring-repository";
 import { HomeAssetStorageRepository } from "@/infrastructure/home-asset-storage-repository";
 import { trackProductEvent } from "@/infrastructure/product-analytics-repository";
+import {
+  formatSettingsImageAsset,
+  formatSettingsImageSlot
+} from "@/i18n/settings-presentation";
 
 const THEME_IMAGE_SLOTS = ["banner", "background"] as const satisfies HomeThemeAssetSlot[];
 
@@ -41,14 +46,15 @@ export function ThemeImagePanel({
   userId,
   onCommitDocument
 }: ThemeImagePanelProps) {
+  const { t } = useI18n();
   const repositoryRef = useRef(new HomeAssetStorageRepository());
   const bannerInputRef = useRef<HTMLInputElement | null>(null);
   const backgroundInputRef = useRef<HTMLInputElement | null>(null);
   const [busySlot, setBusySlot] = useState<HomeThemeAssetSlot | null>(null);
-  const [message, setMessage] = useState<ThemeImagePanelMessage>({
-    text: "可设置 Banner 或背景图片。",
+  const [message, setMessage] = useState<ThemeImagePanelMessage>(() => ({
+    text: t("settings.images.initial"),
     tone: "neutral"
-  });
+  }));
 
   async function handleUpload(slot: HomeThemeAssetSlot, file: File | undefined) {
     if (!file) {
@@ -56,23 +62,24 @@ export function ThemeImagePanel({
     }
 
     if (!storageReady) {
-      setMessage({ text: "本地存储尚未就绪，请稍后重试。", tone: "warning" });
+      setMessage({ text: t("settings.common.storageNotReady"), tone: "warning" });
       return;
     }
 
     if (!userId) {
-      setMessage({ text: "登录后才能上传图片并跨设备恢复。", tone: "warning" });
+      setMessage({ text: t("settings.images.signInToUpload"), tone: "warning" });
       return;
     }
 
+    const slotLabel = formatSettingsImageSlot(slot, t);
     setBusySlot(slot);
-    setMessage({ text: `${getSlotLabel(slot)} 图片上传中...`, tone: "neutral" });
+    setMessage({ text: t("settings.images.uploading", { slot: slotLabel }), tone: "neutral" });
 
     try {
       const prepared = await prepareHomeThemeAssetFile(file);
       const asset = await repositoryRef.current.upload(userId, slot, prepared);
-      commitThemeAsset(slot, asset, `已更新${getSlotLabel(slot)}图片`);
-      setMessage({ text: `${getSlotLabel(slot)} 图片已上传。`, tone: "success" });
+      commitThemeAsset(slot, asset, t("settings.images.updated", { slot: slotLabel }));
+      setMessage({ text: t("settings.images.uploaded", { slot: slotLabel }), tone: "success" });
     } catch (error) {
       console.error(error);
       captureClientError(error, {
@@ -86,7 +93,7 @@ export function ThemeImagePanel({
         severity: "error"
       });
       setMessage({
-        text: error instanceof Error ? error.message : `${getSlotLabel(slot)} 图片上传失败。`,
+        text: error instanceof Error ? error.message : t("settings.images.uploadFailed", { slot: slotLabel }),
         tone: "danger"
       });
     } finally {
@@ -101,9 +108,10 @@ export function ThemeImagePanel({
     }
 
     const currentAsset = getThemeAsset(documentValue.theme, slot);
+    const slotLabel = formatSettingsImageSlot(slot, t);
 
-    commitThemeAsset(slot, null, `已清除${getSlotLabel(slot)}图片`);
-    setMessage({ text: `${getSlotLabel(slot)} 图片已清除。`, tone: "success" });
+    commitThemeAsset(slot, null, t("settings.images.clearedCommit", { slot: slotLabel }));
+    setMessage({ text: t("settings.images.cleared", { slot: slotLabel }), tone: "success" });
 
     if (currentAsset?.source === "storage") {
       try {
@@ -135,11 +143,13 @@ export function ThemeImagePanel({
       const formData = new FormData(event.currentTarget);
       const url = String(formData.get("themeImageUrl") ?? "").trim();
       assertValidExternalHomeThemeAssetUrl(url);
-      commitThemeAsset(slot, createExternalHomeThemeAsset(url), `已设置${getSlotLabel(slot)}外链`);
-      setMessage({ text: `${getSlotLabel(slot)} 外链已保存。`, tone: "success" });
+      const slotLabel = formatSettingsImageSlot(slot, t);
+      commitThemeAsset(slot, createExternalHomeThemeAsset(url), t("settings.images.externalCommit", { slot: slotLabel }));
+      setMessage({ text: t("settings.images.externalSaved", { slot: slotLabel }), tone: "success" });
     } catch (error) {
+      const slotLabel = formatSettingsImageSlot(slot, t);
       setMessage({
-        text: error instanceof Error ? error.message : `${getSlotLabel(slot)} 外链保存失败。`,
+        text: error instanceof Error ? error.message : t("settings.images.externalFailed", { slot: slotLabel }),
         tone: "danger"
       });
     }
@@ -166,6 +176,7 @@ export function ThemeImagePanel({
   function commitMaskOpacity(slot: HomeThemeAssetSlot, value: number) {
     const maskKey = getThemeMaskKey(slot);
     const normalizedValue = Math.min(100, Math.max(0, Math.round(value)));
+    const slotLabel = formatSettingsImageSlot(slot, t);
 
     onCommitDocument({
       ...documentValue,
@@ -173,9 +184,9 @@ export function ThemeImagePanel({
         ...documentValue.theme,
         [maskKey]: normalizedValue
       }
-    }, `${getSlotLabel(slot)}遮罩强度 ${normalizedValue}%`);
+    }, t("settings.images.maskCommit", { slot: slotLabel, value: normalizedValue }));
 
-    setMessage({ text: `${getSlotLabel(slot)} 遮罩强度已调整为 ${normalizedValue}%。`, tone: "success" });
+    setMessage({ text: t("settings.images.maskUpdated", { slot: slotLabel, value: normalizedValue }), tone: "success" });
   }
 
   function resetFileInput(slot: HomeThemeAssetSlot) {
@@ -192,31 +203,32 @@ export function ThemeImagePanel({
         {THEME_IMAGE_SLOTS.map((slot) => {
           const asset = getThemeAsset(documentValue.theme, slot);
           const uploadDisabled = !storageReady || !userId || busySlot !== null;
-          const disabledReason = getUploadDisabledReason(storageReady, Boolean(userId), busySlot);
+          const disabledReason = getUploadDisabledReason(storageReady, Boolean(userId), busySlot, t);
           const inputRef = slot === "banner" ? bannerInputRef : backgroundInputRef;
           const inputId = `themeImage${slot}`;
           const externalUrl = asset?.source === "external" ? asset.url ?? "" : "";
           const maskOpacity = getThemeMaskOpacity(documentValue.theme, slot);
+          const slotLabel = formatSettingsImageSlot(slot, t);
 
           return (
             <article className="theme-image-card" key={slot}>
               <div className="theme-image-card-head">
-                <strong>{getSlotLabel(slot)}</strong>
+                <strong>{slotLabel}</strong>
               </div>
               <div className={`theme-image-preview theme-image-preview-${slot}${asset ? "" : " is-empty"}`} aria-hidden="true" />
               <div className="theme-image-controls">
                 <div className="theme-image-main-controls">
                   <div className="theme-image-action-row">
-                    <span className="theme-image-state">{getAssetLabel(asset)}</span>
+                    <span className="theme-image-state">{formatSettingsImageAsset(asset, t)}</span>
                     <div className="settings-actions">
                       <button
                         className="utility-button"
                         type="button"
                         disabled={uploadDisabled}
-                        title={uploadDisabled ? disabledReason : `上传${getSlotLabel(slot)}图片`}
+                        title={uploadDisabled ? disabledReason : t("settings.images.uploadTitle", { slot: slotLabel })}
                         onClick={() => inputRef.current?.click()}
                       >
-                        上传
+                        {t("settings.images.upload")}
                       </button>
                       <input
                         ref={inputRef}
@@ -230,10 +242,10 @@ export function ThemeImagePanel({
                         className="utility-button"
                         type="button"
                         disabled={!storageReady || !asset || busySlot !== null}
-                        title={asset ? `清除${getSlotLabel(slot)}图片` : "当前未设置图片"}
+                        title={asset ? t("settings.images.clearTitle", { slot: slotLabel }) : t("settings.images.noImageTitle")}
                         onClick={() => handleClear(slot)}
                       >
-                        清除
+                        {t("settings.images.clear")}
                       </button>
                     </div>
                   </div>
@@ -243,23 +255,23 @@ export function ThemeImagePanel({
                       name="themeImageUrl"
                       type="url"
                       defaultValue={externalUrl}
-                      placeholder={`${getSlotLabel(slot)} 图片 URL`}
-                      aria-label={`${getSlotLabel(slot)} 图片 URL`}
+                      placeholder={t("settings.images.urlPlaceholder", { slot: slotLabel })}
+                      aria-label={t("settings.images.urlPlaceholder", { slot: slotLabel })}
                       disabled={!storageReady || busySlot !== null}
                     />
                     <button
                       className="utility-button"
                       type="submit"
                       disabled={!storageReady || busySlot !== null}
-                      title={storageReady ? `保存${getSlotLabel(slot)}外链` : "本地存储尚未就绪，请稍后重试。"}
+                      title={storageReady ? t("settings.images.saveExternalTitle", { slot: slotLabel }) : t("settings.common.storageNotReady")}
                     >
-                      应用
+                      {t("settings.images.apply")}
                     </button>
                   </form>
                 </div>
                 <label className="theme-image-mask-control">
                   <span>
-                    <strong>遮罩强度</strong>
+                    <strong>{t("settings.images.maskStrength")}</strong>
                     <em>{maskOpacity}%</em>
                   </span>
                   <input
@@ -269,12 +281,12 @@ export function ThemeImagePanel({
                     step="5"
                     value={maskOpacity}
                     disabled={!storageReady || busySlot !== null}
-                    aria-label={`${getSlotLabel(slot)} 遮罩强度`}
+                    aria-label={`${slotLabel} ${t("settings.images.maskStrength")}`}
                     onChange={(event) => commitMaskOpacity(slot, Number(event.target.value))}
                   />
                   <span className="theme-image-mask-scale" aria-hidden="true">
-                    <small>清晰</small>
-                    <small>易读</small>
+                    <small>{t("settings.images.maskClear")}</small>
+                    <small>{t("settings.images.maskReadable")}</small>
                   </span>
                 </label>
               </div>
@@ -294,10 +306,10 @@ export function ThemeImagePanel({
   }
 
   return (
-    <section className="settings-panel" aria-label="Banner 和背景图片">
+    <section className="settings-panel" aria-label={t("settings.section.themeImages.title")}>
       <div className="panel-header">
-        <h2>Banner / 背景</h2>
-        <span>Images</span>
+        <h2>{t("settings.section.themeImages.title")}</h2>
+        <span>{t("settings.section.themeImages.kicker")}</span>
       </div>
       {content}
     </section>
@@ -324,29 +336,17 @@ function getThemeMaskOpacity(theme: HomeTheme, slot: HomeThemeAssetSlot): number
   return slot === "banner" ? theme.bannerMaskOpacity : theme.backgroundMaskOpacity;
 }
 
-function getSlotLabel(slot: HomeThemeAssetSlot): string {
-  return slot === "banner" ? "Banner" : "背景";
-}
-
-function getAssetLabel(asset: HomeThemeAsset | null): string {
-  if (!asset) {
-    return "未设置";
-  }
-
-  return asset.source === "storage" ? "已上传" : "外链";
-}
-
-function getUploadDisabledReason(storageReady: boolean, signedIn: boolean, busySlot: HomeThemeAssetSlot | null): string {
+function getUploadDisabledReason(storageReady: boolean, signedIn: boolean, busySlot: HomeThemeAssetSlot | null, t: ReturnType<typeof useI18n>["t"]): string {
   if (!storageReady) {
-    return "本地存储尚未就绪，请稍后重试。";
+    return t("settings.common.storageNotReady");
   }
 
   if (!signedIn) {
-    return "登录后才能上传图片并跨设备恢复。";
+    return t("settings.images.signInToUpload");
   }
 
   if (busySlot) {
-    return "图片操作进行中，请稍后。";
+    return t("settings.images.busy");
   }
 
   return "";

@@ -7,6 +7,7 @@ import type { HomeSpace } from "@/domain/account";
 import type { HomeSyncMeta } from "@/domain/home-document";
 import type { StoredSyncBinding } from "@/domain/sync-code";
 import type { AccountDataState } from "@/hooks/use-account-data";
+import { useI18n } from "@/hooks/use-i18n";
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth";
 
 interface AccountPanelProps {
@@ -26,6 +27,7 @@ export function AccountPanel({
   syncActionSlotId,
   syncStatus = "local-only"
 }: AccountPanelProps) {
+  const { t } = useI18n();
   const [email, setEmail] = useState("");
   const {
     user,
@@ -41,13 +43,14 @@ export function AccountPanel({
   const accountInitial = useMemo(() => getAccountInitial(user?.email), [user?.email]);
   const accountHasError = Boolean((configured && error) || accountData.error);
   const accountStatusTone = !configured ? "warning" : accountHasError ? "danger" : accountData.profile ? "success" : "neutral";
-  const authActionDisabledReason = getAuthActionDisabledReason(configured, loading, actionPending);
+  const authActionDisabledReason = getAuthActionDisabledReason(configured, loading, actionPending, t);
   const syncSummary = getAccountSyncSummary({
     configured,
     currentBinding,
     currentHomeSpace,
     signedIn: Boolean(user),
-    syncStatus
+    syncStatus,
+    t
   });
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -61,17 +64,17 @@ export function AccountPanel({
         <div className="account-card">
           <span className="avatar account-avatar">{accountInitial}</span>
           <div className="account-card-copy">
-            <strong>{user.email ?? "已登录账号"}</strong>
-            <p>{getAccountDescription(accountData)}</p>
+            <strong>{user.email ?? t("settings.account.signedInFallback")}</strong>
+            <p>{getAccountDescription(accountData, t)}</p>
           </div>
-          <button className="utility-button account-sign-out-button" type="button" onClick={signOut} disabled={actionPending} title={actionPending ? "账号操作处理中，请稍后。" : "退出当前账号"}>
-            {actionPending ? "退出中" : "退出登录"}
+          <button className="utility-button account-sign-out-button" type="button" onClick={signOut} disabled={actionPending} title={actionPending ? t("settings.account.pendingTitle") : t("settings.account.signOutTitle")}>
+            {actionPending ? t("settings.account.signingOut") : t("settings.account.signOut")}
           </button>
         </div>
       ) : (
         <form className="auth-form" onSubmit={handleSubmit}>
           <label className="field">
-            <span>邮箱</span>
+            <span>{t("settings.account.email")}</span>
             <input
               type="email"
               value={email}
@@ -83,14 +86,14 @@ export function AccountPanel({
             />
           </label>
           <button className="utility-button" type="submit" disabled={!configured || loading || actionPending} title={authActionDisabledReason}>
-            {actionPending ? "发送中" : "发送登录链接"}
+            {actionPending ? t("settings.account.sending") : t("settings.account.sendLink")}
           </button>
         </form>
       )}
 
-      <div className="account-sync-summary" aria-label="账号与当前首页状态">
+      <div className="account-sync-summary" aria-label={t("settings.account.syncSummaryAria")}>
         <div>
-          <span>当前首页</span>
+          <span>{t("settings.account.currentHome")}</span>
           <strong>{syncSummary.title}</strong>
         </div>
         <StatusMessage tone={syncSummary.tone}>
@@ -102,7 +105,7 @@ export function AccountPanel({
       </div>
 
       <StatusMessage role={accountHasError ? "alert" : "status"} tone={accountStatusTone}>
-        {error || getAccountStatus(accountData, message, loading)}
+        {error || getAccountStatus(accountData, message, loading, t)}
       </StatusMessage>
     </>
   );
@@ -112,10 +115,10 @@ export function AccountPanel({
   }
 
   return (
-    <section className="settings-panel account-panel" aria-label="账号登录">
+    <section className="settings-panel account-panel" aria-label={t("settings.account.panelAria")}>
       <div className="panel-header">
-        <h2>账号</h2>
-        <span>{user ? "Signed in" : "Magic Link"}</span>
+        <h2>{t("settings.section.account.title")}</h2>
+        <span>{user ? t("settings.section.account.signedIn") : t("settings.section.account.magicLink")}</span>
       </div>
       {content}
     </section>
@@ -131,49 +134,49 @@ function getAccountInitial(email?: string): string {
   return value.slice(0, 1).toUpperCase();
 }
 
-function getAccountDescription(accountData: AccountDataState): string {
+function getAccountDescription(accountData: AccountDataState, t: ReturnType<typeof useI18n>["t"]): string {
   if (accountData.loading) {
-    return "正在初始化账号资料。";
+    return t("settings.account.descriptionLoading");
   }
 
   if (accountData.error) {
-    return "账号已登录，但资料初始化暂时失败。";
+    return t("settings.account.descriptionError");
   }
 
   if (accountData.profile) {
-    return "账号资料和偏好已就绪。";
+    return t("settings.account.descriptionReady");
   }
 
-  return "账号状态已保存在当前浏览器。";
+  return t("settings.account.descriptionLocal");
 }
 
-function getAccountStatus(accountData: AccountDataState, authMessage: string, authLoading: boolean): string {
+function getAccountStatus(accountData: AccountDataState, authMessage: string, authLoading: boolean, t: ReturnType<typeof useI18n>["t"]): string {
   if (accountData.error) {
-    return `账号资料加载失败：${accountData.error}`;
+    return t("settings.account.statusLoadFailed", { error: accountData.error });
   }
 
   if (accountData.loading) {
-    return "正在读取或初始化账号资料。";
+    return t("settings.account.statusLoading");
   }
 
   if (accountData.profile) {
-    return "账号资料和偏好已就绪。";
+    return t("settings.account.statusReady");
   }
 
-  return authMessage || (authLoading ? "正在读取账号状态。" : "登录仅建立账号身份，不会覆盖本地首页。");
+  return authMessage || (authLoading ? t("settings.account.authLoading") : t("settings.account.statusDefault"));
 }
 
-function getAuthActionDisabledReason(configured: boolean, loading: boolean, actionPending: boolean): string | undefined {
+function getAuthActionDisabledReason(configured: boolean, loading: boolean, actionPending: boolean, t: ReturnType<typeof useI18n>["t"]): string | undefined {
   if (!configured) {
-    return "账号与云端同步服务尚未配置 Supabase 环境变量。";
+    return t("settings.account.authNotConfigured");
   }
 
   if (actionPending) {
-    return "账号操作处理中，请稍后。";
+    return t("settings.account.pendingTitle");
   }
 
   if (loading) {
-    return "正在读取账号状态，请稍后。";
+    return t("settings.account.authLoading");
   }
 
   return undefined;
@@ -184,18 +187,20 @@ function getAccountSyncSummary({
   currentBinding,
   currentHomeSpace,
   signedIn,
-  syncStatus
+  syncStatus,
+  t
 }: {
   configured: boolean;
   currentBinding: StoredSyncBinding | null;
   currentHomeSpace: HomeSpace | null;
   signedIn: boolean;
   syncStatus: HomeSyncMeta["status"];
+  t: ReturnType<typeof useI18n>["t"];
 }): { detail: string; title: string; tone: "neutral" | "info" | "success" | "warning" | "danger" } {
   if (!configured) {
     return {
-      detail: "账号登录、账号托管空间和云端同步码当前不可用；本地首页仍可继续编辑。",
-      title: "账号服务未配置",
+      detail: t("settings.account.summaryServiceMissingDetail"),
+      title: t("settings.account.summaryServiceMissingTitle"),
       tone: "warning"
     };
   }
@@ -203,15 +208,15 @@ function getAccountSyncSummary({
   if (syncStatus === "conflict") {
     if (signedIn && currentBinding) {
       return {
-        detail: "云端和本地都有修改，自动同步已暂停；请在下方选择使用云端版本、本地覆盖云端或暂不处理。",
-        title: "同步冲突",
+        detail: t("settings.account.summaryConflictDetailInline"),
+        title: t("settings.account.summaryConflictTitle"),
         tone: "danger"
       };
     }
 
     return {
-      detail: "云端和本地都有修改，自动同步已暂停；请在高级操作中处理同步冲突。",
-      title: "同步冲突",
+      detail: t("settings.account.summaryConflictDetailAdvanced"),
+      title: t("settings.account.summaryConflictTitle"),
       tone: "danger"
     };
   }
@@ -219,15 +224,15 @@ function getAccountSyncSummary({
   if (syncStatus === "paused") {
     if (signedIn && currentBinding) {
       return {
-        detail: "自动同步已暂停；请在下方选择上传本地、拉取云端、解除本机或恢复备份。",
-        title: "同步暂停",
+        detail: t("settings.account.summaryPausedDetailInline"),
+        title: t("settings.account.summaryPausedTitle"),
         tone: "warning"
       };
     }
 
     return {
-      detail: "自动同步已暂停；请在高级操作中选择下一步。",
-      title: "同步暂停",
+      detail: t("settings.account.summaryPausedDetailAdvanced"),
+      title: t("settings.account.summaryPausedTitle"),
       tone: "warning"
     };
   }
@@ -235,9 +240,9 @@ function getAccountSyncSummary({
   if (currentBinding?.accessMode === "account-managed") {
     return {
       detail: currentHomeSpace
-        ? `当前本机使用账号可信托管空间“${currentHomeSpace.name}”，支持账号恢复、云端历史和审计。`
-        : "当前本机使用账号可信托管空间，账号空间列表刷新后会显示名称。",
-      title: "账号托管",
+        ? t("settings.account.summaryManagedDetailWithName", { space: currentHomeSpace.name })
+        : t("settings.account.summaryManagedDetailNoName"),
+      title: t("settings.account.summaryManagedTitle"),
       tone: "success"
     };
   }
@@ -245,20 +250,20 @@ function getAccountSyncSummary({
   if (currentBinding?.accessMode === "sync-code") {
     return {
       detail: currentHomeSpace
-        ? `当前普通同步码空间已记录到账号空间“${currentHomeSpace.name}”，云端仍保持密文同步边界。`
+        ? t("settings.account.summarySyncCodeDetailWithName", { space: currentHomeSpace.name })
         : signedIn
-          ? "当前浏览器绑定普通同步码；可在首页空间中认领或迁移为账号托管。"
-          : "当前浏览器绑定普通同步码；登录后可认领到账号。",
-      title: "普通同步码",
+          ? t("settings.account.summarySyncCodeDetailSignedIn")
+          : t("settings.account.summarySyncCodeDetailSignedOut"),
+      title: t("settings.account.summarySyncCodeTitle"),
       tone: "info"
     };
   }
 
   return {
     detail: signedIn
-      ? "当前浏览器未绑定同步空间；可在首页空间中创建账号托管空间。"
-      : "当前首页只保存在本地浏览器，登录不会自动覆盖本地内容。",
-    title: "本地首页",
+      ? t("settings.account.summaryLocalDetailSignedIn")
+      : t("settings.account.summaryLocalDetailSignedOut"),
+    title: t("settings.account.summaryLocalTitle"),
     tone: "neutral"
   };
 }

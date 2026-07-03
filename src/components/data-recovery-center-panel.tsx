@@ -9,9 +9,9 @@ import {
   type HomeWidget
 } from "@/domain/home-document";
 import { bucketCount } from "@/domain/product-analytics";
-import { resolveLocalePreference, type LocalePreference } from "@/domain/ui-preferences";
-import { getWidgetDefinition } from "@/domain/widget-registry";
-import { useUiPreferences } from "@/hooks/use-ui-preferences";
+import { useI18n } from "@/hooks/use-i18n";
+import { formatHomeWidgetDisplayTitle } from "@/i18n/home-presentation";
+import { formatSettingsSnapshotAssets } from "@/i18n/settings-presentation";
 import {
   CloudHomeSnapshotRepository,
   type CloudHomeSnapshot
@@ -47,7 +47,7 @@ export function DataRecoveryCenterPanel({
   onRestoreCloudSnapshot,
   onRestoreSnapshot
 }: DataRecoveryCenterPanelProps) {
-  const { preferences } = useUiPreferences();
+  const { format, t } = useI18n();
   const [snapshots, setSnapshots] = useState<LocalHomeSnapshot[]>([]);
   const [cloudSnapshots, setCloudSnapshots] = useState<CloudHomeSnapshot[]>([]);
   const [message, setMessage] = useState("");
@@ -74,7 +74,7 @@ export function DataRecoveryCenterPanel({
       const nextSnapshots = await new CloudHomeSnapshotRepository().listSnapshots(homeSpaceId);
       setCloudSnapshots(nextSnapshots);
       if (!options.silent) {
-        setMessage("云端历史版本已刷新。");
+        setMessage(t("settings.recovery.cloudRefreshed"));
       }
     } catch (cloudError) {
       console.error(cloudError);
@@ -89,12 +89,12 @@ export function DataRecoveryCenterPanel({
       });
       if (!options.silent) {
         setMessage("");
-        setError("云端历史版本读取失败。请确认 Supabase 已执行 Phase 1.11.5 migration。");
+        setError(t("settings.recovery.cloudLoadFailed"));
       }
     } finally {
       setCloudLoading(false);
     }
-  }, [canUseCloudSnapshots, currentHomeSpace?.accessMode, currentHomeSpace?.id]);
+  }, [canUseCloudSnapshots, currentHomeSpace?.accessMode, currentHomeSpace?.id, t]);
 
   useEffect(() => {
     if (!storageReady) {
@@ -165,13 +165,13 @@ export function DataRecoveryCenterPanel({
   function refreshSnapshots() {
     setSnapshots(loadSnapshots());
     setError("");
-    setMessage("本地历史版本已刷新。");
+    setMessage(t("settings.recovery.localRefreshed"));
   }
 
   function restoreSnapshot(snapshot: LocalHomeSnapshot) {
     const confirmMessage = hasSyncBinding
-      ? "恢复这个本地历史版本会覆盖当前首页。当前浏览器已绑定同步空间，恢复后会暂停自动同步，不会立刻覆盖云端首页。继续？"
-      : "恢复这个本地历史版本会覆盖当前首页。恢复前会再保存一份当前首页快照。继续？";
+      ? t("settings.recovery.localConfirmBound")
+      : t("settings.recovery.localConfirm");
 
     if (!window.confirm(confirmMessage)) {
       return;
@@ -180,35 +180,35 @@ export function DataRecoveryCenterPanel({
     const restored = onRestoreSnapshot(snapshot);
     if (!restored) {
       setMessage("");
-      setError("本地历史版本恢复失败。");
+      setError(t("settings.recovery.localFailed"));
       return;
     }
 
     setError("");
     setMessage(hasSyncBinding
-      ? "已恢复本地历史版本；自动同步已暂停，请手动选择上传或拉取。"
-      : "已恢复本地历史版本。");
+      ? t("settings.recovery.localRestoredPaused")
+      : t("settings.recovery.localRestored"));
     trackProductEvent("recovery.local_restored", toSnapshotAnalyticsProperties(snapshot));
     setPreviewSnapshot(null);
     setSnapshots(loadSnapshots());
   }
 
   async function restoreCloudSnapshot(snapshot: CloudHomeSnapshot) {
-    if (!window.confirm("恢复这个云端历史版本会覆盖当前本机首页。恢复前会先保存当前有效本地首页快照，恢复后会暂停自动同步，不会立刻覆盖云端首页。继续？")) {
+    if (!window.confirm(t("settings.recovery.cloudConfirm"))) {
       return;
     }
 
     const restored = onRestoreCloudSnapshot(snapshot);
     if (!restored) {
       setMessage("");
-      setError("云端历史版本恢复失败。");
+      setError(t("settings.recovery.cloudFailed"));
       return;
     }
 
     try {
       await new CloudHomeSnapshotRepository().recordRestoredToLocal(snapshot);
       setError("");
-      setMessage("已恢复云端历史版本到本机；自动同步已暂停，请手动选择上传或拉取。");
+      setMessage(t("settings.recovery.cloudRestored"));
     } catch (auditError) {
       console.warn("Failed to record cloud snapshot restore audit event:", auditError);
       captureClientError(auditError, {
@@ -220,7 +220,7 @@ export function DataRecoveryCenterPanel({
         },
         severity: "warning"
       });
-      setMessage("已恢复云端历史版本到本机；但云端审计记录写入失败。");
+      setMessage(t("settings.recovery.cloudAuditFailed"));
       setError("");
     }
 
@@ -233,32 +233,33 @@ export function DataRecoveryCenterPanel({
     <>
       <div className="settings-actions">
         <button className="utility-button" type="button" onClick={refreshSnapshots} disabled={!storageReady}>
-          刷新本地
+          {t("settings.recovery.refreshLocal")}
         </button>
         {canUseCloudSnapshots ? (
           <button className="utility-button" type="button" onClick={() => void refreshCloudSnapshots()} disabled={!storageReady || cloudLoading}>
-            {cloudLoading ? "刷新中" : "刷新云端"}
+            {cloudLoading ? t("settings.recovery.refreshing") : t("settings.recovery.refreshCloud")}
           </button>
         ) : null}
       </div>
 
       <StatusMessage role={error ? "alert" : "status"} tone={error ? "danger" : message ? "success" : "warning"}>
         {error || message || (canUseCloudSnapshots
-          ? "可恢复当前浏览器本地历史版本和当前账号托管空间的云端历史版本；账号托管历史用于恢复、完整预览和审计，恢复后不会自动覆盖云端。"
-          : "当前仅恢复当前浏览器中的本地历史版本；只有账号托管空间会显示可预览的云端历史版本，普通同步码空间保持云端密文边界。")}
+          ? t("settings.recovery.statusCloud")
+          : t("settings.recovery.statusLocal"))}
       </StatusMessage>
 
       <div className="recovery-history-section">
         <div className="recovery-history-head">
-          <h3>本地历史版本</h3>
-          <span>当前浏览器</span>
+          <h3>{t("settings.recovery.localHistory")}</h3>
+          <span>{t("settings.recovery.currentBrowser")}</span>
         </div>
         {selectedLocalSnapshot ? (
           <SnapshotSelector
-            label="选择本地历史版本"
-            locale={preferences.locale}
+            formatDateTime={format.dateTime}
+            label={t("settings.recovery.selectLocal")}
             snapshots={visibleSnapshots}
             selectedSnapshot={selectedLocalSnapshot}
+            t={t}
             value={selectedLocalSnapshot.id}
             onChange={setSelectedLocalSnapshotId}
             onPreview={(snapshot) => {
@@ -267,12 +268,12 @@ export function DataRecoveryCenterPanel({
               setPreviewSnapshot({ kind: "local", snapshot: localSnapshot });
             }}
             onRestore={(snapshot) => restoreSnapshot(snapshot as LocalHomeSnapshot)}
-            restoreLabel="恢复"
+            restoreLabel={t("settings.recovery.restore")}
             storageReady={storageReady}
           />
         ) : (
           <StatusMessage tone="neutral">
-            {storageReady ? "当前浏览器暂无可恢复的本地历史版本。" : "本地存储尚未就绪，请稍后重试。"}
+            {storageReady ? t("settings.recovery.noLocal") : t("settings.common.storageNotReady")}
           </StatusMessage>
         )}
       </div>
@@ -280,15 +281,16 @@ export function DataRecoveryCenterPanel({
       {canUseCloudSnapshots ? (
         <div className="recovery-history-section">
           <div className="recovery-history-head">
-            <h3>云端历史版本</h3>
-            <span>{currentHomeSpace?.name ?? "账号托管空间"}</span>
+            <h3>{t("settings.recovery.cloudHistory")}</h3>
+            <span>{currentHomeSpace?.name ?? t("settings.recovery.accountManagedSpace")}</span>
           </div>
           {selectedCloudSnapshot ? (
             <SnapshotSelector
-              label="选择云端历史版本"
-              locale={preferences.locale}
+              formatDateTime={format.dateTime}
+              label={t("settings.recovery.selectCloud")}
               snapshots={visibleCloudSnapshots}
               selectedSnapshot={selectedCloudSnapshot}
+              t={t}
               value={selectedCloudSnapshot.id}
               onChange={setSelectedCloudSnapshotId}
               onPreview={(snapshot) => {
@@ -297,12 +299,12 @@ export function DataRecoveryCenterPanel({
                 setPreviewSnapshot({ kind: "cloud", snapshot: cloudSnapshot });
               }}
               onRestore={(snapshot) => void restoreCloudSnapshot(snapshot as CloudHomeSnapshot)}
-              restoreLabel="恢复到本机"
+              restoreLabel={t("settings.recovery.restoreToLocal")}
               storageReady={storageReady}
             />
           ) : (
             <StatusMessage tone="neutral">
-              {cloudLoading ? "正在读取云端历史版本。" : "当前账号托管空间暂无云端历史版本；下一次成功上传有效用户首页后会自动生成。系统默认页、空白页和未编辑模板页不会进入云端历史。"}
+              {cloudLoading ? t("settings.recovery.cloudLoading") : t("settings.recovery.noCloud")}
             </StatusMessage>
           )}
         </div>
@@ -310,9 +312,10 @@ export function DataRecoveryCenterPanel({
 
       {previewSnapshot ? (
         <SnapshotPreviewDialog
+          formatDateTime={format.dateTime}
           kind={previewSnapshot.kind}
-          locale={preferences.locale}
           snapshot={previewSnapshot.snapshot}
+          t={t}
           onClose={() => setPreviewSnapshot(null)}
           onRestore={() => {
             if (previewSnapshot.kind === "cloud") {
@@ -332,10 +335,10 @@ export function DataRecoveryCenterPanel({
   }
 
   return (
-    <section className="settings-panel data-recovery-center" aria-label="数据恢复中心">
+    <section className="settings-panel data-recovery-center" aria-label={t("settings.recovery.panelAria")}>
       <div className="panel-header">
-        <h2>数据恢复中心</h2>
-        <span>Recovery</span>
+        <h2>{t("settings.section.dataRecovery.title")}</h2>
+        <span>{t("settings.section.dataRecovery.kicker")}</span>
       </div>
       {content}
     </section>
@@ -345,8 +348,8 @@ export function DataRecoveryCenterPanel({
 type PreviewableSnapshot = LocalHomeSnapshot | CloudHomeSnapshot;
 
 function SnapshotSelector({
+  formatDateTime,
   label,
-  locale,
   onChange,
   onPreview,
   onRestore,
@@ -354,10 +357,11 @@ function SnapshotSelector({
   selectedSnapshot,
   snapshots,
   storageReady,
+  t,
   value
 }: {
+  formatDateTime: (value: Date | string | number) => string;
   label: string;
-  locale: LocalePreference;
   onChange: (snapshotId: string) => void;
   onPreview: (snapshot: PreviewableSnapshot) => void;
   onRestore: (snapshot: PreviewableSnapshot) => void;
@@ -365,6 +369,7 @@ function SnapshotSelector({
   selectedSnapshot: PreviewableSnapshot;
   snapshots: PreviewableSnapshot[];
   storageReady: boolean;
+  t: ReturnType<typeof useI18n>["t"];
   value: string;
 }) {
   return (
@@ -374,17 +379,17 @@ function SnapshotSelector({
         <select value={value} onChange={(event) => onChange(event.target.value)}>
           {snapshots.map((snapshot) => (
             <option key={snapshot.id} value={snapshot.id}>
-              {formatSnapshotOption(snapshot, locale)}
+              {formatSnapshotOption(snapshot, formatDateTime, t)}
             </option>
           ))}
         </select>
       </label>
 
       <article className="local-snapshot-card snapshot-selector-card">
-        <SnapshotCardCopy locale={locale} snapshot={selectedSnapshot} />
+        <SnapshotCardCopy formatDateTime={formatDateTime} snapshot={selectedSnapshot} t={t} />
         <div className="settings-actions local-snapshot-actions">
           <button className="utility-button" type="button" onClick={() => onPreview(selectedSnapshot)}>
-            预览
+            {t("settings.recovery.preview")}
           </button>
           <button className="danger-button" type="button" onClick={() => onRestore(selectedSnapshot)} disabled={!storageReady}>
             {restoreLabel}
@@ -396,43 +401,47 @@ function SnapshotSelector({
 }
 
 function SnapshotCardCopy({
-  locale,
-  snapshot
+  formatDateTime,
+  snapshot,
+  t
 }: {
-  locale: LocalePreference;
+  formatDateTime: (value: Date | string | number) => string;
   snapshot: PreviewableSnapshot;
+  t: ReturnType<typeof useI18n>["t"];
 }) {
   return (
     <div className="local-snapshot-copy">
       <div className="local-snapshot-title">
-        <strong>{formatSnapshotVersion(snapshot)}</strong>
-        <time>{formatDateTime(snapshot.createdAt, locale)}</time>
+        <strong>{formatSnapshotVersion(snapshot, t)}</strong>
+        <time>{formatDateTime(snapshot.createdAt)}</time>
       </div>
       <div className="local-snapshot-meta">
-        <span>标题 {snapshot.summary.documentTitle}</span>
-        <span>{snapshot.summary.groupCount} 分组</span>
-        <span>{snapshot.summary.siteCount} 网站</span>
-        <span>{snapshot.summary.widgetCount} 组件</span>
-        <span>主题 {snapshot.summary.themePresetId}</span>
-        <span>{formatSnapshotAssets(snapshot.summary.hasBanner, snapshot.summary.hasBackground)}</span>
-        <span>更新 {formatDateTime(snapshot.summary.updatedAt, locale)}</span>
+        <span>{t("settings.recovery.meta.title", { title: snapshot.summary.documentTitle })}</span>
+        <span>{t("settings.recovery.meta.groups", { count: snapshot.summary.groupCount })}</span>
+        <span>{t("settings.recovery.meta.sites", { count: snapshot.summary.siteCount })}</span>
+        <span>{t("settings.recovery.meta.widgets", { count: snapshot.summary.widgetCount })}</span>
+        <span>{t("settings.recovery.meta.theme", { theme: snapshot.summary.themePresetId })}</span>
+        <span>{formatSettingsSnapshotAssets(snapshot.summary.hasBanner, snapshot.summary.hasBackground, t)}</span>
+        <span>{t("settings.recovery.meta.updated", { time: formatDateTime(snapshot.summary.updatedAt) })}</span>
       </div>
     </div>
   );
 }
 
 interface SnapshotPreviewDialogProps {
+  formatDateTime: (value: Date | string | number) => string;
   kind: "cloud" | "local";
-  locale: LocalePreference;
   snapshot: PreviewableSnapshot;
+  t: ReturnType<typeof useI18n>["t"];
   onClose: () => void;
   onRestore: () => void;
 }
 
 function SnapshotPreviewDialog({
+  formatDateTime,
   kind,
-  locale,
   snapshot,
+  t,
   onClose,
   onRestore
 }: SnapshotPreviewDialogProps) {
@@ -444,33 +453,33 @@ function SnapshotPreviewDialog({
       <section className="settings-dialog settings-dialog-wide local-snapshot-preview-dialog">
         <header className="settings-dialog-header">
           <div>
-            <h2 id="snapshotPreviewDialogTitle">历史版本预览</h2>
-            <p>{formatSnapshotVersion(snapshot)} · {formatDateTime(snapshot.createdAt, locale)}</p>
+            <h2 id="snapshotPreviewDialogTitle">{t("settings.recovery.previewTitle")}</h2>
+            <p>{formatSnapshotVersion(snapshot, t)} · {formatDateTime(snapshot.createdAt)}</p>
           </div>
-          <button className="utility-button" type="button" onClick={onClose}>取消</button>
+          <button className="utility-button" type="button" onClick={onClose}>{t("settings.common.cancel")}</button>
         </header>
         <div className="settings-dialog-body">
           <div className="data-restore-summary">
-            <DataRecoveryStat label="标题" value={snapshot.summary.documentTitle} />
-            <DataRecoveryStat label="分组" value={String(snapshot.summary.groupCount)} />
-            <DataRecoveryStat label="网站" value={String(snapshot.summary.siteCount)} />
-            <DataRecoveryStat label="组件" value={String(snapshot.summary.widgetCount)} />
-            <DataRecoveryStat label="主题" value={snapshot.summary.themePresetId} />
-            <DataRecoveryStat label="图片" value={formatSnapshotAssets(snapshot.summary.hasBanner, snapshot.summary.hasBackground)} />
-            <DataRecoveryStat label="同步状态" value={snapshot.summary.syncStatus} />
-            <DataRecoveryStat label="文档更新" value={formatDateTime(snapshot.summary.updatedAt, locale)} />
+            <DataRecoveryStat label={t("settings.recovery.stat.title")} value={snapshot.summary.documentTitle} />
+            <DataRecoveryStat label={t("settings.recovery.stat.groups")} value={String(snapshot.summary.groupCount)} />
+            <DataRecoveryStat label={t("settings.recovery.stat.sites")} value={String(snapshot.summary.siteCount)} />
+            <DataRecoveryStat label={t("settings.recovery.stat.widgets")} value={String(snapshot.summary.widgetCount)} />
+            <DataRecoveryStat label={t("settings.recovery.stat.theme")} value={snapshot.summary.themePresetId} />
+            <DataRecoveryStat label={t("settings.recovery.stat.images")} value={formatSettingsSnapshotAssets(snapshot.summary.hasBanner, snapshot.summary.hasBackground, t)} />
+            <DataRecoveryStat label={t("settings.recovery.stat.syncStatus")} value={snapshot.summary.syncStatus} />
+            <DataRecoveryStat label={t("settings.recovery.stat.updated")} value={formatDateTime(snapshot.summary.updatedAt)} />
           </div>
 
           <StatusMessage tone="warning">
             {kind === "cloud"
-              ? "这是账号托管云端历史版本的只读预览。恢复只会覆盖当前本机首页，并会暂停自动同步。"
-              : "这是只读预览。恢复会覆盖当前首页，恢复前会再保存一份当前首页快照。"}
+              ? t("settings.recovery.previewCloudWarning")
+              : t("settings.recovery.previewLocalWarning")}
           </StatusMessage>
 
           <div className="snapshot-preview-section">
             <div className="snapshot-preview-section-head">
-              <h3>网站分组</h3>
-              <span>{snapshot.summary.siteCount} 个网站</span>
+              <h3>{t("settings.recovery.groups")}</h3>
+              <span>{t("settings.recovery.siteCount", { count: snapshot.summary.siteCount })}</span>
             </div>
             {groups.length > 0 ? (
               <div className="snapshot-preview-group-list">
@@ -481,7 +490,7 @@ function SnapshotPreviewDialog({
                     <article className="snapshot-preview-group" key={group.id}>
                       <header>
                         <strong>{group.title}</strong>
-                        <span>{sites.length} 个网站</span>
+                        <span>{t("settings.recovery.siteCount", { count: sites.length })}</span>
                       </header>
                       {sites.length > 0 ? (
                         <ul className="snapshot-preview-site-list">
@@ -490,36 +499,36 @@ function SnapshotPreviewDialog({
                           ))}
                         </ul>
                       ) : (
-                        <p className="snapshot-preview-empty">暂无网站。</p>
+                        <p className="snapshot-preview-empty">{t("settings.recovery.emptySites")}</p>
                       )}
                     </article>
                   );
                 })}
               </div>
             ) : (
-              <p className="snapshot-preview-empty">暂无分组。</p>
+              <p className="snapshot-preview-empty">{t("settings.recovery.emptyGroups")}</p>
             )}
           </div>
 
           <div className="snapshot-preview-section">
             <div className="snapshot-preview-section-head">
-              <h3>组件</h3>
-              <span>{widgets.length} 个组件</span>
+              <h3>{t("settings.recovery.widgets")}</h3>
+              <span>{t("settings.recovery.widgetCount", { count: widgets.length })}</span>
             </div>
             {widgets.length > 0 ? (
               <div className="snapshot-preview-widget-list">
                 {widgets.map((widget) => (
-                  <SnapshotPreviewWidget widget={widget} key={widget.id} />
+                  <SnapshotPreviewWidget widget={widget} key={widget.id} t={t} />
                 ))}
               </div>
             ) : (
-              <p className="snapshot-preview-empty">暂无组件。</p>
+              <p className="snapshot-preview-empty">{t("settings.recovery.emptyWidgets")}</p>
             )}
           </div>
         </div>
         <footer className="settings-dialog-footer">
-          <button className="utility-button" type="button" onClick={onClose}>取消</button>
-          <button className="danger-button" type="button" onClick={onRestore}>恢复此版本</button>
+          <button className="utility-button" type="button" onClick={onClose}>{t("settings.common.cancel")}</button>
+          <button className="danger-button" type="button" onClick={onRestore}>{t("settings.recovery.restoreVersion")}</button>
         </footer>
       </section>
     </div>
@@ -536,13 +545,11 @@ function SnapshotPreviewSite({ site }: { site: HomeSite }) {
   );
 }
 
-function SnapshotPreviewWidget({ widget }: { widget: HomeWidget }) {
-  const definition = getWidgetDefinition(widget.type);
-
+function SnapshotPreviewWidget({ widget, t }: { widget: HomeWidget; t: ReturnType<typeof useI18n>["t"] }) {
   return (
     <article className="snapshot-preview-widget">
-      <strong>{widget.title}</strong>
-      <span>{definition.title} · {widget.layout.collapsed ? "折叠" : "展开"}</span>
+      <strong>{formatHomeWidgetDisplayTitle(widget, t)}</strong>
+      <span>{formatHomeWidgetDisplayTitle(widget, t)} · {widget.layout.collapsed ? t("settings.recovery.widgetCollapsed") : t("settings.recovery.widgetExpanded")}</span>
     </article>
   );
 }
@@ -573,43 +580,17 @@ function getDateTime(value: string): number {
   return Number.isNaN(time) ? 0 : time;
 }
 
-function formatSnapshotVersion(snapshot: PreviewableSnapshot): string {
-  return `版本 ${snapshot.revision}`;
+function formatSnapshotVersion(snapshot: PreviewableSnapshot, t: ReturnType<typeof useI18n>["t"]): string {
+  return t("settings.recovery.version", { revision: snapshot.revision });
 }
 
-function formatSnapshotOption(snapshot: PreviewableSnapshot, locale: LocalePreference): string {
-  return `${formatSnapshotVersion(snapshot)} · ${snapshot.summary.documentTitle} · ${formatDateTime(snapshot.createdAt, locale)} · ${snapshot.summary.siteCount} 网站`;
-}
-
-function formatSnapshotAssets(hasBanner: boolean, hasBackground: boolean): string {
-  if (hasBanner && hasBackground) {
-    return "Banner + 背景";
-  }
-
-  if (hasBanner) {
-    return "Banner";
-  }
-
-  if (hasBackground) {
-    return "背景";
-  }
-
-  return "无图片";
-}
-
-function formatDateTime(value: string, locale: LocalePreference): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return "未知";
-  }
-
-  return new Intl.DateTimeFormat(resolveLocalePreference(locale), {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit"
-  }).format(date);
+function formatSnapshotOption(snapshot: PreviewableSnapshot, formatDateTime: (value: Date | string | number) => string, t: ReturnType<typeof useI18n>["t"]): string {
+  return t("settings.recovery.option", {
+    sites: snapshot.summary.siteCount,
+    time: formatDateTime(snapshot.createdAt),
+    title: snapshot.summary.documentTitle,
+    version: formatSnapshotVersion(snapshot, t)
+  });
 }
 
 function toSnapshotAnalyticsProperties(snapshot: PreviewableSnapshot) {
