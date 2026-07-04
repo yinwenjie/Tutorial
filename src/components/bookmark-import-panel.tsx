@@ -90,7 +90,7 @@ export function BookmarkImportPanel({
   const [draft, setDraft] = useState<BookmarkImportDraft | null>(null);
   const [step, setStep] = useState<ImportDialogStep>("source");
   const [storageRefreshKey, setStorageRefreshKey] = useState(0);
-  const [message, setMessage] = useState(() => t("settings.import.panelDefault"));
+  const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState<StatusTone>("neutral");
   const storageState = useSyncExternalStore(
     subscribeBookmarkImportStorage,
@@ -297,7 +297,7 @@ export function BookmarkImportPanel({
           ) : null}
         </div>
         <StatusMessage tone={messageTone}>
-          {message}
+          {message || t("settings.import.panelDefault")}
         </StatusMessage>
       </div>
 

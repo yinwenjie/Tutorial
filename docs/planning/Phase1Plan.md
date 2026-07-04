@@ -48,9 +48,9 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - Phase 1.15.3 已完成：首页外壳、模板库、站点集合、首页直编弹窗、组件侧栏、Widget Shell 和 Todo 基础交互已接入 i18n runtime。
 - Phase 1.15.4 已完成：设置页核心路径、账号、首页空间、主题、图片、恢复中心和高级操作入口已接入 i18n runtime。
 - Phase 1.15.5 已完成：同步面板、书签/URL 导入、本机状态、本地审计、产品改进和错误边界已接入 i18n runtime。
-- Phase 1.15.6 已完成实现：新增 `verify:i18n` 校验、补齐同步/导入/设备/审计/错误等关键路径在 `fr-FR`、`es-ES`、`ja-JP`、`ko-KR`、`it-IT` 的覆盖；待执行人工多视口回归验收。
+- Phase 1.15.6 已完成：新增 `verify:i18n` 校验、补齐同步/导入/设备/审计/错误等关键路径在 `fr-FR`、`es-ES`、`ja-JP`、`ko-KR`、`it-IT` 的覆盖，并完成桌面、平板、移动端多视口回归；回归中修复书签/URL 导入面板默认提示在语言偏好加载后仍停留简中的问题。
 
-下一步执行 Phase 1.15.6 人工回归验收；通过后收口 Phase 1.15，并再进入 Phase 1.16 候选评估。
+下一步进入 Phase 1.16 低成本组件扩展候选评估，优先评估 Notes v1。
 
 ## Phase Plan
 
@@ -70,7 +70,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 | Phase 1.12：组件设计优化子阶段 | 已完成 | 组件体验规范、Widget Shell、Todo/月历优化、配置入口、模板组件组合、候选组件 backlog | 纯前端新组件留 Phase 1.16 |
 | Phase 1.13：产品化体验收口 | 已完成 | 设置页信息架构 v2、产品身份收口、主题风格 v2 | 主域名准备独立到 Phase 1.14 |
 | Phase 1.14：主域名准备 | 已完成 | Cloudflare Pages 主站迁移、根路径构建、Supabase 回调、安全头、切流回归和回滚演练；1.14.5/1.14.6 暂缓，GitHub Pages legacy 保留完整应用 | 后续只做主域名运行观察和安全补强 |
-| Phase 1.15：多语言支持 v1 | 进行中 | 语言数据模型、账号/本地偏好、I18n Provider、静态 dictionary、日期时间/月历 locale formatter、首页、设置页、同步、导入和错误细节本地化；新增 i18n 校验与小语种关键路径覆盖 | 下一步做 1.15.6 人工多视口回归并收口 |
+| Phase 1.15：多语言支持 v1 | 已完成 | 语言数据模型、账号/本地偏好、I18n Provider、静态 dictionary、日期时间/月历 locale formatter、首页、设置页、同步、导入和错误细节本地化；新增 i18n 校验、小语种关键路径覆盖和多视口人工回归 | 后续只做翻译修订和缺陷修复 |
 | Phase 1.16：低成本组件扩展 | 候选 | Notes、Countdown、World Clock | 仅实现纯前端、低数据体积组件 |
 | Phase 1.17：只读渲染与分享链接 v1 | 候选 | 只读首页 renderer、只读分享链接、撤销机制 | 依赖主域名和只读渲染层设计 |
 | Phase 1.18：受控服务端与后台 dashboard v1 | 候选 | Edge Function/受控后端、管理员身份、管理员审计、只读后台 | 仅在主域名稳定后评估，v1 必须只读 |
@@ -396,7 +396,7 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 
 ### Phase 1.15.6：质量回归与文档
 
-状态：已实现，待人工回归验收。
+状态：已完成。
 
 目标：完成多语言 v1 的质量回归、文档记录和可维护性检查，确保后续新增文案不会再次失控。
 
@@ -413,6 +413,8 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 - 新增 `scripts/verify-i18n-messages.mjs` 与 `npm run verify:i18n`，校验 placeholder 一致性、无效 override key，以及 `settings.document.class.*`、`settings.sync.*`、`settings.import.*`、`settings.error.*`、`settings.audit.*`、`settings.device.*`、`settings.analytics.*` 在 `fr-FR`、`es-ES`、`ja-JP`、`ko-KR`、`it-IT` 不再回落英语。
 - 补齐上述关键路径在法语、西班牙语、日语、韩语、意大利语的文案覆盖；繁体中文继续通过 `settings.*` 转换器生成。
 - 明确共享产品名和稳定技术名可保留原样，例如模板 preset 名、`Magic Link`、埋点事件名、监控 operation 和用户自定义内容。
+- 完成 `fr-FR`、`es-ES`、`ja-JP`、`ko-KR`、`it-IT` 在桌面、平板、移动端的设置页多视口回归；同步、恢复中心、导入、本机状态、审计和产品改进区块未发现横向溢出。
+- 修复书签/URL 导入面板默认提示使用 `useState` 初始化后无法随语言偏好加载更新的问题，避免小语种下短暂或持续显示简中文案。
 
 ## Shared Foundations
 

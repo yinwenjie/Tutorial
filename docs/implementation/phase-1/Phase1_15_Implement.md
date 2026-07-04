@@ -206,10 +206,12 @@ v1 采用分层交付：先完成语言数据模型、Supabase 约束和系统�
 - `npm run typecheck` 通过。
 - `npm run lint` 通过。
 - `npm run build` 通过。
-- `npm run verify:export` 待本轮复跑。
+- `npm run verify:export` 通过。
 - `npm run verify:i18n` 通过。
 
-人工回归建议：
+人工回归：
 
-- 桌面、平板、移动端分别检查 `fr-FR`、`es-ES`、`ja-JP`、`ko-KR`、`it-IT` 下的设置页长文本按钮、同步冲突提示、恢复中心和导入弹窗。
-- 走通账号偏好、本地偏好、Magic Link、账号托管恢复、同步码绑定、图片设置和数据恢复中心主路径。
+- 已使用本地开发服务和 headless Chrome 覆盖 `fr-FR`、`es-ES`、`ja-JP`、`ko-KR`、`it-IT` 的桌面、平板、移动端设置页回归。
+- 已检查设置页长文本按钮、同步面板、恢复中心、书签/URL 导入、本机状态、本地审计和产品改进区块，未发现横向溢出或明显控件重叠。
+- 回归中发现书签/URL 导入面板默认提示在语言偏好加载后仍保留初始简中文案；已改为无操作消息时按当前 `t("settings.import.panelDefault")` 渲染，避免默认提示被初始 locale 锁定。
+- 账号登录、Magic Link、账号托管恢复和 Storage 图片仍依赖线上 Supabase/用户态环境；本轮未执行真实线上账号写入，只确认相关设置入口在未登录/本地模式下的本地化和布局。
