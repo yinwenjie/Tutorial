@@ -71,7 +71,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 | Phase 1.13：产品化体验收口 | 已完成 | 设置页信息架构 v2、产品身份收口、主题风格 v2 | 主域名准备独立到 Phase 1.14 |
 | Phase 1.14：主域名准备 | 已完成 | Cloudflare Pages 主站迁移、根路径构建、Supabase 回调、安全头、切流回归和回滚演练；1.14.5/1.14.6 暂缓，GitHub Pages legacy 保留完整应用 | 后续只做主域名运行观察和安全补强 |
 | Phase 1.15：多语言支持 v1 | 已完成 | 语言数据模型、账号/本地偏好、I18n Provider、静态 dictionary、日期时间/月历 locale formatter、首页、设置页、同步、导入和错误细节本地化；新增 i18n 校验、小语种关键路径覆盖和多视口人工回归 | 后续只做翻译修订和缺陷修复 |
-| Phase 1.16：低成本组件扩展 | 候选 | Notes、Countdown、World Clock | 仅实现纯前端、低数据体积组件 |
+| Phase 1.16：低成本组件扩展 | 规划中 | Notes、Countdown、World Clock | 先做 1.16.0 设计收口，再按 Notes、Countdown、World Clock 递进实现 |
 | Phase 1.17：只读渲染与分享链接 v1 | 候选 | 只读首页 renderer、只读分享链接、撤销机制 | 依赖主域名和只读渲染层设计 |
 | Phase 1.18：受控服务端与后台 dashboard v1 | 候选 | Edge Function/受控后端、管理员身份、管理员审计、只读后台 | 仅在主域名稳定后评估，v1 必须只读 |
 
@@ -415,6 +415,136 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 - 明确共享产品名和稳定技术名可保留原样，例如模板 preset 名、`Magic Link`、埋点事件名、监控 operation 和用户自定义内容。
 - 完成 `fr-FR`、`es-ES`、`ja-JP`、`ko-KR`、`it-IT` 在桌面、平板、移动端的设置页多视口回归；同步、恢复中心、导入、本机状态、审计和产品改进区块未发现横向溢出。
 - 修复书签/URL 导入面板默认提示使用 `useState` 初始化后无法随语言偏好加载更新的问题，避免小语种下短暂或持续显示简中文案。
+
+## Phase 1.16 Breakdown
+
+### Phase 1.16：低成本组件扩展
+
+状态：规划中。
+
+目标：在现有 Widget Registry、Widget Shell、统一配置弹窗、快照、同步和恢复体系上，新增少量纯前端、低数据体积、高日常价值的组件。Phase 1.16 不是组件市场阶段，不接联网组件，不引入后端服务，不扩大账号权限边界。
+
+阶段边界：
+
+- 只实现纯前端组件，数据继续写入 `HomeDocumentV2.widgets[].config`。
+- 不新增 Supabase 表、RPC、Storage bucket、Edge Function 或第三方 API key。
+- 不接入 OAuth、浏览器定位、通知提醒、服务端缓存或后台任务。
+- 不把 Notes 正文、倒计时标题、城市名称、时区配置等用户意图内容写入基础埋点、错误监控或本地审计 metadata。
+- 新组件必须复用现有 Widget Shell、统一配置入口、折叠摘要、空状态、错误态和触屏可达性规则。
+- 新组件进入模板前必须先验证默认信息密度，不能让新空间首屏变拥挤。
+
+### Phase 1.16.0：组件扩展设计收口
+
+状态：下一步。
+
+目标：先把 Notes、Countdown 和 World Clock 的数据模型、交互边界、隐私约束和验收标准写清楚，避免实现阶段范围漂移。
+
+主要任务：
+
+- 新增 `docs/implementation/phase-1/Phase1_16_Implement.md`，记录 Phase 1.16 的阶段边界和实施计划。
+- 为每个候选组件定义 `HomeWidgetType`、`config` 字段、默认配置、normalize 规则、展开态、折叠摘要、配置弹窗字段和空状态。
+- 明确每个组件是否允许多个实例、是否适合加入模板、是否需要迁移旧数据。
+- 明确埋点、错误监控和本地审计的脱敏边界：只记录 widget type、动作类别和数量级，不记录正文、标题、城市名或完整 config。
+- 明确验收基线：`typecheck`、`lint`、`build`、`verify:export`、`verify:i18n`，以及桌面、平板、移动端多视口回归。
+
+### Phase 1.16.1：Notes v1
+
+状态：候选首选。
+
+目标：提供轻量便签组件，满足短备忘、临时想法和链接说明等首页工作台需求。
+
+建议范围：
+
+- 新增 Notes widget type，例如 `notes.list`。
+- `widget.config` 保存短便签列表：`id`、`text`、`order`、`createdAt`、`updatedAt`。
+- 限制数据体积：建议最多 20 条便签，单条 280-500 字符。
+- 展开态支持添加、编辑、删除和排序；空状态提示添加第一条便签。
+- 折叠摘要只显示数量或最近更新时间，不显示正文。
+- 配置弹窗先只支持组件名称；布局模式、Markdown、标签、全文搜索和附件暂缓。
+- Notes 正文不得进入埋点、错误监控、审计 metadata 或配置弹窗摘要。
+
+主要改动点：
+
+- `src/domain/home-document.ts`：扩展 `HomeWidgetType`。
+- `src/domain/widget-registry.ts`：注册 Notes 定义、默认配置和 normalize。
+- `src/domain/notes-widget.ts`：新增 Notes config normalize、长度限制和排序工具。
+- `src/components/widgets/notes-widget.tsx`：新增 Notes 内容组件。
+- `src/components/widgets/widget-config-dialog.tsx`：接入 Notes 配置展示。
+- `src/components/widget-panel.tsx`：接入渲染分支和折叠摘要。
+- `src/i18n/messages.ts`、`src/i18n/home-presentation.ts`：补齐组件名、设置标题、空状态和操作文案。
+- 数据恢复预览、模板摘要和数据包回归保持完整组件摘要可读。
+
+### Phase 1.16.2：Countdown v1
+
+状态：候选。
+
+目标：提供简单倒计时组件，覆盖考试、发布、纪念日和项目节点等低成本高感知场景。
+
+建议范围：
+
+- 新增 Countdown widget type，例如 `countdown.timer`。
+- `widget.config` 保存事件标题、目标日期和显示模式。
+- 目标日期按本地时区解释；v1 不做提醒、通知、重复事件、日历联动或服务器时间校准。
+- 展开态显示事件名、剩余天数、目标日期；到期后显示已到达或已过去。
+- 折叠摘要显示剩余天数、今天到期或已过去状态。
+- 配置弹窗支持组件名称、事件标题、目标日期和显示模式。
+- 倒计时标题可能包含用户意图，不进入埋点、错误监控或审计 metadata。
+
+### Phase 1.16.3：World Clock v1
+
+状态：候选。
+
+目标：提供纯前端世界时钟组件，服务开发者、远程协作和跨时区工作场景。
+
+建议范围：
+
+- 新增 World Clock widget type，例如 `world-clock.list`。
+- `widget.config` 保存时钟列表：`id`、`label`、`timeZone`、`order`。
+- 使用浏览器 `Intl.DateTimeFormat` 和 IANA timezone，不接定位、不接天气、不接外部 API。
+- 限制数据体积：建议最多 6 个时区。
+- 时区选择使用 curated list，避免把完整时区数据库做成沉重配置 UI。
+- 展开态显示城市/标签、当前时间和日期偏移提示。
+- 折叠摘要显示时钟数量或第一个时区当前时间。
+- 城市/标签可能包含用户意图，不进入埋点、错误监控或审计 metadata。
+
+### Phase 1.16.4：模板组件组合调整
+
+状态：候选，依赖 Notes v1 稳定。
+
+目标：在新组件稳定后，小幅调整模板默认组件组合，只影响新建首页，不自动修改用户已有首页。
+
+建议策略：
+
+- 空白首页继续不预设组件。
+- 极简起步继续保持轻，不默认加入 Notes。
+- 通用效率可评估加入 Notes 或 Countdown，但首屏组件总数需克制。
+- 工作办公可评估 Notes + Todo。
+- 学习研究可评估 Countdown，用于考试、课程节点或论文 deadline。
+- 开发者工作台可评估 World Clock，用于跨时区协作。
+
+验收要求：
+
+- 模板默认组件不超过当前信息密度上限。
+- 模板卡片、创建流程和组件摘要随新组件本地化展示。
+- 只影响新建/套模板首页，不迁移或修改已有首页、快照和云端历史。
+
+### Phase 1.16.5：回归与部署收口
+
+状态：候选。
+
+目标：完成 Phase 1.16 的自动检查、人工多视口回归、数据保全回归和部署准备。
+
+验收清单：
+
+- `npm run typecheck` 通过。
+- `npm run lint` 通过。
+- `npm run build` 通过。
+- `npm run verify:export` 通过。
+- `npm run verify:i18n` 通过。
+- 首页添加、删除、排序、折叠、配置新组件均可用。
+- 本地保存、同步码、账号托管、数据恢复中心、JSON 导出、数据包导出和恢复能保留新组件摘要和 config。
+- 桌面、平板、移动端无横向溢出；深色、浅色、紧凑密度和小语种下文案不遮挡。
+- 埋点、错误监控和本地审计不记录 Notes 正文、倒计时标题、城市名、时区完整配置或其他用户自定义内容。
 
 ## Shared Foundations
 
