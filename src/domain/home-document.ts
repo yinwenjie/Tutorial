@@ -30,7 +30,7 @@ export type SyncStatus =
   | "offline"
   | "conflict"
   | "error";
-export type HomeWidgetType = "calendar.month" | "todo.list";
+export type HomeWidgetType = "calendar.month" | "notes.list" | "todo.list";
 export type HomeThemeAssetSource = "storage" | "external";
 export type HomeThemeAssetSlot = "banner" | "background";
 

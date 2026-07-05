@@ -1,5 +1,6 @@
 import type { HomeWidgetType } from "@/domain/home-document";
 import { normalizeCalendarConfig } from "@/domain/calendar-widget";
+import { normalizeNotesConfig } from "@/domain/notes-widget";
 import { normalizeTodoConfig } from "@/domain/todo-widget";
 
 export interface WidgetDefinition {
@@ -42,6 +43,19 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     },
     defaultConfig: () => ({ weekStartsOn: 1 }),
     normalizeConfig: normalizeCalendarConfig
+  },
+  {
+    type: "notes.list",
+    title: "Notes",
+    defaultTitle: "Notes",
+    description: "轻量便签",
+    allowMultiple: true,
+    settings: {
+      title: "Notes 设置",
+      description: "名称和便签数量"
+    },
+    defaultConfig: () => ({ notes: [] }),
+    normalizeConfig: normalizeNotesConfig
   }
 ];
 
@@ -50,7 +64,7 @@ export const WIDGET_REGISTRY: Record<HomeWidgetType, WidgetDefinition> = Object.
 ) as Record<HomeWidgetType, WidgetDefinition>;
 
 export function isWidgetType(value: unknown): value is HomeWidgetType {
-  return value === "calendar.month" || value === "todo.list";
+  return value === "calendar.month" || value === "notes.list" || value === "todo.list";
 }
 
 export function getWidgetDefinition(type: HomeWidgetType): WidgetDefinition {

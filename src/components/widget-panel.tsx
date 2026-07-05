@@ -30,9 +30,11 @@ import {
 } from "@/domain/home-document";
 import { normalizeCalendarConfig } from "@/domain/calendar-widget";
 import { createHomeWidget } from "@/domain/home-widget";
+import { getNotesStats, readNoteItems } from "@/domain/notes-widget";
 import { getTodoStats, readTodoItems } from "@/domain/todo-widget";
 import { getWidgetDefinition, WIDGET_DEFINITIONS } from "@/domain/widget-registry";
 import { CalendarMonthWidget } from "@/components/widgets/calendar-month-widget";
+import { NotesListWidget } from "@/components/widgets/notes-list-widget";
 import { TodoListWidget } from "@/components/widgets/todo-list-widget";
 import { WidgetConfigDialog } from "@/components/widgets/widget-config-dialog";
 import { WidgetShell } from "@/components/widgets/widget-shell";
@@ -437,6 +439,10 @@ function WidgetContent({
     return <TodoListWidget widget={widget} onUpdate={onUpdateWidget} />;
   }
 
+  if (widget.type === "notes.list") {
+    return <NotesListWidget widget={widget} onUpdate={onUpdateWidget} />;
+  }
+
   if (widget.type === "calendar.month") {
     return <CalendarMonthWidget widget={widget} />;
   }
@@ -473,6 +479,17 @@ function getWidgetCollapsedSummary(widget: HomeWidget, t: I18nTranslate, format:
       month: monthLabel,
       today: todayLabel,
       weekStart: weekStartLabel
+    });
+  }
+
+  if (widget.type === "notes.list") {
+    const stats = getNotesStats(readNoteItems(widget.config));
+    if (stats.total === 0) {
+      return t("notes.empty");
+    }
+
+    return t("notes.summary", {
+      count: format.number(stats.total)
     });
   }
 

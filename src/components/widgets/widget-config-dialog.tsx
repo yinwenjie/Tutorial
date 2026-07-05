@@ -3,6 +3,7 @@
 import { type FormEvent, useMemo, useState } from "react";
 import { normalizeCalendarConfig, type WeekStart } from "@/domain/calendar-widget";
 import { normalizeText, type HomeWidget } from "@/domain/home-document";
+import { getNotesStats, readNoteItems } from "@/domain/notes-widget";
 import { getTodoStats, readTodoItems } from "@/domain/todo-widget";
 import { getWidgetDefinition } from "@/domain/widget-registry";
 import { useI18n } from "@/hooks/use-i18n";
@@ -35,6 +36,13 @@ export function WidgetConfigDialog({ widget, onCancel, onSave }: WidgetConfigDia
     }
 
     return getTodoStats(readTodoItems(widget.config));
+  }, [widget.config, widget.type]);
+  const notesStats = useMemo(() => {
+    if (widget.type !== "notes.list") {
+      return null;
+    }
+
+    return getNotesStats(readNoteItems(widget.config));
   }, [widget.config, widget.type]);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -111,6 +119,18 @@ export function WidgetConfigDialog({ widget, onCancel, onSave }: WidgetConfigDia
                 <div>
                   <span>{t("widgetConfig.total")}</span>
                   <strong>{format.number(todoStats.total)}</strong>
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          {notesStats ? (
+            <section className="widget-config-section" aria-label={t("widgetConfig.notesStatusAria")}>
+              <h3>{t("widgetConfig.notesStatusTitle")}</h3>
+              <div className="widget-config-readonly-grid">
+                <div>
+                  <span>{t("widgetConfig.total")}</span>
+                  <strong>{format.number(notesStats.total)}</strong>
                 </div>
               </div>
             </section>

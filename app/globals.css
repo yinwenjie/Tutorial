@@ -2242,6 +2242,169 @@ h1 {
   text-align: center;
 }
 
+.notes-widget {
+  display: grid;
+  gap: 8px;
+}
+
+.notes-add-form {
+  display: grid;
+  gap: 6px;
+}
+
+.notes-add-input,
+.notes-item-input {
+  width: 100%;
+  min-width: 0;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--glass-bg);
+  color: var(--text);
+  font-size: 13px;
+  letter-spacing: 0;
+  line-height: 1.45;
+  outline: none;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.notes-add-input {
+  min-height: 76px;
+  padding: 8px 10px;
+}
+
+.notes-item-input {
+  min-height: 68px;
+  padding: 8px;
+  border-color: transparent;
+  background: transparent;
+}
+
+.notes-add-input:focus,
+.notes-item-input:focus {
+  border-color: var(--line-strong);
+  background: var(--surface);
+}
+
+.notes-add-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.notes-add-meta span {
+  min-height: 24px;
+  padding: 3px 7px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--glass-bg);
+}
+
+.notes-add-button {
+  min-height: 32px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--glass-bg-soft);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 620;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.notes-add-button:hover,
+.notes-add-button:focus-visible {
+  border-color: var(--line-strong);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.notes-add-button:disabled,
+.notes-add-button:disabled:hover {
+  border-color: var(--line);
+  background: var(--glass-bg-soft);
+  color: var(--quiet);
+}
+
+.notes-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notes-item {
+  display: grid;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--glass-bg);
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.notes-item:hover,
+.notes-item:focus-within {
+  border-color: var(--line-strong);
+  background: var(--surface-soft);
+}
+
+.notes-item-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.notes-item-action {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 28px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  transition: border-color 160ms ease, background 160ms ease, color 160ms ease;
+}
+
+.notes-item-action:hover,
+.notes-item-action:focus-visible {
+  border-color: var(--line-strong);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.notes-item-action:disabled,
+.notes-item-action:disabled:hover {
+  border-color: transparent;
+  background: transparent;
+  color: var(--quiet);
+}
+
+.notes-item-action.is-danger:hover,
+.notes-item-action.is-danger:focus-visible {
+  background: var(--surface);
+  color: var(--danger);
+}
+
+.notes-empty {
+  display: grid;
+  min-height: 42px;
+  margin: 0;
+  padding: 8px;
+  place-items: center;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+
 .calendar-widget {
   display: grid;
   gap: 10px;

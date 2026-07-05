@@ -50,7 +50,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - Phase 1.15.5 已完成：同步面板、书签/URL 导入、本机状态、本地审计、产品改进和错误边界已接入 i18n runtime。
 - Phase 1.15.6 已完成：新增 `verify:i18n` 校验、补齐同步/导入/设备/审计/错误等关键路径在 `fr-FR`、`es-ES`、`ja-JP`、`ko-KR`、`it-IT` 的覆盖，并完成桌面、平板、移动端多视口回归；回归中修复书签/URL 导入面板默认提示在语言偏好加载后仍停留简中的问题。
 
-下一步进入 Phase 1.16 低成本组件扩展候选评估，优先评估 Notes v1。
+下一步完成 Phase 1.16.1 Notes v1 构建、导出和多视口回归；通过后进入 Phase 1.16.2 Countdown v1 设计实现准备。
 
 ## Phase Plan
 
@@ -71,7 +71,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 | Phase 1.13：产品化体验收口 | 已完成 | 设置页信息架构 v2、产品身份收口、主题风格 v2 | 主域名准备独立到 Phase 1.14 |
 | Phase 1.14：主域名准备 | 已完成 | Cloudflare Pages 主站迁移、根路径构建、Supabase 回调、安全头、切流回归和回滚演练；1.14.5/1.14.6 暂缓，GitHub Pages legacy 保留完整应用 | 后续只做主域名运行观察和安全补强 |
 | Phase 1.15：多语言支持 v1 | 已完成 | 语言数据模型、账号/本地偏好、I18n Provider、静态 dictionary、日期时间/月历 locale formatter、首页、设置页、同步、导入和错误细节本地化；新增 i18n 校验、小语种关键路径覆盖和多视口人工回归 | 后续只做翻译修订和缺陷修复 |
-| Phase 1.16：低成本组件扩展 | 规划中 | Notes、Countdown、World Clock | 先做 1.16.0 设计收口，再按 Notes、Countdown、World Clock 递进实现 |
+| Phase 1.16：低成本组件扩展 | 进行中 | Notes、Countdown、World Clock | 1.16.1 Notes v1 已进入实现和回归；后续按 Countdown、World Clock 递进实现 |
 | Phase 1.17：只读渲染与分享链接 v1 | 候选 | 只读首页 renderer、只读分享链接、撤销机制 | 依赖主域名和只读渲染层设计 |
 | Phase 1.18：受控服务端与后台 dashboard v1 | 候选 | Edge Function/受控后端、管理员身份、管理员审计、只读后台 | 仅在主域名稳定后评估，v1 必须只读 |
 
@@ -420,7 +420,7 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 
 ### Phase 1.16：低成本组件扩展
 
-状态：规划中。
+状态：进行中。
 
 目标：在现有 Widget Registry、Widget Shell、统一配置弹窗、快照、同步和恢复体系上，新增少量纯前端、低数据体积、高日常价值的组件。Phase 1.16 不是组件市场阶段，不接联网组件，不引入后端服务，不扩大账号权限边界。
 
@@ -435,7 +435,7 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 
 ### Phase 1.16.0：组件扩展设计收口
 
-状态：下一步。
+状态：已完成。
 
 目标：先把 Notes、Countdown 和 World Clock 的数据模型、交互边界、隐私约束和验收标准写清楚，避免实现阶段范围漂移。
 
@@ -446,21 +446,22 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 - 明确每个组件是否允许多个实例、是否适合加入模板、是否需要迁移旧数据。
 - 明确埋点、错误监控和本地审计的脱敏边界：只记录 widget type、动作类别和数量级，不记录正文、标题、城市名或完整 config。
 - 明确验收基线：`typecheck`、`lint`、`build`、`verify:export`、`verify:i18n`，以及桌面、平板、移动端多视口回归。
+- 新增 `docs/implementation/phase-1/Phase1_16_Implement.md`，固化 Notes、Countdown、World Clock 的 config shape、展开态、折叠摘要、配置入口、隐私边界和模板候选策略。
 
 ### Phase 1.16.1：Notes v1
 
-状态：候选首选。
+状态：实现中，已完成代码接入，等待完整回归收口。
 
 目标：提供轻量便签组件，满足短备忘、临时想法和链接说明等首页工作台需求。
 
-建议范围：
+实现范围：
 
-- 新增 Notes widget type，例如 `notes.list`。
+- 新增 Notes widget type：`notes.list`。
 - `widget.config` 保存短便签列表：`id`、`text`、`order`、`createdAt`、`updatedAt`。
-- 限制数据体积：建议最多 20 条便签，单条 280-500 字符。
+- 限制数据体积：最多 20 条便签，单条 500 字符。
 - 展开态支持添加、编辑、删除和排序；空状态提示添加第一条便签。
 - 折叠摘要只显示数量或最近更新时间，不显示正文。
-- 配置弹窗先只支持组件名称；布局模式、Markdown、标签、全文搜索和附件暂缓。
+- 配置弹窗支持组件名称和便签数量只读统计；布局模式、Markdown、标签、全文搜索和附件暂缓。
 - Notes 正文不得进入埋点、错误监控、审计 metadata 或配置弹窗摘要。
 
 主要改动点：
@@ -468,7 +469,7 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 - `src/domain/home-document.ts`：扩展 `HomeWidgetType`。
 - `src/domain/widget-registry.ts`：注册 Notes 定义、默认配置和 normalize。
 - `src/domain/notes-widget.ts`：新增 Notes config normalize、长度限制和排序工具。
-- `src/components/widgets/notes-widget.tsx`：新增 Notes 内容组件。
+- `src/components/widgets/notes-list-widget.tsx`：新增 Notes 内容组件。
 - `src/components/widgets/widget-config-dialog.tsx`：接入 Notes 配置展示。
 - `src/components/widget-panel.tsx`：接入渲染分支和折叠摘要。
 - `src/i18n/messages.ts`、`src/i18n/home-presentation.ts`：补齐组件名、设置标题、空状态和操作文案。

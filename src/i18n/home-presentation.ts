@@ -5,6 +5,7 @@ import type { I18nMessageKey, I18nTranslate } from "@/i18n/messages";
 
 const SYSTEM_WIDGET_DEFAULT_TITLES: Record<HomeWidgetType, Set<string>> = {
   "todo.list": new Set(["Todo"]),
+  "notes.list": new Set(["Notes", "便签", "便箋", "ノート", "노트", "Note"]),
   "calendar.month": new Set(["月历", "月曆", "Calendar", "Calendrier", "Calendario", "カレンダー", "달력"])
 };
 
@@ -57,6 +58,8 @@ export function formatHomeWidgetTitle(type: HomeWidgetType, t: I18nTranslate): s
   switch (type) {
     case "todo.list":
       return t("widget.definition.todo.title");
+    case "notes.list":
+      return t("widget.definition.notes.title");
     case "calendar.month":
       return t("widget.definition.calendar.title");
   }
@@ -66,6 +69,8 @@ export function formatHomeWidgetDefaultTitle(type: HomeWidgetType, t: I18nTransl
   switch (type) {
     case "todo.list":
       return t("widget.definition.todo.defaultTitle");
+    case "notes.list":
+      return t("widget.definition.notes.defaultTitle");
     case "calendar.month":
       return t("widget.definition.calendar.defaultTitle");
   }
@@ -89,6 +94,8 @@ export function formatHomeWidgetDescription(type: HomeWidgetType, t: I18nTransla
   switch (type) {
     case "todo.list":
       return t("widget.definition.todo.description");
+    case "notes.list":
+      return t("widget.definition.notes.description");
     case "calendar.month":
       return t("widget.definition.calendar.description");
   }
@@ -98,6 +105,8 @@ export function formatHomeWidgetSettingsTitle(type: HomeWidgetType, t: I18nTrans
   switch (type) {
     case "todo.list":
       return t("widget.definition.todo.settingsTitle");
+    case "notes.list":
+      return t("widget.definition.notes.settingsTitle");
     case "calendar.month":
       return t("widget.definition.calendar.settingsTitle");
   }
@@ -107,6 +116,8 @@ export function formatHomeWidgetSettingsDescription(type: HomeWidgetType, t: I18
   switch (type) {
     case "todo.list":
       return t("widget.definition.todo.settingsDescription");
+    case "notes.list":
+      return t("widget.definition.notes.settingsDescription");
     case "calendar.month":
       return t("widget.definition.calendar.settingsDescription");
   }
