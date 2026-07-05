@@ -2405,6 +2405,104 @@ h1 {
   text-align: center;
 }
 
+.countdown-widget {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--glass-bg);
+}
+
+.countdown-widget.is-empty {
+  min-height: 96px;
+  place-items: center;
+  border-style: dashed;
+  text-align: center;
+}
+
+.countdown-empty-title,
+.countdown-empty-copy {
+  margin: 0;
+}
+
+.countdown-empty-title {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 680;
+}
+
+.countdown-empty-copy {
+  max-width: 26ch;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.countdown-event {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.countdown-event span,
+.countdown-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.countdown-event strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.countdown-primary {
+  display: grid;
+  gap: 2px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.countdown-primary strong {
+  color: var(--accent);
+  font-size: 24px;
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+
+.countdown-widget.is-today .countdown-primary strong {
+  color: var(--danger);
+}
+
+.countdown-widget.is-past .countdown-primary strong {
+  color: var(--muted);
+}
+
+.countdown-primary span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.countdown-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.countdown-meta span {
+  min-height: 24px;
+  padding: 3px 7px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--glass-bg-soft);
+}
+
 .calendar-widget {
   display: grid;
   gap: 10px;

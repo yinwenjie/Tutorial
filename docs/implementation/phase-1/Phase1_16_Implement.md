@@ -42,7 +42,7 @@ Phase 1.16 的目标是在现有 Widget Registry、Widget Shell、统一配置�
 
 ## Phase 1.16.1：Notes v1 实现
 
-状态：实现中，已完成代码接入和自动校验，等待人工多视口回归。
+状态：已完成并部署。
 
 目标：在不新增后端和不扩大隐私边界的前提下，新增轻量便签组件，支持短备忘、临时想法和链接说明等首页工作台场景。
 
@@ -70,9 +70,54 @@ Phase 1.16 的目标是在现有 Widget Registry、Widget Shell、统一配置�
 - `npm run build` 通过。
 - `npm run verify:export` 通过。
 
+部署记录：
+
+- 已提交 `f35a5cf feat: add notes widget`。
+- 已推送到 `master` 和 `production`。
+- Cloudflare Pages 主站 `https://mylinker.net/` 已返回 200。
+- GitHub Pages legacy `https://yinwenjie.github.io/PersonalHomepge/` 已通过手动重试完成 Pages build，latest build 状态为 `built`。
+
+后续观察：
+
+- Notes v1 先保持不进入默认模板。
+- 如后续人工使用发现移动端密度或输入体验问题，作为 Phase 1.16 缺陷修复处理，不阻塞进入 Countdown v1 设计。
+
+## Phase 1.16.2：Countdown v1 实现
+
+状态：实现中，已完成代码接入和自动校验，等待人工回归。
+
+目标：在纯前端、低数据体积和不新增后端的边界内，新增简单倒计时组件，覆盖考试、发布、纪念日和项目节点等场景。
+
+已完成：
+
+- 新增 `countdown.timer` widget type，接入 `HomeWidgetType`、registry、类型守卫、默认配置和 normalize。
+- 新增 `src/domain/countdown-widget.ts`，提供 `CountdownWidgetConfig`、标题长度限制、目标日期校验、display mode normalize 和倒计时状态计算。
+- 无效或缺失目标日期显示未配置状态，不静默生成默认未来日期。
+- 新增 `src/components/widgets/countdown-timer-widget.tsx`，展开态显示事件名、剩余天数/天数+小时、目标日期、今天到期和已过去状态。
+- 统一配置弹窗接入组件名称、事件标题、目标日期和显示模式。
+- 折叠摘要显示剩余天数、今天到期、已过去或未配置，不展示事件标题。
+- `src/i18n/messages.ts` 和 `src/i18n/home-presentation.ts` 已补齐 Countdown 名称、描述、设置标题、配置项、空状态和状态文案，并覆盖当前支持 locale。
+- 新增 Countdown 专用样式，保持 Widget 侧栏内的紧凑信息密度。
+- `days-hours` 模式使用精确剩余时长，24 小时内显示小时，超过 24 小时显示天数和小时；`days` 模式显示日历天差。
+
+隐私边界：
+
+- `widget.added` 仍只记录 `widgetType`。
+- 倒计时事件标题和目标日期不进入埋点、错误监控或本地审计 metadata。
+- Countdown config 继续随完整 `HomeDocumentV2` 进入本地保存、同步码、账号托管、历史快照、数据包导出和恢复，不新增独立存储。
+
+自动校验：
+
+- `npm run typecheck` 通过。
+- `npm run lint` 通过。
+- `npm run verify:i18n` 通过。
+- `npm run build` 通过。
+- `npm run verify:export` 通过。
+
 待完成：
 
 - 完成桌面、平板、移动端关键视口人工回归。
+- 通过后再评估是否进入 Phase 1.16.4 模板组件组合调整。
 
 ## Shared Implementation Checklist
 
@@ -389,4 +434,12 @@ Phase 1.16 完成时至少满足：
 
 ## Next Step
 
-下一步进入 Phase 1.16.1 Notes v1 实现。实现前先从数据层开始：新增 `notes-widget` domain helper、扩展 widget registry 和类型守卫，再接入 UI 渲染、配置弹窗和 i18n。
+下一步完成 Phase 1.16.2 Countdown v1 自动校验和人工回归。
+
+回归重点：
+
+- 新增 Countdown 后默认显示未配置状态，点击设置可填写事件和目标日期。
+- 未来日期、今天日期、过去日期和无效日期的展开态与折叠摘要正确。
+- `days` 与 `days-hours` 两种显示模式切换后能保存并恢复。
+- 多语言下配置弹窗、组件选择器和 Widget Shell 不溢出。
+- 本地保存、同步码、账号托管、历史快照、数据包导出和恢复不丢失 Countdown config。

@@ -6,7 +6,8 @@ import type { I18nMessageKey, I18nTranslate } from "@/i18n/messages";
 const SYSTEM_WIDGET_DEFAULT_TITLES: Record<HomeWidgetType, Set<string>> = {
   "todo.list": new Set(["Todo"]),
   "notes.list": new Set(["Notes", "便签", "便箋", "ノート", "노트", "Note"]),
-  "calendar.month": new Set(["月历", "月曆", "Calendar", "Calendrier", "Calendario", "カレンダー", "달력"])
+  "calendar.month": new Set(["月历", "月曆", "Calendar", "Calendrier", "Calendario", "カレンダー", "달력"]),
+  "countdown.timer": new Set(["Countdown", "倒计时", "倒計時", "Compte à rebours", "Cuenta atrás", "カウントダウン", "카운트다운", "Conto alla rovescia"])
 };
 
 const SYSTEM_WIDGET_PRESET_TITLE_KEYS: Record<string, I18nMessageKey> = {
@@ -62,6 +63,8 @@ export function formatHomeWidgetTitle(type: HomeWidgetType, t: I18nTranslate): s
       return t("widget.definition.notes.title");
     case "calendar.month":
       return t("widget.definition.calendar.title");
+    case "countdown.timer":
+      return t("widget.definition.countdown.title");
   }
 }
 
@@ -73,6 +76,8 @@ export function formatHomeWidgetDefaultTitle(type: HomeWidgetType, t: I18nTransl
       return t("widget.definition.notes.defaultTitle");
     case "calendar.month":
       return t("widget.definition.calendar.defaultTitle");
+    case "countdown.timer":
+      return t("widget.definition.countdown.defaultTitle");
   }
 }
 
@@ -98,6 +103,8 @@ export function formatHomeWidgetDescription(type: HomeWidgetType, t: I18nTransla
       return t("widget.definition.notes.description");
     case "calendar.month":
       return t("widget.definition.calendar.description");
+    case "countdown.timer":
+      return t("widget.definition.countdown.description");
   }
 }
 
@@ -109,6 +116,8 @@ export function formatHomeWidgetSettingsTitle(type: HomeWidgetType, t: I18nTrans
       return t("widget.definition.notes.settingsTitle");
     case "calendar.month":
       return t("widget.definition.calendar.settingsTitle");
+    case "countdown.timer":
+      return t("widget.definition.countdown.settingsTitle");
   }
 }
 
@@ -120,6 +129,8 @@ export function formatHomeWidgetSettingsDescription(type: HomeWidgetType, t: I18
       return t("widget.definition.notes.settingsDescription");
     case "calendar.month":
       return t("widget.definition.calendar.settingsDescription");
+    case "countdown.timer":
+      return t("widget.definition.countdown.settingsDescription");
   }
 }
 

@@ -1,5 +1,6 @@
 import type { HomeWidgetType } from "@/domain/home-document";
 import { normalizeCalendarConfig } from "@/domain/calendar-widget";
+import { normalizeCountdownConfig } from "@/domain/countdown-widget";
 import { normalizeNotesConfig } from "@/domain/notes-widget";
 import { normalizeTodoConfig } from "@/domain/todo-widget";
 
@@ -56,6 +57,23 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
     },
     defaultConfig: () => ({ notes: [] }),
     normalizeConfig: normalizeNotesConfig
+  },
+  {
+    type: "countdown.timer",
+    title: "Countdown",
+    defaultTitle: "Countdown",
+    description: "轻量倒计时",
+    allowMultiple: true,
+    settings: {
+      title: "Countdown 设置",
+      description: "名称、事件和目标日期"
+    },
+    defaultConfig: () => ({
+      eventTitle: "",
+      targetDate: "",
+      displayMode: "days"
+    }),
+    normalizeConfig: normalizeCountdownConfig
   }
 ];
 
@@ -64,7 +82,7 @@ export const WIDGET_REGISTRY: Record<HomeWidgetType, WidgetDefinition> = Object.
 ) as Record<HomeWidgetType, WidgetDefinition>;
 
 export function isWidgetType(value: unknown): value is HomeWidgetType {
-  return value === "calendar.month" || value === "notes.list" || value === "todo.list";
+  return value === "calendar.month" || value === "countdown.timer" || value === "notes.list" || value === "todo.list";
 }
 
 export function getWidgetDefinition(type: HomeWidgetType): WidgetDefinition {

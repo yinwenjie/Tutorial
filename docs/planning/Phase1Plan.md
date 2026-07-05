@@ -50,7 +50,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - Phase 1.15.5 已完成：同步面板、书签/URL 导入、本机状态、本地审计、产品改进和错误边界已接入 i18n runtime。
 - Phase 1.15.6 已完成：新增 `verify:i18n` 校验、补齐同步/导入/设备/审计/错误等关键路径在 `fr-FR`、`es-ES`、`ja-JP`、`ko-KR`、`it-IT` 的覆盖，并完成桌面、平板、移动端多视口回归；回归中修复书签/URL 导入面板默认提示在语言偏好加载后仍停留简中的问题。
 
-下一步完成 Phase 1.16.1 Notes v1 构建、导出和多视口回归；通过后进入 Phase 1.16.2 Countdown v1 设计实现准备。
+下一步完成 Phase 1.16.2 Countdown v1 多视口人工回归；通过后再评估是否进入 Phase 1.16.4 模板组件组合调整，或继续 Phase 1.16.3 World Clock v1。
 
 ## Phase Plan
 
@@ -71,7 +71,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 | Phase 1.13：产品化体验收口 | 已完成 | 设置页信息架构 v2、产品身份收口、主题风格 v2 | 主域名准备独立到 Phase 1.14 |
 | Phase 1.14：主域名准备 | 已完成 | Cloudflare Pages 主站迁移、根路径构建、Supabase 回调、安全头、切流回归和回滚演练；1.14.5/1.14.6 暂缓，GitHub Pages legacy 保留完整应用 | 后续只做主域名运行观察和安全补强 |
 | Phase 1.15：多语言支持 v1 | 已完成 | 语言数据模型、账号/本地偏好、I18n Provider、静态 dictionary、日期时间/月历 locale formatter、首页、设置页、同步、导入和错误细节本地化；新增 i18n 校验、小语种关键路径覆盖和多视口人工回归 | 后续只做翻译修订和缺陷修复 |
-| Phase 1.16：低成本组件扩展 | 进行中 | Notes、Countdown、World Clock | 1.16.1 Notes v1 已进入实现和回归；后续按 Countdown、World Clock 递进实现 |
+| Phase 1.16：低成本组件扩展 | 进行中 | Notes 已上线；Countdown 已完成代码接入和自动校验；World Clock 递进候选 | 下一步完成 1.16.2 Countdown v1 多视口人工回归 |
 | Phase 1.17：只读渲染与分享链接 v1 | 候选 | 只读首页 renderer、只读分享链接、撤销机制 | 依赖主域名和只读渲染层设计 |
 | Phase 1.18：受控服务端与后台 dashboard v1 | 候选 | Edge Function/受控后端、管理员身份、管理员审计、只读后台 | 仅在主域名稳定后评估，v1 必须只读 |
 
@@ -450,7 +450,7 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 
 ### Phase 1.16.1：Notes v1
 
-状态：实现中，已完成代码接入，等待完整回归收口。
+状态：已完成并部署。
 
 目标：提供轻量便签组件，满足短备忘、临时想法和链接说明等首页工作台需求。
 
@@ -475,21 +475,40 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 - `src/i18n/messages.ts`、`src/i18n/home-presentation.ts`：补齐组件名、设置标题、空状态和操作文案。
 - 数据恢复预览、模板摘要和数据包回归保持完整组件摘要可读。
 
+实施结果：
+
+- 已提交 `f35a5cf feat: add notes widget`。
+- 已推送到 `master` 和 `production`。
+- Cloudflare Pages 主站和 GitHub Pages legacy 均已完成部署验证。
+- Notes v1 暂不进入默认模板，等待实际使用反馈后再进入 Phase 1.16.4 模板组件组合调整。
+
 ### Phase 1.16.2：Countdown v1
 
-状态：候选。
+状态：实现中，已完成代码接入和自动校验，等待人工回归。
 
 目标：提供简单倒计时组件，覆盖考试、发布、纪念日和项目节点等低成本高感知场景。
 
-建议范围：
+实现范围：
 
-- 新增 Countdown widget type，例如 `countdown.timer`。
+- 新增 Countdown widget type：`countdown.timer`。
 - `widget.config` 保存事件标题、目标日期和显示模式。
-- 目标日期按本地时区解释；v1 不做提醒、通知、重复事件、日历联动或服务器时间校准。
-- 展开态显示事件名、剩余天数、目标日期；到期后显示已到达或已过去。
-- 折叠摘要显示剩余天数、今天到期或已过去状态。
+- 无效日期处理策略：显示未配置状态，不静默生成可能误导用户的日期。
+- 目标日期按浏览器本地时区解释；v1 不做提醒、通知、重复事件、日历联动或服务器时间校准。
+- `days-hours` 模式使用精确剩余时长，24 小时内显示小时，超过 24 小时显示天数和小时；`days` 模式显示日历天差。
+- 展开态展示事件名、剩余天数、目标日期、今天到期和已过去状态。
+- 折叠摘要显示剩余天数、今天到期、已过去或未配置，不显示事件标题。
 - 配置弹窗支持组件名称、事件标题、目标日期和显示模式。
-- 倒计时标题可能包含用户意图，不进入埋点、错误监控或审计 metadata。
+- 倒计时标题和目标日期可能包含用户意图，不进入埋点、错误监控或审计 metadata。
+
+主要改动点：
+
+- `src/domain/home-document.ts`：扩展 `HomeWidgetType`。
+- `src/domain/widget-registry.ts`：注册 Countdown 定义、默认配置和 normalize。
+- `src/domain/countdown-widget.ts`：新增 Countdown config normalize、日期校验和状态计算。
+- `src/components/widgets/countdown-timer-widget.tsx`：新增 Countdown 展示组件。
+- `src/components/widgets/widget-config-dialog.tsx`：接入 Countdown 配置字段。
+- `src/components/widget-panel.tsx`：接入渲染分支和折叠摘要。
+- `src/i18n/messages.ts`、`src/i18n/home-presentation.ts`：补齐组件名、设置标题、配置项、空状态和状态文案。
 
 ### Phase 1.16.3：World Clock v1
 

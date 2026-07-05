@@ -29,11 +29,13 @@ import {
   sortByOrder
 } from "@/domain/home-document";
 import { normalizeCalendarConfig } from "@/domain/calendar-widget";
+import { getCountdownStatus, normalizeCountdownConfig } from "@/domain/countdown-widget";
 import { createHomeWidget } from "@/domain/home-widget";
 import { getNotesStats, readNoteItems } from "@/domain/notes-widget";
 import { getTodoStats, readTodoItems } from "@/domain/todo-widget";
 import { getWidgetDefinition, WIDGET_DEFINITIONS } from "@/domain/widget-registry";
 import { CalendarMonthWidget } from "@/components/widgets/calendar-month-widget";
+import { CountdownTimerWidget, formatCountdownPrimary } from "@/components/widgets/countdown-timer-widget";
 import { NotesListWidget } from "@/components/widgets/notes-list-widget";
 import { TodoListWidget } from "@/components/widgets/todo-list-widget";
 import { WidgetConfigDialog } from "@/components/widgets/widget-config-dialog";
@@ -447,6 +449,10 @@ function WidgetContent({
     return <CalendarMonthWidget widget={widget} />;
   }
 
+  if (widget.type === "countdown.timer") {
+    return <CountdownTimerWidget widget={widget} />;
+  }
+
   return null;
 }
 
@@ -491,6 +497,13 @@ function getWidgetCollapsedSummary(widget: HomeWidget, t: I18nTranslate, format:
     return t("notes.summary", {
       count: format.number(stats.total)
     });
+  }
+
+  if (widget.type === "countdown.timer") {
+    const config = normalizeCountdownConfig(widget.config);
+    const status = getCountdownStatus(config);
+
+    return formatCountdownPrimary(status, config.displayMode, t, format);
   }
 
   return t("widget.collapsedFallback");

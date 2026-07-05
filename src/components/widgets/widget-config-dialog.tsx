@@ -2,6 +2,14 @@
 
 import { type FormEvent, useMemo, useState } from "react";
 import { normalizeCalendarConfig, type WeekStart } from "@/domain/calendar-widget";
+import {
+  COUNTDOWN_WIDGET_TITLE_MAX_LENGTH,
+  normalizeCountdownConfig,
+  normalizeCountdownDisplayMode,
+  normalizeCountdownTitle,
+  normalizeTargetDate,
+  type CountdownDisplayMode
+} from "@/domain/countdown-widget";
 import { normalizeText, type HomeWidget } from "@/domain/home-document";
 import { getNotesStats, readNoteItems } from "@/domain/notes-widget";
 import { getTodoStats, readTodoItems } from "@/domain/todo-widget";
@@ -30,6 +38,9 @@ export function WidgetConfigDialog({ widget, onCancel, onSave }: WidgetConfigDia
     : formatHomeWidgetDescription(widget.type, t);
   const [titleDraft, setTitleDraft] = useState(widget.title);
   const [weekStartsOn, setWeekStartsOn] = useState<WeekStart>(() => normalizeCalendarConfig(widget.config).weekStartsOn);
+  const [countdownEventTitle, setCountdownEventTitle] = useState(() => normalizeCountdownConfig(widget.config).eventTitle);
+  const [countdownTargetDate, setCountdownTargetDate] = useState(() => normalizeCountdownConfig(widget.config).targetDate);
+  const [countdownDisplayMode, setCountdownDisplayMode] = useState<CountdownDisplayMode>(() => normalizeCountdownConfig(widget.config).displayMode);
   const todoStats = useMemo(() => {
     if (widget.type !== "todo.list") {
       return null;
@@ -49,15 +60,23 @@ export function WidgetConfigDialog({ widget, onCancel, onSave }: WidgetConfigDia
     event.preventDefault();
 
     const title = normalizeText(titleDraft) || formatHomeWidgetDefaultTitle(widget.type, t);
+    const nextConfig = widget.type === "calendar.month"
+      ? {
+        ...widget.config,
+        weekStartsOn
+      }
+      : widget.type === "countdown.timer"
+        ? {
+          ...widget.config,
+          eventTitle: normalizeCountdownTitle(countdownEventTitle),
+          targetDate: normalizeTargetDate(countdownTargetDate),
+          displayMode: normalizeCountdownDisplayMode(countdownDisplayMode)
+        }
+        : widget.config;
     const nextWidget: HomeWidget = {
       ...widget,
       title,
-      config: widget.type === "calendar.month"
-        ? {
-          ...widget.config,
-          weekStartsOn
-        }
-        : widget.config
+      config: nextConfig
     };
 
     onSave(nextWidget);
@@ -155,6 +174,49 @@ export function WidgetConfigDialog({ widget, onCancel, onSave }: WidgetConfigDia
                     onClick={() => setWeekStartsOn(0)}
                   >
                     {t("widgetConfig.weekStartSundayShort")}
+                  </button>
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          {widget.type === "countdown.timer" ? (
+            <section className="widget-config-section" aria-label={t("widgetConfig.countdownSettingsAria")}>
+              <h3>{t("widgetConfig.countdownSettingsTitle")}</h3>
+              <label className="widget-config-field">
+                <span>{t("widgetConfig.countdownEventTitle")}</span>
+                <input
+                  type="text"
+                  value={countdownEventTitle}
+                  maxLength={COUNTDOWN_WIDGET_TITLE_MAX_LENGTH}
+                  placeholder={t("widgetConfig.countdownEventPlaceholder")}
+                  onChange={(event) => setCountdownEventTitle(event.target.value)}
+                />
+              </label>
+              <label className="widget-config-field">
+                <span>{t("widgetConfig.countdownTargetDate")}</span>
+                <input
+                  type="date"
+                  value={countdownTargetDate}
+                  onChange={(event) => setCountdownTargetDate(event.target.value)}
+                />
+              </label>
+              <div className="widget-config-option-row">
+                <span>{t("widgetConfig.countdownDisplayMode")}</span>
+                <div className="widget-config-segmented" role="group" aria-label={t("widgetConfig.countdownDisplayMode")}>
+                  <button
+                    type="button"
+                    aria-pressed={countdownDisplayMode === "days"}
+                    onClick={() => setCountdownDisplayMode("days")}
+                  >
+                    {t("widgetConfig.countdownModeDays")}
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={countdownDisplayMode === "days-hours"}
+                    onClick={() => setCountdownDisplayMode("days-hours")}
+                  >
+                    {t("widgetConfig.countdownModeDaysHours")}
                   </button>
                 </div>
               </div>
