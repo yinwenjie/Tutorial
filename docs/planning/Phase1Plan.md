@@ -50,7 +50,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - Phase 1.15.5 已完成：同步面板、书签/URL 导入、本机状态、本地审计、产品改进和错误边界已接入 i18n runtime。
 - Phase 1.15.6 已完成：新增 `verify:i18n` 校验、补齐同步/导入/设备/审计/错误等关键路径在 `fr-FR`、`es-ES`、`ja-JP`、`ko-KR`、`it-IT` 的覆盖，并完成桌面、平板、移动端多视口回归；回归中修复书签/URL 导入面板默认提示在语言偏好加载后仍停留简中的问题。
 
-下一步完成 Phase 1.16.2 Countdown v1 多视口人工回归；通过后再评估是否进入 Phase 1.16.4 模板组件组合调整，或继续 Phase 1.16.3 World Clock v1。
+下一步完成 Phase 1.16.3 World Clock v1 多视口人工回归；通过后再评估是否进入 Phase 1.16.4 模板组件组合调整。
 
 ## Phase Plan
 
@@ -71,7 +71,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 | Phase 1.13：产品化体验收口 | 已完成 | 设置页信息架构 v2、产品身份收口、主题风格 v2 | 主域名准备独立到 Phase 1.14 |
 | Phase 1.14：主域名准备 | 已完成 | Cloudflare Pages 主站迁移、根路径构建、Supabase 回调、安全头、切流回归和回滚演练；1.14.5/1.14.6 暂缓，GitHub Pages legacy 保留完整应用 | 后续只做主域名运行观察和安全补强 |
 | Phase 1.15：多语言支持 v1 | 已完成 | 语言数据模型、账号/本地偏好、I18n Provider、静态 dictionary、日期时间/月历 locale formatter、首页、设置页、同步、导入和错误细节本地化；新增 i18n 校验、小语种关键路径覆盖和多视口人工回归 | 后续只做翻译修订和缺陷修复 |
-| Phase 1.16：低成本组件扩展 | 进行中 | Notes 已上线；Countdown 已完成代码接入和自动校验；World Clock 递进候选 | 下一步完成 1.16.2 Countdown v1 多视口人工回归 |
+| Phase 1.16：低成本组件扩展 | 进行中 | Notes 已上线；Countdown 已完成代码接入和自动校验；World Clock 已完成代码接入和自动校验 | 下一步完成 1.16.3 World Clock v1 多视口人工回归 |
 | Phase 1.17：只读渲染与分享链接 v1 | 候选 | 只读首页 renderer、只读分享链接、撤销机制 | 依赖主域名和只读渲染层设计 |
 | Phase 1.18：受控服务端与后台 dashboard v1 | 候选 | Edge Function/受控后端、管理员身份、管理员审计、只读后台 | 仅在主域名稳定后评估，v1 必须只读 |
 
@@ -512,20 +512,30 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 
 ### Phase 1.16.3：World Clock v1
 
-状态：候选。
+状态：实现中，已完成代码接入和自动校验，等待人工回归。
 
 目标：提供纯前端世界时钟组件，服务开发者、远程协作和跨时区工作场景。
 
-建议范围：
+实现范围：
 
-- 新增 World Clock widget type，例如 `world-clock.list`。
+- 新增 World Clock widget type：`world-clock.list`。
 - `widget.config` 保存时钟列表：`id`、`label`、`timeZone`、`order`。
 - 使用浏览器 `Intl.DateTimeFormat` 和 IANA timezone，不接定位、不接天气、不接外部 API。
-- 限制数据体积：建议最多 6 个时区。
+- 限制数据体积：最多 6 个时区。
 - 时区选择使用 curated list，避免把完整时区数据库做成沉重配置 UI。
 - 展开态显示城市/标签、当前时间和日期偏移提示。
-- 折叠摘要显示时钟数量或第一个时区当前时间。
+- 折叠摘要只显示时钟数量或空状态，不显示 label/timeZone。
 - 城市/标签可能包含用户意图，不进入埋点、错误监控或审计 metadata。
+
+主要改动点：
+
+- `src/domain/home-document.ts`：扩展 `HomeWidgetType`。
+- `src/domain/widget-registry.ts`：注册 World Clock 定义、默认配置和 normalize。
+- `src/domain/world-clock-widget.ts`：新增 World Clock config normalize、curated timezone list 和排序工具。
+- `src/components/widgets/world-clock-list-widget.tsx`：新增 World Clock 展示组件。
+- `src/components/widgets/widget-config-dialog.tsx`：接入新增、编辑、删除、排序和 timezone 选择。
+- `src/components/widget-panel.tsx`：接入渲染分支和折叠摘要。
+- `src/i18n/messages.ts`、`src/i18n/home-presentation.ts`：补齐组件名、设置标题、配置项、空状态、摘要和日期偏移文案。
 
 ### Phase 1.16.4：模板组件组合调整
 

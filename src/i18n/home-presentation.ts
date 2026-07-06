@@ -7,7 +7,8 @@ const SYSTEM_WIDGET_DEFAULT_TITLES: Record<HomeWidgetType, Set<string>> = {
   "todo.list": new Set(["Todo"]),
   "notes.list": new Set(["Notes", "便签", "便箋", "ノート", "노트", "Note"]),
   "calendar.month": new Set(["月历", "月曆", "Calendar", "Calendrier", "Calendario", "カレンダー", "달력"]),
-  "countdown.timer": new Set(["Countdown", "倒计时", "倒計時", "Compte à rebours", "Cuenta atrás", "カウントダウン", "카운트다운", "Conto alla rovescia"])
+  "countdown.timer": new Set(["Countdown", "倒计时", "倒計時", "Compte à rebours", "Cuenta atrás", "カウントダウン", "카운트다운", "Conto alla rovescia"]),
+  "world-clock.list": new Set(["World Clock", "世界时钟", "世界時鐘", "Horloge mondiale", "Reloj mundial", "世界時計", "세계 시계", "Orologio mondiale"])
 };
 
 const SYSTEM_WIDGET_PRESET_TITLE_KEYS: Record<string, I18nMessageKey> = {
@@ -65,6 +66,8 @@ export function formatHomeWidgetTitle(type: HomeWidgetType, t: I18nTranslate): s
       return t("widget.definition.calendar.title");
     case "countdown.timer":
       return t("widget.definition.countdown.title");
+    case "world-clock.list":
+      return t("widget.definition.worldClock.title");
   }
 }
 
@@ -78,6 +81,8 @@ export function formatHomeWidgetDefaultTitle(type: HomeWidgetType, t: I18nTransl
       return t("widget.definition.calendar.defaultTitle");
     case "countdown.timer":
       return t("widget.definition.countdown.defaultTitle");
+    case "world-clock.list":
+      return t("widget.definition.worldClock.defaultTitle");
   }
 }
 
@@ -105,6 +110,8 @@ export function formatHomeWidgetDescription(type: HomeWidgetType, t: I18nTransla
       return t("widget.definition.calendar.description");
     case "countdown.timer":
       return t("widget.definition.countdown.description");
+    case "world-clock.list":
+      return t("widget.definition.worldClock.description");
   }
 }
 
@@ -118,6 +125,8 @@ export function formatHomeWidgetSettingsTitle(type: HomeWidgetType, t: I18nTrans
       return t("widget.definition.calendar.settingsTitle");
     case "countdown.timer":
       return t("widget.definition.countdown.settingsTitle");
+    case "world-clock.list":
+      return t("widget.definition.worldClock.settingsTitle");
   }
 }
 
@@ -131,6 +140,8 @@ export function formatHomeWidgetSettingsDescription(type: HomeWidgetType, t: I18
       return t("widget.definition.calendar.settingsDescription");
     case "countdown.timer":
       return t("widget.definition.countdown.settingsDescription");
+    case "world-clock.list":
+      return t("widget.definition.worldClock.settingsDescription");
   }
 }
 

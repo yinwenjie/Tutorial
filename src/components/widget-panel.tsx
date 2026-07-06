@@ -33,11 +33,13 @@ import { getCountdownStatus, normalizeCountdownConfig } from "@/domain/countdown
 import { createHomeWidget } from "@/domain/home-widget";
 import { getNotesStats, readNoteItems } from "@/domain/notes-widget";
 import { getTodoStats, readTodoItems } from "@/domain/todo-widget";
+import { readWorldClockItems } from "@/domain/world-clock-widget";
 import { getWidgetDefinition, WIDGET_DEFINITIONS } from "@/domain/widget-registry";
 import { CalendarMonthWidget } from "@/components/widgets/calendar-month-widget";
 import { CountdownTimerWidget, formatCountdownPrimary } from "@/components/widgets/countdown-timer-widget";
 import { NotesListWidget } from "@/components/widgets/notes-list-widget";
 import { TodoListWidget } from "@/components/widgets/todo-list-widget";
+import { WorldClockListWidget } from "@/components/widgets/world-clock-list-widget";
 import { WidgetConfigDialog } from "@/components/widgets/widget-config-dialog";
 import { WidgetShell } from "@/components/widgets/widget-shell";
 import type { I18nFormatters } from "@/i18n/formatters";
@@ -453,6 +455,10 @@ function WidgetContent({
     return <CountdownTimerWidget widget={widget} />;
   }
 
+  if (widget.type === "world-clock.list") {
+    return <WorldClockListWidget widget={widget} />;
+  }
+
   return null;
 }
 
@@ -504,6 +510,17 @@ function getWidgetCollapsedSummary(widget: HomeWidget, t: I18nTranslate, format:
     const status = getCountdownStatus(config);
 
     return formatCountdownPrimary(status, config.displayMode, t, format);
+  }
+
+  if (widget.type === "world-clock.list") {
+    const total = readWorldClockItems(widget.config).length;
+    if (total === 0) {
+      return t("worldClock.empty");
+    }
+
+    return t("worldClock.summary", {
+      count: format.number(total)
+    });
   }
 
   return t("widget.collapsedFallback");

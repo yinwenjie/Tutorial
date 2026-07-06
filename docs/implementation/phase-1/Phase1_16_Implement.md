@@ -119,6 +119,43 @@ Phase 1.16 的目标是在现有 Widget Registry、Widget Shell、统一配置�
 - 完成桌面、平板、移动端关键视口人工回归。
 - 通过后再评估是否进入 Phase 1.16.4 模板组件组合调整。
 
+## Phase 1.16.3：World Clock v1 实现
+
+状态：实现中，已完成代码接入和自动校验，等待人工回归。
+
+目标：在纯前端、不接定位、不接外部 API 的边界内，新增世界时钟组件，服务开发者、远程协作和跨时区工作场景。
+
+已完成：
+
+- 新增 `world-clock.list` widget type，接入 `HomeWidgetType`、registry、类型守卫、默认配置和 normalize。
+- 新增 `src/domain/world-clock-widget.ts`，提供 curated IANA timezone list、6 个时钟上限、40 字符标签上限、timezone 校验、排序重排和 fallback label。
+- 新增 `src/components/widgets/world-clock-list-widget.tsx`，展开态显示 label、当前时间、日期和相对本地日期偏移。
+- 使用浏览器 `Intl.DateTimeFormat` 进行 timezone 格式化，每 30 秒刷新一次。
+- 统一配置弹窗接入新增时钟、编辑 label、选择 timezone、删除、上移和下移。
+- 折叠摘要只显示时钟数量或空状态，不展示 label/timeZone。
+- `src/i18n/messages.ts` 和 `src/i18n/home-presentation.ts` 已补齐 World Clock 名称、描述、设置标题、配置项、空状态、摘要和日期偏移文案，并覆盖当前支持 locale。
+- 新增 World Clock 专用样式，配置弹窗在移动端会单列布局。
+
+隐私边界：
+
+- `widget.added` 仍只记录 `widgetType`。
+- 城市/标签和时区组合可能暴露工作地点或协作对象，不进入埋点、错误监控或本地审计 metadata。
+- 折叠摘要不展示 label/timeZone 明细。
+- World Clock config 继续随完整 `HomeDocumentV2` 进入本地保存、同步码、账号托管、历史快照、数据包导出和恢复，不新增独立存储。
+
+自动校验：
+
+- `npm run typecheck` 通过。
+- `npm run lint` 通过。
+- `npm run verify:i18n` 通过。
+- `npm run build` 通过。
+- `npm run verify:export` 通过。
+
+待完成：
+
+- 完成桌面、平板、移动端关键视口人工回归。
+- 通过后再评估是否进入 Phase 1.16.4 模板组件组合调整。
+
 ## Shared Implementation Checklist
 
 新增任一 widget type 时必须同步检查：
@@ -434,12 +471,13 @@ Phase 1.16 完成时至少满足：
 
 ## Next Step
 
-下一步完成 Phase 1.16.2 Countdown v1 自动校验和人工回归。
+下一步完成 Phase 1.16.3 World Clock v1 自动校验和人工回归。
 
 回归重点：
 
-- 新增 Countdown 后默认显示未配置状态，点击设置可填写事件和目标日期。
-- 未来日期、今天日期、过去日期和无效日期的展开态与折叠摘要正确。
-- `days` 与 `days-hours` 两种显示模式切换后能保存并恢复。
-- 多语言下配置弹窗、组件选择器和 Widget Shell 不溢出。
-- 本地保存、同步码、账号托管、历史快照、数据包导出和恢复不丢失 Countdown config。
+- 新增 World Clock 后默认显示空状态，点击设置可添加第一个时区。
+- 添加 1 个和多个时钟后，展开态时间、日期和相对本地日期偏移正确。
+- 编辑 label、切换 timezone、删除、上移和下移能保存并恢复。
+- 超过 6 个时钟时添加入口禁用。
+- 多语言下配置弹窗、timezone select 和 Widget Shell 不溢出。
+- 本地保存、同步码、账号托管、历史快照、数据包导出和恢复不丢失 World Clock config。

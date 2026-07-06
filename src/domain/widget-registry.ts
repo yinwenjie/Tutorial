@@ -3,6 +3,7 @@ import { normalizeCalendarConfig } from "@/domain/calendar-widget";
 import { normalizeCountdownConfig } from "@/domain/countdown-widget";
 import { normalizeNotesConfig } from "@/domain/notes-widget";
 import { normalizeTodoConfig } from "@/domain/todo-widget";
+import { normalizeWorldClockConfig } from "@/domain/world-clock-widget";
 
 export interface WidgetDefinition {
   type: HomeWidgetType;
@@ -74,6 +75,19 @@ export const WIDGET_DEFINITIONS: WidgetDefinition[] = [
       displayMode: "days"
     }),
     normalizeConfig: normalizeCountdownConfig
+  },
+  {
+    type: "world-clock.list",
+    title: "World Clock",
+    defaultTitle: "World Clock",
+    description: "纯前端世界时钟",
+    allowMultiple: true,
+    settings: {
+      title: "World Clock 设置",
+      description: "名称和时区列表"
+    },
+    defaultConfig: () => ({ clocks: [] }),
+    normalizeConfig: normalizeWorldClockConfig
   }
 ];
 
@@ -82,7 +96,7 @@ export const WIDGET_REGISTRY: Record<HomeWidgetType, WidgetDefinition> = Object.
 ) as Record<HomeWidgetType, WidgetDefinition>;
 
 export function isWidgetType(value: unknown): value is HomeWidgetType {
-  return value === "calendar.month" || value === "countdown.timer" || value === "notes.list" || value === "todo.list";
+  return value === "calendar.month" || value === "countdown.timer" || value === "notes.list" || value === "todo.list" || value === "world-clock.list";
 }
 
 export function getWidgetDefinition(type: HomeWidgetType): WidgetDefinition {

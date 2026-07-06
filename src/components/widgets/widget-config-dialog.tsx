@@ -10,9 +10,23 @@ import {
   normalizeTargetDate,
   type CountdownDisplayMode
 } from "@/domain/countdown-widget";
-import { normalizeText, type HomeWidget } from "@/domain/home-document";
+import { createId, normalizeText, type HomeWidget } from "@/domain/home-document";
 import { getNotesStats, readNoteItems } from "@/domain/notes-widget";
 import { getTodoStats, readTodoItems } from "@/domain/todo-widget";
+import {
+  createWorldClockItem,
+  DEFAULT_WORLD_CLOCK_TIME_ZONE,
+  getWorldClockFallbackLabel,
+  normalizeWorldClockConfig,
+  normalizeWorldClockLabel,
+  normalizeWorldClockTimeZone,
+  renumberWorldClockItems,
+  WORLD_CLOCK_LABEL_MAX_LENGTH,
+  WORLD_CLOCK_MAX_ITEMS,
+  WORLD_CLOCK_TIME_ZONE_OPTIONS,
+  type WorldClockItem,
+  type WorldClockTimeZone
+} from "@/domain/world-clock-widget";
 import { getWidgetDefinition } from "@/domain/widget-registry";
 import { useI18n } from "@/hooks/use-i18n";
 import {
@@ -41,6 +55,9 @@ export function WidgetConfigDialog({ widget, onCancel, onSave }: WidgetConfigDia
   const [countdownEventTitle, setCountdownEventTitle] = useState(() => normalizeCountdownConfig(widget.config).eventTitle);
   const [countdownTargetDate, setCountdownTargetDate] = useState(() => normalizeCountdownConfig(widget.config).targetDate);
   const [countdownDisplayMode, setCountdownDisplayMode] = useState<CountdownDisplayMode>(() => normalizeCountdownConfig(widget.config).displayMode);
+  const [worldClockDrafts, setWorldClockDrafts] = useState<WorldClockItem[]>(() => normalizeWorldClockConfig(widget.config).clocks);
+  const [worldClockNewLabel, setWorldClockNewLabel] = useState("");
+  const [worldClockNewTimeZone, setWorldClockNewTimeZone] = useState<WorldClockTimeZone>(DEFAULT_WORLD_CLOCK_TIME_ZONE);
   const todoStats = useMemo(() => {
     if (widget.type !== "todo.list") {
       return null;
@@ -72,6 +89,11 @@ export function WidgetConfigDialog({ widget, onCancel, onSave }: WidgetConfigDia
           targetDate: normalizeTargetDate(countdownTargetDate),
           displayMode: normalizeCountdownDisplayMode(countdownDisplayMode)
         }
+        : widget.type === "world-clock.list"
+          ? {
+            ...widget.config,
+            clocks: renumberWorldClockItems(worldClockDrafts)
+          }
         : widget.config;
     const nextWidget: HomeWidget = {
       ...widget,
@@ -80,6 +102,51 @@ export function WidgetConfigDialog({ widget, onCancel, onSave }: WidgetConfigDia
     };
 
     onSave(nextWidget);
+  }
+
+  function addWorldClock() {
+    if (worldClockDrafts.length >= WORLD_CLOCK_MAX_ITEMS) {
+      return;
+    }
+
+    const label = normalizeWorldClockLabel(worldClockNewLabel);
+    setWorldClockDrafts((current) => renumberWorldClockItems([
+      ...current,
+      createWorldClockItem(createId("clock"), label, worldClockNewTimeZone, current.length + 1)
+    ]));
+    setWorldClockNewLabel("");
+  }
+
+  function updateWorldClock(clockId: string, patch: Partial<Pick<WorldClockItem, "label" | "timeZone">>) {
+    setWorldClockDrafts((current) => current.map((clock) => clock.id === clockId
+      ? {
+        ...clock,
+        ...patch,
+        label: patch.label === undefined ? clock.label : normalizeWorldClockLabel(patch.label),
+        timeZone: patch.timeZone ?? clock.timeZone
+      }
+      : clock));
+  }
+
+  function deleteWorldClock(clockId: string) {
+    setWorldClockDrafts((current) => renumberWorldClockItems(current.filter((clock) => clock.id !== clockId)));
+  }
+
+  function moveWorldClock(clockId: string, direction: -1 | 1) {
+    setWorldClockDrafts((current) => {
+      const currentIndex = current.findIndex((clock) => clock.id === clockId);
+      const targetIndex = currentIndex + direction;
+
+      if (currentIndex < 0 || targetIndex < 0 || targetIndex >= current.length) {
+        return current;
+      }
+
+      const nextClocks = [...current];
+      const [clock] = nextClocks.splice(currentIndex, 1);
+      nextClocks.splice(targetIndex, 0, clock);
+
+      return renumberWorldClockItems(nextClocks);
+    });
   }
 
   return (
@@ -220,6 +287,113 @@ export function WidgetConfigDialog({ widget, onCancel, onSave }: WidgetConfigDia
                   </button>
                 </div>
               </div>
+            </section>
+          ) : null}
+
+          {widget.type === "world-clock.list" ? (
+            <section className="widget-config-section" aria-label={t("widgetConfig.worldClockSettingsAria")}>
+              <h3>{t("widgetConfig.worldClockSettingsTitle")}</h3>
+              <div className="widget-config-clock-add">
+                <label className="widget-config-field">
+                  <span>{t("widgetConfig.worldClockLabel")}</span>
+                  <input
+                    type="text"
+                    value={worldClockNewLabel}
+                    maxLength={WORLD_CLOCK_LABEL_MAX_LENGTH}
+                    placeholder={getWorldClockFallbackLabel(worldClockNewTimeZone)}
+                    onChange={(event) => setWorldClockNewLabel(event.target.value)}
+                  />
+                </label>
+                <label className="widget-config-field">
+                  <span>{t("widgetConfig.worldClockTimeZone")}</span>
+                  <select
+                    value={worldClockNewTimeZone}
+                    onChange={(event) => {
+                      const timeZone = normalizeWorldClockTimeZone(event.target.value);
+                      if (timeZone) {
+                        setWorldClockNewTimeZone(timeZone);
+                      }
+                    }}
+                  >
+                    {WORLD_CLOCK_TIME_ZONE_OPTIONS.map((option) => (
+                      <option key={option.timeZone} value={option.timeZone}>
+                        {option.defaultLabel} · {option.timeZone}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  className="widget-config-add-button"
+                  type="button"
+                  disabled={worldClockDrafts.length >= WORLD_CLOCK_MAX_ITEMS}
+                  onClick={addWorldClock}
+                >
+                  {t("widgetConfig.worldClockAdd")}
+                </button>
+              </div>
+              {worldClockDrafts.length > 0 ? (
+                <ul className="widget-config-clock-list">
+                  {worldClockDrafts.map((clock, clockIndex) => (
+                    <li className="widget-config-clock-item" key={clock.id}>
+                      <input
+                        type="text"
+                        value={clock.label}
+                        maxLength={WORLD_CLOCK_LABEL_MAX_LENGTH}
+                        aria-label={t("widgetConfig.worldClockEditLabelAria")}
+                        placeholder={getWorldClockFallbackLabel(clock.timeZone)}
+                        onChange={(event) => updateWorldClock(clock.id, { label: event.target.value })}
+                      />
+                      <select
+                        value={clock.timeZone}
+                        aria-label={t("widgetConfig.worldClockEditTimeZoneAria")}
+                        onChange={(event) => {
+                          const timeZone = normalizeWorldClockTimeZone(event.target.value);
+                          if (timeZone) {
+                            updateWorldClock(clock.id, { timeZone });
+                          }
+                        }}
+                      >
+                        {WORLD_CLOCK_TIME_ZONE_OPTIONS.map((option) => (
+                          <option key={option.timeZone} value={option.timeZone}>
+                            {option.defaultLabel} · {option.timeZone}
+                          </option>
+                        ))}
+                      </select>
+                      <div className="widget-config-clock-actions">
+                        <button
+                          type="button"
+                          disabled={clockIndex === 0}
+                          title={t("widgetConfig.worldClockMoveUpTitle")}
+                          aria-label={t("widgetConfig.worldClockMoveUpAria")}
+                          onClick={() => moveWorldClock(clock.id, -1)}
+                        >
+                          ↑
+                        </button>
+                        <button
+                          type="button"
+                          disabled={clockIndex === worldClockDrafts.length - 1}
+                          title={t("widgetConfig.worldClockMoveDownTitle")}
+                          aria-label={t("widgetConfig.worldClockMoveDownAria")}
+                          onClick={() => moveWorldClock(clock.id, 1)}
+                        >
+                          ↓
+                        </button>
+                        <button
+                          className="is-danger"
+                          type="button"
+                          title={t("common.delete")}
+                          aria-label={t("widgetConfig.worldClockDeleteAria")}
+                          onClick={() => deleteWorldClock(clock.id)}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="widget-config-empty">{t("widgetConfig.worldClockEmpty")}</p>
+              )}
             </section>
           ) : null}
         </div>
