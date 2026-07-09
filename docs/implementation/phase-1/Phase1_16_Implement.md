@@ -2,7 +2,7 @@
 
 ## Summary
 
-Phase 1.16 的目标是在现有 Widget Registry、Widget Shell、统一配置弹窗、快照、同步和恢复体系上，新增少量纯前端、低数据体积、高日常价值的组件。当前优先顺序为 Notes v1、Countdown v1、World Clock v1。
+Phase 1.16 的目标是在现有 Widget Registry、Widget Shell、统一配置弹窗、快照、同步和恢复体系上，新增少量纯前端、低数据体积、高日常价值的组件。当前 Notes v1、Countdown v1、World Clock v1 已完成实现和部署，进入模板组件组合调整与阶段回归收口。
 
 本阶段不是组件市场阶段，不实现联网组件，不新增后端服务，不扩大账号权限边界。RSS、天气、GitHub public repo 等需要代理、缓存、API key、额度或 OAuth 的能力继续保留在候选设计中，不进入 Phase 1.16 实现范围。
 
@@ -84,7 +84,7 @@ Phase 1.16 的目标是在现有 Widget Registry、Widget Shell、统一配置�
 
 ## Phase 1.16.2：Countdown v1 实现
 
-状态：实现中，已完成代码接入和自动校验，等待人工回归。
+状态：已完成并部署。
 
 目标：在纯前端、低数据体积和不新增后端的边界内，新增简单倒计时组件，覆盖考试、发布、纪念日和项目节点等场景。
 
@@ -114,14 +114,20 @@ Phase 1.16 的目标是在现有 Widget Registry、Widget Shell、统一配置�
 - `npm run build` 通过。
 - `npm run verify:export` 通过。
 
-待完成：
+部署记录：
 
-- 完成桌面、平板、移动端关键视口人工回归。
-- 通过后再评估是否进入 Phase 1.16.4 模板组件组合调整。
+- 已提交 `a9e6e75 feat: add countdown widget`。
+- 已推送到 `master` 和 `production`。
+- Cloudflare Pages 主站 `https://mylinker.net/` 已返回 200。
+- GitHub Pages legacy `https://yinwenjie.github.io/PersonalHomepge/` 已返回 200。
+
+后续观察：
+
+- Countdown v1 默认不带具体日期，模板接入时也不写死未来日期，避免过期信息误导用户。
 
 ## Phase 1.16.3：World Clock v1 实现
 
-状态：实现中，已完成代码接入和自动校验，等待人工回归。
+状态：已完成并部署。
 
 目标：在纯前端、不接定位、不接外部 API 的边界内，新增世界时钟组件，服务开发者、远程协作和跨时区工作场景。
 
@@ -151,10 +157,16 @@ Phase 1.16 的目标是在现有 Widget Registry、Widget Shell、统一配置�
 - `npm run build` 通过。
 - `npm run verify:export` 通过。
 
-待完成：
+部署记录：
 
-- 完成桌面、平板、移动端关键视口人工回归。
-- 通过后再评估是否进入 Phase 1.16.4 模板组件组合调整。
+- 已提交 `333d68f feat: add world clock widget`。
+- 已推送到 `master` 和 `production`。
+- Cloudflare Pages 主站 `https://mylinker.net/` 已返回 200。
+- GitHub Pages legacy `https://yinwenjie.github.io/PersonalHomepge/` 已返回 200。
+
+后续观察：
+
+- World Clock v1 可进入开发者工作台模板评估，但默认时区必须保持通用、非个人化。
 
 ## Shared Implementation Checklist
 
@@ -458,6 +470,42 @@ v1 不引入完整时区数据库 UI。建议先提供有限列表：
 
 World Clock v1 稳定后优先评估开发者工作台模板，不建议默认加入通用效率或极简模板。
 
+## Phase 1.16.4：模板组件组合调整
+
+状态：已完成代码接入和自动校验，等待人工模板创建回归。
+
+目标：在新组件稳定后，小幅调整模板默认组件组合，只影响新建首页，不自动修改用户已有首页。
+
+已完成：
+
+- 空白首页继续不预设组件。
+- 极简起步继续保持轻，只保留折叠月历，不默认加入 Notes。
+- 通用效率新增折叠 `notes.list`，标题为“快速便签”，用于通用临时记录。
+- 工作办公新增折叠 `notes.list`，标题为“工作便签”，与 Todo 和会议月历形成办公组合。
+- 开发者工作台新增折叠 `world-clock.list`，标题为“协作时区”，预设 UTC、Shanghai 和 New York 三个通用协作时区。
+- 学习研究新增折叠 `countdown.timer`，标题为“重要节点”，不预设目标日期，避免模板日期过期误导用户。
+- `src/i18n/home-presentation.ts` 和 `src/i18n/messages.ts` 已补齐新增模板组件标题在当前支持 locale 下的展示映射。
+
+边界：
+
+- 只修改 `HOME_TEMPLATES[].widgets`，只影响新建首页和从模板创建空间。
+- 不新增 migration，不修改用户已有首页、历史快照、云端历史或数据包内容。
+- 新增组件默认折叠，模板默认组件最多 3 个，保持首屏信息密度克制。
+
+自动校验：
+
+- `npm run typecheck` 通过。
+- `npm run lint` 通过。
+- `npm run verify:i18n` 通过。
+- `npm run build` 通过。
+- `npm run verify:export` 通过。
+
+待完成：
+
+- 完成首页模板库和设置页“从模板创建空间”的人工回归。
+- 验证桌面、平板、移动端模板卡片摘要和新建首页首屏密度。
+- 验证新模板只影响新建首页，不影响已有首页、快照和云端历史。
+
 ## Phase 1.16 Acceptance
 
 Phase 1.16 完成时至少满足：
@@ -471,13 +519,12 @@ Phase 1.16 完成时至少满足：
 
 ## Next Step
 
-下一步完成 Phase 1.16.3 World Clock v1 自动校验和人工回归。
+下一步完成 Phase 1.16.4 模板组件组合调整的人工回归。
 
 回归重点：
 
-- 新增 World Clock 后默认显示空状态，点击设置可添加第一个时区。
-- 添加 1 个和多个时钟后，展开态时间、日期和相对本地日期偏移正确。
-- 编辑 label、切换 timezone、删除、上移和下移能保存并恢复。
-- 超过 6 个时钟时添加入口禁用。
-- 多语言下配置弹窗、timezone select 和 Widget Shell 不溢出。
-- 本地保存、同步码、账号托管、历史快照、数据包导出和恢复不丢失 World Clock config。
+- 首页模板库卡片显示新的组件数量和本地化组件摘要。
+- 从首页模板库应用通用效率、工作办公、开发者工作台、学习研究模板后，新组件以折叠态出现并可展开配置。
+- 从设置页“从模板创建空间”后，新组件 config 能随账号托管空间保存。
+- 旧首页、历史快照和云端历史不被模板组合调整迁移或自动修改。
+- 多语言下模板卡片摘要、Widget Shell 标题和配置弹窗不溢出。

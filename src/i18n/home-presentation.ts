@@ -16,10 +16,14 @@ const SYSTEM_WIDGET_PRESET_TITLE_KEYS: Record<string, I18nMessageKey> = {
   "今日待办": "template.widget.todayTodo",
   "工作待办": "template.widget.workTodo",
   "会议与日程": "template.widget.meetingSchedule",
+  "快速便签": "template.widget.quickNotes",
+  "工作便签": "template.widget.workNotes",
   "开发任务": "template.widget.devTasks",
   "本月节奏": "template.widget.monthlyRhythm",
+  "协作时区": "template.widget.collaborationTimeZones",
   "学习计划": "template.widget.studyPlan",
-  "学习日历": "template.widget.studyCalendar"
+  "学习日历": "template.widget.studyCalendar",
+  "重要节点": "template.widget.keyMilestone"
 };
 
 export function formatHomeTemplateName(templateId: HomeTemplateId, t: I18nTranslate): string {

@@ -155,7 +155,8 @@ export const HOME_TEMPLATES: HomeTemplate[] = [
     ],
     widgets: [
       widget("todo.list", "今日待办"),
-      widget("calendar.month")
+      widget("calendar.month"),
+      widget("notes.list", "快速便签", { collapsed: true })
     ]
   },
   {
@@ -218,7 +219,8 @@ export const HOME_TEMPLATES: HomeTemplate[] = [
     ],
     widgets: [
       widget("todo.list", "工作待办"),
-      widget("calendar.month", "会议与日程")
+      widget("calendar.month", "会议与日程"),
+      widget("notes.list", "工作便签", { collapsed: true })
     ]
   },
   {
@@ -274,7 +276,17 @@ export const HOME_TEMPLATES: HomeTemplate[] = [
     ],
     widgets: [
       widget("todo.list", "开发任务"),
-      widget("calendar.month", "本月节奏")
+      widget("calendar.month", "本月节奏"),
+      widget("world-clock.list", "协作时区", {
+        collapsed: true,
+        config: {
+          clocks: [
+            { id: "clock-utc", label: "", timeZone: "UTC", order: 1 },
+            { id: "clock-shanghai", label: "", timeZone: "Asia/Shanghai", order: 2 },
+            { id: "clock-new-york", label: "", timeZone: "America/New_York", order: 3 }
+          ]
+        }
+      })
     ]
   },
   {
@@ -328,7 +340,8 @@ export const HOME_TEMPLATES: HomeTemplate[] = [
     ],
     widgets: [
       widget("todo.list", "学习计划"),
-      widget("calendar.month", "学习日历")
+      widget("calendar.month", "学习日历"),
+      widget("countdown.timer", "重要节点", { collapsed: true })
     ]
   }
 ];
