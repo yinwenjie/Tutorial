@@ -2,7 +2,7 @@
 
 ## Summary
 
-Phase 1.16 的目标是在现有 Widget Registry、Widget Shell、统一配置弹窗、快照、同步和恢复体系上，新增少量纯前端、低数据体积、高日常价值的组件。当前 Notes v1、Countdown v1、World Clock v1 已完成实现和部署，进入模板组件组合调整与阶段回归收口。
+Phase 1.16 的目标是在现有 Widget Registry、Widget Shell、统一配置弹窗、快照、同步和恢复体系上，新增少量纯前端、低数据体积、高日常价值的组件。Notes v1、Countdown v1、World Clock v1 和模板组件组合已完成，Phase 1.16.5 已完成本地回归与发布准备，等待提交和双站部署验证。
 
 本阶段不是组件市场阶段，不实现联网组件，不新增后端服务，不扩大账号权限边界。RSS、天气、GitHub public repo 等需要代理、缓存、API key、额度或 OAuth 的能力继续保留在候选设计中，不进入 Phase 1.16 实现范围。
 
@@ -472,7 +472,7 @@ World Clock v1 稳定后优先评估开发者工作台模板，不建议默认�
 
 ## Phase 1.16.4：模板组件组合调整
 
-状态：已完成代码接入和自动校验，等待人工模板创建回归。
+状态：已完成代码接入、自动校验和人工模板创建回归。
 
 目标：在新组件稳定后，小幅调整模板默认组件组合，只影响新建首页，不自动修改用户已有首页。
 
@@ -500,11 +500,63 @@ World Clock v1 稳定后优先评估开发者工作台模板，不建议默认�
 - `npm run build` 通过。
 - `npm run verify:export` 通过。
 
-待完成：
+人工回归结果：
 
-- 完成首页模板库和设置页“从模板创建空间”的人工回归。
-- 验证桌面、平板、移动端模板卡片摘要和新建首页首屏密度。
-- 验证新模板只影响新建首页，不影响已有首页、快照和云端历史。
+- 首页模板库已显示通用效率、工作办公、开发者工作台和学习研究的新组件数量与本地化摘要。
+- 已从首次创建流程应用开发者工作台模板，确认 Todo、Calendar 和 World Clock 类型、顺序、折叠状态及 UTC、Shanghai、New York 三时区 config 正确。
+- 已覆盖 `1440px` 桌面和 `390px` 移动端模板生成结果，无横向溢出。
+- 模板调整仍只通过 `createHomeDocumentFromTemplate()` 生成新文档，没有已有首页、快照或云端历史迁移逻辑。
+
+## Phase 1.16.5：回归与部署收口
+
+状态：已完成实现与本地回归，等待提交部署。
+
+代码收口：
+
+- 数据恢复中心快照预览不再重复组件标题，第二行改为“组件类型 · 隐私安全 config 摘要 · 折叠状态”。
+- Notes 预览只显示便签数量，Countdown 只显示未来/今天/已过期/未配置状态，World Clock 只显示时钟数量。
+- 本地审计 metadata 对组件 config、Notes/Todo 正文、倒计时标题和日期、World Clock 标签和时区、用户标题、URL 和搜索词进行递归脱敏。
+- metadata key 在匹配前统一转为小写并移除 `_`、`-`，避免命名变体绕过脱敏。
+- 新增 `scripts/verify-observability-privacy.mjs` 和 `npm run verify:privacy`，覆盖本地审计、产品埋点和错误属性三条观测边界。
+- 修复窄屏恢复预览中长警告文案被 Grid 压缩到 20px、与后续区块发生纵向重叠的问题；弹窗 body 使用顶部对齐和 max-content 隐式行，超出内容进入内部滚动。
+
+组件与模板回归：
+
+- 首页模板库四个调整模板的组件数量和组件摘要正确。
+- 开发者工作台首次创建后生成 `todo.list`、`calendar.month`、`world-clock.list`，新增 World Clock 默认折叠并保留三时区预设。
+- Notes、Countdown、World Clock 的设置入口均能读取完整 config；组件管理态提供折叠、上移、下移和删除入口。
+- Notes 折叠后显示 2 条便签摘要，折叠状态和 Notes/Countdown/World Clock config 在刷新后保持不变。
+
+数据保全回归：
+
+- 使用包含 Notes 正文、Countdown 标题和 World Clock 自定义标签的隔离夹具验证本地保存和刷新恢复。
+- 注入本地历史快照后，恢复中心能读取并派生三个新组件的脱敏摘要，且预览不出现正文、事件标题或城市标签哨兵。
+- 通过真实浏览器下载 HomeDocument JSON 和 `homepage-data-export-v1` 数据包；解析后 `widgets[]` 与刷新后的 `type`、`title`、`order`、`layout`、`config` 完全一致。
+- 将导出的非敏感测试数据包重新选择到恢复入口，恢复预览正确识别文档标题和 3 个组件；未执行最终覆盖恢复。
+- 本轮未创建真实同步码或账号托管测试空间。两条远端链路仍序列化完整 `HomeDocumentV2`，没有组件类型分支；真实账号态写入留部署后 smoke test。
+
+多视口与多语言回归：
+
+- 桌面 `1440x1000`、平板 `768x1024`、移动端 `390x844` 和窄屏 `320x568` 均无横向溢出。
+- `fr-FR` 深色紧凑模式下组件首页、恢复中心和恢复预览无控件遮挡。
+- `zh-TW`、`en-US`、`fr-FR`、`es-ES`、`ja-JP`、`ko-KR`、`it-IT` 的移动端 World Clock 摘要和配置弹窗均通过；意大利语额外覆盖 `320px` 窄屏。
+- 恢复预览警告与下一节实际边界保留 14px 间距，不再纵向重叠。
+
+隐私回归：
+
+- `verify:privacy` 验证本地审计对 `note_text`、嵌套 `eventTitle`、`time_zone` 和完整 `clocks` config 脱敏。
+- 产品埋点只保留 allowlisted `widgetType`，拒绝 Notes、Countdown 和 World Clock 自定义字段。
+- 错误监控属性只保留 allowlisted `source`，拒绝 config、label 和 targetDate。
+- 浏览器回归确认快照预览、本地审计和导出审计不包含组件哨兵；完整用户内容只存在于预期的首页文档、快照和用户主动导出的数据文件。
+
+自动校验：
+
+- `npm run typecheck` 通过。
+- `npm run lint` 通过。
+- `npm run verify:i18n` 通过。
+- `npm run verify:privacy` 通过。
+- `npm run build` 通过。
+- `npm run verify:export` 通过。
 
 ## Phase 1.16 Acceptance
 
@@ -514,17 +566,9 @@ Phase 1.16 完成时至少满足：
 - `HomeWidgetType`、registry、normalize、渲染、配置、折叠摘要、i18n、恢复预览和模板摘要链路完整。
 - 新组件在本地保存、同步码、账号托管、历史快照、JSON 导出和数据包导出/恢复中不丢失。
 - 多视口无横向溢出，移动端关键操作可触达。
-- `npm run typecheck`、`npm run lint`、`npm run build`、`npm run verify:export`、`npm run verify:i18n` 通过。
+- `npm run typecheck`、`npm run lint`、`npm run build`、`npm run verify:export`、`npm run verify:i18n`、`npm run verify:privacy` 通过。
 - 文档更新 Phase 1 计划和实施记录，说明实际完成范围、暂缓范围和后续候选。
 
 ## Next Step
 
-下一步完成 Phase 1.16.4 模板组件组合调整的人工回归。
-
-回归重点：
-
-- 首页模板库卡片显示新的组件数量和本地化组件摘要。
-- 从首页模板库应用通用效率、工作办公、开发者工作台、学习研究模板后，新组件以折叠态出现并可展开配置。
-- 从设置页“从模板创建空间”后，新组件 config 能随账号托管空间保存。
-- 旧首页、历史快照和云端历史不被模板组合调整迁移或自动修改。
-- 多语言下模板卡片摘要、Widget Shell 标题和配置弹窗不溢出。
+下一步提交 Phase 1.16.5，推送 `master` 和 `production`，完成 Cloudflare Pages 主站与 GitHub Pages legacy 部署验证。部署完成后进入 Phase 1.17，只读 renderer 与分享链接在实现前先完成数据暴露、撤销和只读边界设计。

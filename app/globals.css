@@ -3628,8 +3628,14 @@ h1 {
 }
 
 .local-snapshot-preview-dialog .settings-dialog-body {
+  align-content: start;
+  grid-auto-rows: max-content;
   min-height: 0;
   overflow-y: auto;
+}
+
+.local-snapshot-preview-dialog .status-message {
+  min-height: max-content;
 }
 
 .snapshot-preview-section {

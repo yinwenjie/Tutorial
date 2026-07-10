@@ -4,15 +4,33 @@ export const LOCAL_AUDIT_LOG_UPDATED_EVENT = "homepage:local-audit-log-updated";
 const LOCAL_AUDIT_LOG_SCHEMA = "homepage-audit-log-v1";
 const MAX_AUDIT_EVENTS = 160;
 const FORBIDDEN_METADATA_KEYS = new Set([
-  "accessToken",
-  "access_token",
-  "encryptionKey",
-  "encryption_key",
-  "syncCode",
-  "sync_code",
+  "accesstoken",
+  "config",
+  "documenttitle",
+  "encryptionkey",
+  "eventtitle",
+  "grouptitle",
+  "label",
+  "note",
+  "notes",
+  "notetext",
+  "query",
+  "refreshtoken",
+  "searchterm",
   "session",
-  "refreshToken",
-  "refresh_token"
+  "sitename",
+  "synccode",
+  "targetdate",
+  "tasktext",
+  "text",
+  "timezone",
+  "todo",
+  "todoitems",
+  "url",
+  "widgetconfig",
+  "widgettitle",
+  "clock",
+  "clocks"
 ]);
 
 export type LocalAuditEventLevel = "info" | "warning" | "danger";
@@ -138,10 +156,14 @@ function sanitizeValue(value: unknown): unknown {
 
   const entries = Object.entries(value as Record<string, unknown>).slice(0, 32).map(([key, childValue]) => [
     key,
-    FORBIDDEN_METADATA_KEYS.has(key) ? "[redacted]" : sanitizeValue(childValue)
+    FORBIDDEN_METADATA_KEYS.has(normalizeMetadataKey(key)) ? "[redacted]" : sanitizeValue(childValue)
   ]);
 
   return Object.fromEntries(entries);
+}
+
+function normalizeMetadataKey(key: string): string {
+  return key.toLowerCase().replace(/[-_]/g, "");
 }
 
 function createAuditId(): string {

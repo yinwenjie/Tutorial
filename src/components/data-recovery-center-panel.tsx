@@ -8,9 +8,16 @@ import {
   type HomeSite,
   type HomeWidget
 } from "@/domain/home-document";
+import { getCountdownStatus, normalizeCountdownConfig } from "@/domain/countdown-widget";
+import { getNotesStats, readNoteItems } from "@/domain/notes-widget";
 import { bucketCount } from "@/domain/product-analytics";
+import { readWorldClockItems } from "@/domain/world-clock-widget";
 import { useI18n } from "@/hooks/use-i18n";
-import { formatHomeWidgetDisplayTitle } from "@/i18n/home-presentation";
+import {
+  formatHomeWidgetDescription,
+  formatHomeWidgetDisplayTitle,
+  formatHomeWidgetTitle
+} from "@/i18n/home-presentation";
 import { formatSettingsSnapshotAssets } from "@/i18n/settings-presentation";
 import {
   CloudHomeSnapshotRepository,
@@ -312,6 +319,7 @@ export function DataRecoveryCenterPanel({
 
       {previewSnapshot ? (
         <SnapshotPreviewDialog
+          format={format}
           formatDateTime={format.dateTime}
           kind={previewSnapshot.kind}
           snapshot={previewSnapshot.snapshot}
@@ -429,6 +437,7 @@ function SnapshotCardCopy({
 }
 
 interface SnapshotPreviewDialogProps {
+  format: ReturnType<typeof useI18n>["format"];
   formatDateTime: (value: Date | string | number) => string;
   kind: "cloud" | "local";
   snapshot: PreviewableSnapshot;
@@ -438,6 +447,7 @@ interface SnapshotPreviewDialogProps {
 }
 
 function SnapshotPreviewDialog({
+  format,
   formatDateTime,
   kind,
   snapshot,
@@ -518,7 +528,7 @@ function SnapshotPreviewDialog({
             {widgets.length > 0 ? (
               <div className="snapshot-preview-widget-list">
                 {widgets.map((widget) => (
-                  <SnapshotPreviewWidget widget={widget} key={widget.id} t={t} />
+                  <SnapshotPreviewWidget format={format} widget={widget} key={widget.id} t={t} />
                 ))}
               </div>
             ) : (
@@ -545,13 +555,60 @@ function SnapshotPreviewSite({ site }: { site: HomeSite }) {
   );
 }
 
-function SnapshotPreviewWidget({ widget, t }: { widget: HomeWidget; t: ReturnType<typeof useI18n>["t"] }) {
+function SnapshotPreviewWidget({
+  format,
+  widget,
+  t
+}: {
+  format: ReturnType<typeof useI18n>["format"];
+  widget: HomeWidget;
+  t: ReturnType<typeof useI18n>["t"];
+}) {
   return (
     <article className="snapshot-preview-widget">
       <strong>{formatHomeWidgetDisplayTitle(widget, t)}</strong>
-      <span>{formatHomeWidgetDisplayTitle(widget, t)} · {widget.layout.collapsed ? t("settings.recovery.widgetCollapsed") : t("settings.recovery.widgetExpanded")}</span>
+      <span>
+        {formatHomeWidgetTitle(widget.type, t)} · {formatSnapshotWidgetSummary(widget, t, format)} · {widget.layout.collapsed ? t("settings.recovery.widgetCollapsed") : t("settings.recovery.widgetExpanded")}
+      </span>
     </article>
   );
+}
+
+function formatSnapshotWidgetSummary(
+  widget: HomeWidget,
+  t: ReturnType<typeof useI18n>["t"],
+  format: ReturnType<typeof useI18n>["format"]
+): string {
+  if (widget.type === "notes.list") {
+    const stats = getNotesStats(readNoteItems(widget.config));
+    return stats.total === 0
+      ? t("notes.empty")
+      : t("notes.summary", { count: format.number(stats.total) });
+  }
+
+  if (widget.type === "countdown.timer") {
+    const status = getCountdownStatus(normalizeCountdownConfig(widget.config));
+
+    switch (status.kind) {
+      case "future":
+        return t("countdown.statusFuture");
+      case "today":
+        return t("countdown.statusToday");
+      case "past":
+        return t("countdown.statusPast");
+      case "unconfigured":
+        return t("countdown.statusUnconfigured");
+    }
+  }
+
+  if (widget.type === "world-clock.list") {
+    const total = readWorldClockItems(widget.config).length;
+    return total === 0
+      ? t("worldClock.empty")
+      : t("worldClock.summary", { count: format.number(total) });
+  }
+
+  return formatHomeWidgetDescription(widget.type, t);
 }
 
 function DataRecoveryStat({ label, value }: { label: string; value: string }) {
