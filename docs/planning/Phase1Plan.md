@@ -49,8 +49,9 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - Phase 1.15.4 已完成：设置页核心路径、账号、首页空间、主题、图片、恢复中心和高级操作入口已接入 i18n runtime。
 - Phase 1.15.5 已完成：同步面板、书签/URL 导入、本机状态、本地审计、产品改进和错误边界已接入 i18n runtime。
 - Phase 1.15.6 已完成：新增 `verify:i18n` 校验、补齐同步/导入/设备/审计/错误等关键路径在 `fr-FR`、`es-ES`、`ja-JP`、`ko-KR`、`it-IT` 的覆盖，并完成桌面、平板、移动端多视口回归；回归中修复书签/URL 导入面板默认提示在语言偏好加载后仍停留简中的问题。
+- Phase 1.16 已完成并部署：Notes、Countdown、World Clock、模板组件组合、恢复预览摘要和观测隐私校验已落地；Cloudflare Pages 主站与 GitHub Pages legacy 已完成构建、发布和线上访问验证。
 
-下一步提交并部署 Phase 1.16.5 回归与部署收口；部署验证完成后进入 Phase 1.17 只读渲染与分享链接设计。
+下一步进入 Phase 1.17.0，先完成只读渲染与公开快照分享的范围、安全边界和数据模型设计，再进入实现。
 
 ## Phase Plan
 
@@ -71,8 +72,8 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 | Phase 1.13：产品化体验收口 | 已完成 | 设置页信息架构 v2、产品身份收口、主题风格 v2 | 主域名准备独立到 Phase 1.14 |
 | Phase 1.14：主域名准备 | 已完成 | Cloudflare Pages 主站迁移、根路径构建、Supabase 回调、安全头、切流回归和回滚演练；1.14.5/1.14.6 暂缓，GitHub Pages legacy 保留完整应用 | 后续只做主域名运行观察和安全补强 |
 | Phase 1.15：多语言支持 v1 | 已完成 | 语言数据模型、账号/本地偏好、I18n Provider、静态 dictionary、日期时间/月历 locale formatter、首页、设置页、同步、导入和错误细节本地化；新增 i18n 校验、小语种关键路径覆盖和多视口人工回归 | 后续只做翻译修订和缺陷修复 |
-| Phase 1.16：低成本组件扩展 | 已完成实现，等待部署 | Notes、Countdown、World Clock、模板组合、恢复预览摘要、观测隐私校验和多视口回归已完成 | 提交并完成 Cloudflare Pages 与 GitHub Pages 部署验证 |
-| Phase 1.17：只读渲染与分享链接 v1 | 候选 | 只读首页 renderer、只读分享链接、撤销机制 | 依赖主域名和只读渲染层设计 |
+| Phase 1.16：低成本组件扩展 | 已完成并部署 | Notes、Countdown、World Clock、模板组合、恢复预览摘要、观测隐私校验和多视口回归已完成 | 后续仅做缺陷修复与组件候选评估 |
+| Phase 1.17：只读渲染与分享链接 v1 | 已规划，待实施 | 只读首页 renderer、公开快照分享、撤销机制、静态导出兼容公开入口 | 从 1.17.0 设计收口开始 |
 | Phase 1.18：受控服务端与后台 dashboard v1 | 候选 | Edge Function/受控后端、管理员身份、管理员审计、只读后台 | 仅在主域名稳定后评估，v1 必须只读 |
 
 ## Candidate Feature Evaluation
@@ -420,7 +421,7 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 
 ### Phase 1.16：低成本组件扩展
 
-状态：进行中。
+状态：已完成并部署。
 
 目标：在现有 Widget Registry、Widget Shell、统一配置弹窗、快照、同步和恢复体系上，新增少量纯前端、低数据体积、高日常价值的组件。Phase 1.16 不是组件市场阶段，不接联网组件，不引入后端服务，不扩大账号权限边界。
 
@@ -561,7 +562,7 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 
 ### Phase 1.16.5：回归与部署收口
 
-状态：已完成实现与本地回归，等待提交部署。
+状态：已完成并部署。
 
 目标：完成 Phase 1.16 的自动检查、人工多视口回归、数据保全回归和部署准备。
 
@@ -588,6 +589,121 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 - 已验证 Notes、Countdown、World Clock 设置入口、管理操作、折叠状态、本地刷新、快照预览、HomeDocument JSON、数据包导出和数据包恢复预览链路。
 - 已覆盖桌面 `1440px`、平板 `768px`、移动端 `390px` 和窄屏 `320px`；`zh-TW`、`en-US`、`fr-FR`、`es-ES`、`ja-JP`、`ko-KR`、`it-IT` 下摘要和 World Clock 配置弹窗无横向溢出。
 - 本轮使用隔离本地浏览器数据，未创建真实同步码或账号托管测试空间；两条远端链路继续复用完整 `HomeDocumentV2` 序列化，没有新增组件专用传输分支，部署后保留账号态 smoke test。
+- 已提交 `f133453 feat: finalize phase 1.16 widget expansion`，并推送 `master` 与 `production`；GitHub Pages workflow、Cloudflare Pages 主站 `https://mylinker.net/` 与 GitHub Pages legacy 均验证返回成功。
+
+## Phase 1.17 Breakdown
+
+### Phase 1.17：只读渲染与分享链接 v1
+
+状态：已规划，待实施。
+
+目标：在不暴露同步码、账号托管凭证或可编辑首页原件的前提下，为账号托管首页提供可撤销的公开快照分享。该阶段同时沉淀可复用于模板展示、历史预览、未来后台预览和自定义域名的只读渲染底座。
+
+阶段决策：
+
+- 分享的是显式发布的只读快照，不是实时公开当前 `HomeDocumentV2`，后续编辑不会自动更新已发布内容。
+- v1 只支持已登录且属于当前用户的账号托管首页空间；普通同步码空间维持密文边界，不支持公开分享。
+- 公开 payload 使用独立 `PublicHomeDocumentV1` 投影，不直接返回完整 `HomeDocumentV2`；必须移除 `syncMeta`、账号信息、同步凭证、审计信息和私有资源引用。
+- v1 默认公开页面标题、主题外观、分组和网站；Notes、Todo、Countdown、World Clock 等组件及其用户自定义内容默认不进入公开 payload，后续如需公开必须新增明确 opt-in 和逐类审查。
+- 分享 token 与同步码、账号托管 access token、encryption key 完全隔离；数据库只保存 token hash。
+- 公开链接优先使用 `https://mylinker.net/share/#<token>`。token 位于 URL fragment，不随 HTTP 请求或外链 Referer 发送；`/share/` 保持 Next.js 静态导出，兼容 Cloudflare Pages 根路径和 GitHub Pages 子路径。
+- v1 不做密码保护、搜索引擎索引、访问统计、访问者身份、协作编辑、公开评论或自定义域名。
+
+### Phase 1.17.0：方案与安全边界收口
+
+状态：待实施。
+
+目标：先固化公开数据、访问控制、撤销与静态部署策略，避免把分享实现成对同步空间的旁路读取。
+
+主要任务：
+
+- 新增 `docs/implementation/phase-1/Phase1_17_Implement.md`，记录数据流、SQL/RPC 边界、交互状态和回归清单。
+- 定义 `PublicHomeDocumentV1`、版本字段、允许字段、尺寸上限与 normalize/validate 策略。
+- 明确分享快照的创建、更新、撤销、过期和重新发布语义；v1 采用每个账号托管空间最多一个有效分享，撤销后旧 token 不可恢复。
+- 明确公开链接的 canonical 域名为 `mylinker.net`，GitHub Pages 仅验证静态入口兼容，不作为对外推荐链接。
+- 明确隐私、noindex、缓存和错误态要求；不记录 token、完整网站 URL、标题或公开 snapshot 内容到埋点、错误监控和本地审计。
+
+### Phase 1.17.1：只读 Renderer 基座
+
+状态：待实施。
+
+目标：抽离与数据来源无关、没有编辑副作用的首页展示层。
+
+主要任务：
+
+- 建立接收规范化 document 与展示模式的只读 renderer，复用现有主题、分组、网站和站点图标展示能力。
+- 明确只读模式不挂载编辑弹窗、拖拽、配置入口、同步、本地快照、恢复、账号管理或 localStorage 写入。
+- 补齐加载、空内容、无效 payload 和渲染失败的稳定降级状态。
+- 保持现有可编辑首页行为不变，并为模板、历史版本和后台预览预留相同 renderer 入口。
+
+### Phase 1.17.2：公开数据投影与隐私校验
+
+状态：待实施。
+
+目标：让发布内容从源文档中显式派生，确保公开 API 永远无法返回私密字段。
+
+主要任务：
+
+- 实现从 `HomeDocumentV2` 到 `PublicHomeDocumentV1` 的白名单投影与标准化，不复用对象扩展或黑名单删除。
+- 移除 sync metadata、账号信息、组件 config、搜索历史、审计/恢复信息、Storage 私有 URL 和其他不可公开字段。
+- 对外链图片和远程资源采用保守策略：v1 不包含用户 Banner/背景图片；保留安全的本地 appearance preset 与站点图标 fallback。
+- 新增自动校验，覆盖投影字段、敏感字段缺失、payload 大小、无效输入和稳定序列化。
+
+### Phase 1.17.3：Supabase 分享快照与 RPC
+
+状态：待实施。
+
+目标：建立独立、最小授权的公开快照存储和读取路径。
+
+主要任务：
+
+- 新增分享快照表、必要索引和迁移校验脚本；分享表与 `sync_spaces`、账号托管凭证和云端历史物理隔离。
+- owner 侧 RPC 只允许当前登录用户为其账号托管空间创建、更新、撤销或查询分享元数据。
+- anon 侧只提供按 token 读取有效公开快照的受限 RPC；表本身不向 `anon` 或 `authenticated` 直接开放读取。
+- token 使用浏览器密码学随机值，传入 RPC 后哈希比较；严格校验长度、有效状态、过期时间和 payload schema。
+- 撤销、过期、无效 token 和不存在记录返回同一公开失败语义，避免枚举分享状态；不在公开读取路径记录用户内容或 token。
+
+### Phase 1.17.4：分享管理与发布预览
+
+状态：待实施。
+
+目标：在已有账号空间管理路径中提供可理解、可撤销的发布操作。
+
+主要任务：
+
+- 增加创建分享、公开预览、复制链接、更新已发布快照、撤销分享和重新发布入口。
+- 发布前展示实际 `PublicHomeDocumentV1` 预览和不可公开内容说明，确认后才调用创建/更新 RPC。
+- 明确“编辑首页不会自动更新分享”的状态摘要，并在有已发布快照时提供显式更新操作。
+- 链接复制失败时提供可见且可访问的降级提示；撤销操作使用明确确认，成功后立即清除 UI 中旧链接。
+- 所有新增文案纳入现有 i18n dictionary；管理 UI 在窄屏和小语种下保持可操作。
+
+### Phase 1.17.5：公开分享页与静态部署兼容
+
+状态：待实施。
+
+目标：在两个静态站点目标上可靠加载公开快照并以只读方式渲染。
+
+主要任务：
+
+- 新增静态 `/share/` 页面，客户端从 URL fragment 读取 token 并调用受限公开 RPC。
+- 设置公开页标题、`noindex` metadata、加载、网络失败、无效/撤销/过期链接和空快照状态；错误文案不透露 token 是否曾有效。
+- 渲染完成后不展示编辑、登录恢复、同步、设置或数据恢复入口；外链保持安全的 `noopener noreferrer` 行为。
+- 校验 `NEXT_PUBLIC_BASE_PATH` 下的资源、返回入口和 URL 生成，分别覆盖 Cloudflare Pages 根路径与 GitHub Pages legacy 子路径。
+
+### Phase 1.17.6：回归、上线与运行观察
+
+状态：待实施。
+
+目标：完成公开数据、权限、静态导出和双站发布的端到端收口。
+
+验收清单：
+
+- `npm run typecheck`、`npm run lint`、`npm run build`、`npm run verify:export`、`npm run verify:i18n`、`npm run verify:privacy` 均通过。
+- 新增 Supabase migration 与只读验证脚本通过：无直接表读取权限、owner 隔离、anon 只能按有效 token 获取投影快照、撤销/过期立即失效。
+- 公开 payload 不含同步码、access token、encryption key、账号资料、`syncMeta`、组件用户内容、Storage 私有 URL 或审计信息。
+- 创建、预览、复制、更新快照、撤销和重新发布均经过人工回归；已撤销链接和随机 token 显示相同通用失败页。
+- 桌面、平板、移动端以及全部支持语言下，公开页和分享管理 UI 无横向溢出、无编辑入口、无 token 泄露到可观测 metadata。
+- Cloudflare Pages 主站与 GitHub Pages legacy 均完成 `/share/` 静态入口验证；对外复制链接始终指向 `mylinker.net`。
 
 ## Shared Foundations
 
