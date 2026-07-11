@@ -51,7 +51,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - Phase 1.15.6 已完成：新增 `verify:i18n` 校验、补齐同步/导入/设备/审计/错误等关键路径在 `fr-FR`、`es-ES`、`ja-JP`、`ko-KR`、`it-IT` 的覆盖，并完成桌面、平板、移动端多视口回归；回归中修复书签/URL 导入面板默认提示在语言偏好加载后仍停留简中的问题。
 - Phase 1.16 已完成并部署：Notes、Countdown、World Clock、模板组件组合、恢复预览摘要和观测隐私校验已落地；Cloudflare Pages 主站与 GitHub Pages legacy 已完成构建、发布和线上访问验证。
 
-下一步进入 Phase 1.17.0，先完成只读渲染与公开快照分享的范围、安全边界和数据模型设计，再进入实现。
+Phase 1.17.0 与 1.17.1 已完成；已沉淀无副作用的只读 Renderer、只读主题 bridge 与站点图标安全降级。下一步进入 1.17.2 公开数据投影与隐私校验。
 
 ## Phase Plan
 
@@ -611,7 +611,7 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 
 ### Phase 1.17.0：方案与安全边界收口
 
-状态：待实施。
+状态：已完成。
 
 目标：先固化公开数据、访问控制、撤销与静态部署策略，避免把分享实现成对同步空间的旁路读取。
 
@@ -622,10 +622,12 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 - 明确分享快照的创建、更新、撤销、过期和重新发布语义；v1 采用每个账号托管空间最多一个有效分享，撤销后旧 token 不可恢复。
 - 明确公开链接的 canonical 域名为 `mylinker.net`，GitHub Pages 仅验证静态入口兼容，不作为对外推荐链接。
 - 明确隐私、noindex、缓存和错误态要求；不记录 token、完整网站 URL、标题或公开 snapshot 内容到埋点、错误监控和本地审计。
+- 新增 `docs/implementation/phase-1/Phase1_17_Implement.md`，固化交付顺序、`PublicHomeDocumentV1` 白名单字段、尺寸上限、最小授权 RPC 合约、静态入口与完整验收清单。
+- 明确 token 仅保存在创建/更新成功的当前会话内；数据库只保存 hash，刷新后不能复制旧链接，重新发布会生成并替换为新链接，避免 token 进入本地持久化或审计路径。
 
 ### Phase 1.17.1：只读 Renderer 基座
 
-状态：待实施。
+状态：已完成。
 
 目标：抽离与数据来源无关、没有编辑副作用的首页展示层。
 
@@ -635,6 +637,10 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 - 明确只读模式不挂载编辑弹窗、拖拽、配置入口、同步、本地快照、恢复、账号管理或 localStorage 写入。
 - 补齐加载、空内容、无效 payload 和渲染失败的稳定降级状态。
 - 保持现有可编辑首页行为不变，并为模板、历史版本和后台预览预留相同 renderer 入口。
+- 新增 `ReadOnlyHomeRenderer`、`ReadOnlyHomeRendererBoundary` 和最小只读展示模型；仅展示标题、主题、分组及站点，不包含搜索、组件或编辑操作。
+- 新增不访问账号、Storage、同步或本地偏好的 `ReadOnlyThemeStyleBridge`；仅按 theme preset/accent 与访问者系统深浅色写入视觉 token，并明确不加载 Banner/背景资源。
+- `SiteIcon` 改为仅依赖 `url`/`mark`，对非法 URL 或非 HTTP(S) 协议稳定回落到 mark；公开 renderer 对非法站点 URL 不生成链接。
+- `npm run typecheck`、`npm run lint`、`npm run build` 和 `npm run verify:export` 已通过。
 
 ### Phase 1.17.2：公开数据投影与隐私校验
 

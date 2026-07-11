@@ -946,6 +946,22 @@ h1 {
   z-index: 6;
 }
 
+.read-only-masthead {
+  margin-bottom: 28px;
+}
+
+.read-only-section {
+  grid-template-columns: 164px minmax(0, 1fr);
+}
+
+.read-only-site-tile {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.read-only-site-tile .site-link[aria-disabled="true"] {
+  opacity: 0.62;
+}
+
 .site-link {
   display: grid;
   grid-template-columns: 32px minmax(0, 1fr);

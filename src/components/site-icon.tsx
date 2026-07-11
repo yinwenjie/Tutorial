@@ -2,10 +2,11 @@
 
 /* eslint-disable @next/next/no-img-element */
 import { useMemo, useState } from "react";
-import type { HomeSite } from "@/domain/home-document";
-
 interface SiteIconProps {
-  site: HomeSite;
+  site: {
+    mark: string;
+    url: string;
+  };
 }
 
 export function SiteIcon({ site }: SiteIconProps) {
@@ -36,9 +37,17 @@ export function SiteIcon({ site }: SiteIconProps) {
 }
 
 function getIconUrls(siteUrl: string): string[] {
-  const url = new URL(siteUrl);
-  return [
-    `https://icons.duckduckgo.com/ip3/${url.hostname}.ico`,
-    `${url.origin}/favicon.ico`
-  ];
+  try {
+    const url = new URL(siteUrl);
+    if (url.protocol !== "http:" && url.protocol !== "https:") {
+      return [];
+    }
+
+    return [
+      `https://icons.duckduckgo.com/ip3/${url.hostname}.ico`,
+      `${url.origin}/favicon.ico`
+    ];
+  } catch {
+    return [];
+  }
 }
