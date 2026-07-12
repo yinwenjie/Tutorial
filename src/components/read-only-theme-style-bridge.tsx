@@ -1,18 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
-import type { HomeThemePresetId } from "@/domain/theme-preset";
+import type { ReadOnlyHomeTheme } from "@/domain/public-home-document";
 import {
   HOME_THEME_CSS_VARIABLE_NAMES,
   getHomeThemeAppearanceAttribute,
   getHomeThemeCssVariables,
   type HomeThemeColorScheme
 } from "@/domain/theme-preset";
-
-export interface ReadOnlyHomeTheme {
-  presetId: HomeThemePresetId;
-  accent: string;
-}
 
 interface ReadOnlyThemeStyleBridgeProps {
   theme: ReadOnlyHomeTheme;

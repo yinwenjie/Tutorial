@@ -55,6 +55,8 @@ Phase 1.17 为账号托管首页提供可撤销的公开分享能力，并沉淀
 
 ## 1.17.2：公开投影与校验
 
+状态：已完成。
+
 建议新增 `src/domain/public-home-document.ts`，将公开 schema 与源文档 schema 分离：
 
 ```ts
@@ -77,6 +79,18 @@ type PublicHomeDocumentV1 = {
 - 实现 `normalizePublicHomeDocument(value)` 和 type guard；统一 title、mark、URL、id、order、preset/accent 的合法值和排序。
 - 设置明确上限并在投影和 RPC 前后双重校验：建议最多 60 个分组、每组 100 个网站、标题 80 字符、网站 name/mark 各 80/20 字符、URL 2,048 字符；序列化 payload 最大 256 KiB。超过上限时发布失败并提示用户精简内容，不能静默截断为不同的分享内容。
 - 为投影写单元测试或轻量 Node 校验：包含完整 `HomeDocumentV2`（含 syncMeta、billing、assets、widgets）的输入，断言输出不包含敏感 key、组件内容或 Storage URL；同时覆盖无效 URL、超限、旧 document 和稳定序列化。
+
+实施结果：
+
+- 新增 `src/domain/public-home-document.ts`，定义 `PublicHomeDocumentV1`、共享只读展示模型、公开字段上限、投影/解析结果和稳定序列化入口。
+- `createPublicHomeDocument()` 在现有首页 normalize 前先执行严格预检，确保非法站点、超长字段或危险 URL 不会被静默过滤后形成部分分享；随后只通过逐字段白名单构造公开快照。
+- 公开 group/site ID 使用连续派生 ID，不保留内部首页 ID；空分组不公开，没有任何可公开站点时返回 `empty-content`。
+- URL 只允许 canonical HTTP/HTTPS，拒绝用户名/密码凭证；分组、单组站点、总站点和 UTF-8 payload 均有固定上限，超限整体失败且错误只包含 code 和结构 path。
+- `parsePublicHomeDocument()` 严格拒绝未知字段、非连续 ID/order、非 canonical URL、非法 preset/accent 和不支持版本；`serializePublicHomeDocument()` 使用固定字段顺序生成确定性 JSON。
+- `ReadOnlyHomeRenderer` 改为复用 domain 层只读模型，可直接接收验证成功的 `PublicHomeDocumentV1`，展示层仍不接触完整 `HomeDocumentV2`。
+- 新增 `npm run verify:public-document`，覆盖敏感 sentinel 缺失、内部 ID 隔离、确定性序列化、UTF-8 大小、非法 URL、未知字段、空内容和各类上限。
+- 扩展 `verify:privacy`，禁止 `documentTitle`、`publicDocument`、`publicSnapshot`、`shareToken` 和 `tokenHash` 进入 analytics、error monitoring 或本地审计 metadata。
+- `npm run typecheck`、`npm run lint`、`npm run verify:public-document`、`npm run verify:privacy`、`npm run build` 和 `npm run verify:export` 已通过。
 
 ### 隐私不变量
 

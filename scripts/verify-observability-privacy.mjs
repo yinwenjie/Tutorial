@@ -57,7 +57,12 @@ function verifyAuditMetadata(LocalAuditLogRepository) {
         eventTitle: "P1165-COUNTDOWN-SENTINEL",
         time_zone: "Asia/Shanghai"
       },
-      clocks: [{ label: "P1165-CLOCK-SENTINEL" }]
+      clocks: [{ label: "P1165-CLOCK-SENTINEL" }],
+      publicDocument: { documentTitle: "P1172-TITLE-SENTINEL" },
+      public_snapshot: { url: "https://example.com/P1172-URL-SENTINEL" },
+      shareToken: "P1172-SHARE-TOKEN-SENTINEL",
+      token_hash: "P1172-TOKEN-HASH-SENTINEL",
+      documentJson: { groups: ["P1172-DOCUMENT-SENTINEL"] }
     },
     type: "widget.regression"
   });
@@ -65,6 +70,11 @@ function verifyAuditMetadata(LocalAuditLogRepository) {
   expectEqual(event.metadata.widgetType, "notes.list", "audit should preserve safe widgetType metadata");
   expectEqual(event.metadata.note_text, "[redacted]", "audit should redact note text variants");
   expectEqual(event.metadata.clocks, "[redacted]", "audit should redact full clock config");
+  expectEqual(event.metadata.publicDocument, "[redacted]", "audit should redact public document payloads");
+  expectEqual(event.metadata.public_snapshot, "[redacted]", "audit should redact public snapshot payloads");
+  expectEqual(event.metadata.shareToken, "[redacted]", "audit should redact share tokens");
+  expectEqual(event.metadata.token_hash, "[redacted]", "audit should redact token hashes");
+  expectEqual(event.metadata.documentJson, "[redacted]", "audit should redact serialized documents");
 
   const nested = event.metadata.nested;
   if (!nested || typeof nested !== "object" || Array.isArray(nested)) {
@@ -81,13 +91,23 @@ function verifyAnalyticsProperties(sanitizeProductAnalyticsProperties) {
     widgetType: "world-clock.list",
     eventTitle: "P1165-COUNTDOWN-SENTINEL",
     notes: ["P1165-NOTE-SENTINEL"],
-    timeZone: "Asia/Shanghai"
+    timeZone: "Asia/Shanghai",
+    documentTitle: "P1172-TITLE-SENTINEL",
+    publicDocument: { groups: [] },
+    publicSnapshot: "P1172-SNAPSHOT-SENTINEL",
+    shareToken: "P1172-SHARE-TOKEN-SENTINEL",
+    tokenHash: "P1172-TOKEN-HASH-SENTINEL"
   });
 
   expectEqual(properties.widgetType, "world-clock.list", "analytics should preserve allowlisted widgetType");
   expectAbsent(properties, "eventTitle", "analytics should reject countdown titles");
   expectAbsent(properties, "notes", "analytics should reject note content");
   expectAbsent(properties, "timeZone", "analytics should reject timezone config");
+  expectAbsent(properties, "documentTitle", "analytics should reject document titles");
+  expectAbsent(properties, "publicDocument", "analytics should reject public documents");
+  expectAbsent(properties, "publicSnapshot", "analytics should reject public snapshots");
+  expectAbsent(properties, "shareToken", "analytics should reject share tokens");
+  expectAbsent(properties, "tokenHash", "analytics should reject token hashes");
 }
 
 function verifyErrorProperties(sanitizeClientErrorProperties) {
@@ -95,13 +115,23 @@ function verifyErrorProperties(sanitizeClientErrorProperties) {
     source: "widget-panel",
     config: { notes: ["P1165-NOTE-SENTINEL"] },
     label: "P1165-CLOCK-SENTINEL",
-    targetDate: "2026-12-31"
+    targetDate: "2026-12-31",
+    documentTitle: "P1172-TITLE-SENTINEL",
+    publicDocument: { groups: [] },
+    publicSnapshot: "P1172-SNAPSHOT-SENTINEL",
+    shareToken: "P1172-SHARE-TOKEN-SENTINEL",
+    tokenHash: "P1172-TOKEN-HASH-SENTINEL"
   });
 
   expectEqual(properties.source, "widget-panel", "error monitoring should preserve allowlisted source");
   expectAbsent(properties, "config", "error monitoring should reject widget config");
   expectAbsent(properties, "label", "error monitoring should reject clock labels");
   expectAbsent(properties, "targetDate", "error monitoring should reject countdown dates");
+  expectAbsent(properties, "documentTitle", "error monitoring should reject document titles");
+  expectAbsent(properties, "publicDocument", "error monitoring should reject public documents");
+  expectAbsent(properties, "publicSnapshot", "error monitoring should reject public snapshots");
+  expectAbsent(properties, "shareToken", "error monitoring should reject share tokens");
+  expectAbsent(properties, "tokenHash", "error monitoring should reject token hashes");
 }
 
 function createMemoryStorage() {

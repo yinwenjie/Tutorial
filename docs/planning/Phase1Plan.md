@@ -51,7 +51,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - Phase 1.15.6 已完成：新增 `verify:i18n` 校验、补齐同步/导入/设备/审计/错误等关键路径在 `fr-FR`、`es-ES`、`ja-JP`、`ko-KR`、`it-IT` 的覆盖，并完成桌面、平板、移动端多视口回归；回归中修复书签/URL 导入面板默认提示在语言偏好加载后仍停留简中的问题。
 - Phase 1.16 已完成并部署：Notes、Countdown、World Clock、模板组件组合、恢复预览摘要和观测隐私校验已落地；Cloudflare Pages 主站与 GitHub Pages legacy 已完成构建、发布和线上访问验证。
 
-Phase 1.17.0 与 1.17.1 已完成；已沉淀无副作用的只读 Renderer、只读主题 bridge 与站点图标安全降级。下一步进入 1.17.2 公开数据投影与隐私校验。
+Phase 1.17.0-1.17.2 已完成；只读 Renderer、公开快照白名单投影、严格 schema 校验、确定性序列化和观测隐私回归已落地。下一步进入 1.17.3 Supabase 分享快照与最小授权 RPC。
 
 ## Phase Plan
 
@@ -644,7 +644,7 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 
 ### Phase 1.17.2：公开数据投影与隐私校验
 
-状态：待实施。
+状态：已完成。
 
 目标：让发布内容从源文档中显式派生，确保公开 API 永远无法返回私密字段。
 
@@ -654,6 +654,9 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 - 移除 sync metadata、账号信息、组件 config、搜索历史、审计/恢复信息、Storage 私有 URL 和其他不可公开字段。
 - 对外链图片和远程资源采用保守策略：v1 不包含用户 Banner/背景图片；保留安全的本地 appearance preset 与站点图标 fallback。
 - 新增自动校验，覆盖投影字段、敏感字段缺失、payload 大小、无效输入和稳定序列化。
+- 新增 `PublicHomeDocumentV1` 与共享只读模型，采用逐字段白名单投影、派生公开 ID、严格字段/数量/UTF-8 payload 上限和 canonical HTTP(S) URL 校验。
+- 新增严格 parser 与固定字段顺序序列化；未知字段、危险 URL、非法 schema、部分内容过滤和不支持版本均不能进入后续分享存储。
+- 新增 `verify:public-document` 并扩展 `verify:privacy`，自动验证组件/同步/账号/asset sentinel 缺失和分享 token/公开 payload 的观测脱敏。
 
 ### Phase 1.17.3：Supabase 分享快照与 RPC
 

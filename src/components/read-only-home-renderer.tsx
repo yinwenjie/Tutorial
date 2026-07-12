@@ -3,28 +3,20 @@
 import type { ReactNode } from "react";
 import { Component } from "react";
 import { SiteIcon } from "@/components/site-icon";
-import { ReadOnlyThemeStyleBridge, type ReadOnlyHomeTheme } from "@/components/read-only-theme-style-bridge";
+import { ReadOnlyThemeStyleBridge } from "@/components/read-only-theme-style-bridge";
+import type {
+  ReadOnlyHomeDocument,
+  ReadOnlyHomeGroup,
+  ReadOnlyHomeSite,
+  ReadOnlyHomeTheme
+} from "@/domain/public-home-document";
 
-export interface ReadOnlyHomeSite {
-  id: string;
-  name: string;
-  url: string;
-  mark: string;
-  order: number;
-}
-
-export interface ReadOnlyHomeGroup {
-  id: string;
-  title: string;
-  order: number;
-  sites: ReadOnlyHomeSite[];
-}
-
-export interface ReadOnlyHomeDocument {
-  documentTitle: string;
-  theme: ReadOnlyHomeTheme;
-  groups: ReadOnlyHomeGroup[];
-}
+export type {
+  ReadOnlyHomeDocument,
+  ReadOnlyHomeGroup,
+  ReadOnlyHomeSite,
+  ReadOnlyHomeTheme
+} from "@/domain/public-home-document";
 
 export interface ReadOnlyHomeCopy {
   emptyLabel: string;
