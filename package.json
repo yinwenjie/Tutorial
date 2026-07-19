@@ -12,7 +12,8 @@
     "verify:i18n": "node scripts/verify-i18n-messages.mjs",
     "verify:privacy": "node scripts/verify-observability-privacy.mjs",
     "verify:public-document": "node scripts/verify-public-home-document.mjs",
-    "verify:public-share": "node scripts/verify-public-home-share.mjs"
+    "verify:public-share": "node scripts/verify-public-home-share.mjs",
+    "verify:todo": "node scripts/verify-todo-widget.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

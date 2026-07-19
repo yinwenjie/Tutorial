@@ -32,7 +32,7 @@ export function normalizeTodoConfig(input: unknown): TodoWidgetConfig {
     : [];
 
   return {
-    items: renumberTodoItems(items)
+    items: renumberTodoItems([...items].sort((a, b) => a.order - b.order))
   };
 }
 
@@ -41,12 +41,10 @@ export function readTodoItems(config: Record<string, unknown>): TodoItem[] {
 }
 
 export function renumberTodoItems(items: TodoItem[]): TodoItem[] {
-  return [...items]
-    .sort((a, b) => a.order - b.order)
-    .map((item, index) => ({
-      ...item,
-      order: index + 1
-    }));
+  return items.map((item, index) => ({
+    ...item,
+    order: index + 1
+  }));
 }
 
 export function normalizeTodoTitle(value: unknown): string {
