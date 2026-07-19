@@ -99,7 +99,9 @@ type PublicHomeDocumentV1 = {
 
 ## 1.17.3：Supabase 分享快照与 RPC
 
-建议新增 migration `017_public_home_shares.sql` 以及对应 verify script。分享快照必须独立于 `sync_spaces` 和 `home_space_snapshots`，只以 `home_space_id` 关联 owner 范围。
+状态：已完成代码与迁移脚本，尚未执行线上 Supabase migration。
+
+已新增 `supabase/migrations/017_public_home_shares.sql`、`supabase/checks/019_public_home_shares_verify.sql`、浏览器 token helper 和 RPC-only repository。分享快照独立于 `sync_spaces`、`home_space_credentials`、`home_space_snapshots` 与审计表，只通过 `(home_space_id, user_id)` 复合外键建立 owner 边界。
 
 建议表字段：
 
@@ -119,18 +121,31 @@ public_home_shares
   unique (home_space_id)
 ```
 
+### 实施结果
+
+- `public.public_home_shares` 每个首页空间只保留一条记录，包含公开 schema version、JSON 快照、状态和时间戳；`token_hash` 是唯一的 64 位十六进制 SHA-256，不保存 token 原文。删除首页空间或账号会级联删除分享记录。
+- `createPublicHomeShareToken()` 使用 `crypto.getRandomValues()` 生成 32 随机字节并编码为 43 字符的无 padding Base64URL；`isPublicHomeShareToken()` 固定同一长度和字符集。token 仅应保留在当前发布会话内与分享 URL fragment，不能进入 localStorage、审计、analytics 或错误上报。
+- `upsert_public_home_share(p_home_space_id, p_token, p_document_json)` 仅授权 `authenticated`。RPC 在数据库内以 `SHA-256("mylinker-public-share-v1:" || token)` 计算 hash，验证当前 owner、`account-managed` 模式、43 字符 token 和完整 v1 JSON schema；同一空间更新时必须使用新 token，active 更新保留首次 `published_at`，撤销后重新发布重置它。
+- `get_public_home_share_metadata(p_home_space_id)` 仅返回 owner 的 status、version 与时间戳；不返回 `token_hash`、token 或 `document_json`。没有记录或不符合 owner/account-managed 边界时统一返回空结果。
+- `revoke_public_home_share(p_home_space_id)` 仅允许 owner 调用，重复撤销保持幂等；首次撤销立即把状态改为 `revoked`，并以新的随机不可逆 hash 覆盖旧 hash，使旧 token 永不可恢复。
+- `read_public_home_share(p_token)` 仅返回有效、未过期、仍为账号托管空间的 `payload_version` 与 `document_json`；格式错误、随机、撤销、过期或不存在 token 均返回零行，不写入访问日志或审计。
+- 数据库 `public_home_document_v1_valid(jsonb)` 独立复核所有公开字段白名单、version、preset、accent、连续 ID/order、分组/站点/字节上限和 canonical HTTP(S) URL 的保守格式；表约束、owner RPC 与公开 read 都使用该检查，浏览器仍会以 `parsePublicHomeDocument()` 复核返回值。
+- 分享表开启 RLS 但不建立前端 policy，`anon`、`authenticated`、`PUBLIC` 均没有直接表权限。四个 RPC 均为 fixed `search_path` 的 `security definer`；三个 owner RPC 只 grant 给 `authenticated`，公开 read 只 grant 给 `anon` 与 `authenticated`，hash/schema helpers 无前端执行权限。
+- 新增 `PublicHomeShareRepository`，只通过上述 RPC 访问，publish/read 前后严格解析公开 document；repository 将数据库原始错误统一封装，避免调用方把 token、完整 payload 或错误详情传入可观测路径。
+- 新增 `npm run verify:public-share`，覆盖 256-bit Base64URL token 合约、迁移中表/复合 FK/RLS/最小 grants/RPC/hashing 关键片段以及 rollback A/B check 的存在；`019` SQL 检查覆盖实际数据库权限、函数定义、schema 有效性与可选 A/B 事务回归。
+
 ### RPC 合约
 
-- `upsert_public_home_share(p_home_space_id, p_token_hash, p_document_json)`：仅 `authenticated`；验证 `auth.uid()` 是该空间 owner 且 `access_mode = 'account-managed'`，验证 JSON schema/大小，原子创建或覆盖该空间唯一记录为新的 active 快照；返回不含 hash/token/payload 的 owner metadata。
-- `get_public_home_share_metadata(p_home_space_id)`：仅 `authenticated`；仅返回当前 owner 的发布状态、`published_at`、`updated_at` 和 `expires_at`，不返回 token、hash 或完整 payload。
-- `revoke_public_home_share(p_home_space_id)`：仅 `authenticated`；仅 owner 可撤销；幂等成功，不泄露其他空间存在性。
-- `read_public_home_share(p_token)`：可由 `anon` 和 `authenticated` 调用；在函数内部 hash token，且只返回有效、未过期的 `PublicHomeDocumentV1`。随机 token、撤销 token、过期 token、无效 token 与不存在记录均返回同一通用错误/空结果。
+- `upsert_public_home_share(p_home_space_id, p_token, p_document_json)`：仅 `authenticated`；浏览器传入一次性 raw token，RPC 负责 hash，返回不含 hash/token/payload 的 owner metadata。
+- `get_public_home_share_metadata(p_home_space_id)`：仅 `authenticated`；仅返回当前 owner 的发布状态、`published_at`、`updated_at`、`expires_at` 与 `revoked_at`。
+- `revoke_public_home_share(p_home_space_id)`：仅 `authenticated`；仅 owner 可撤销；没有分享记录时为空结果，重复撤销返回同一 revoked metadata。
+- `read_public_home_share(p_token)`：可由 `anon` 和 `authenticated` 调用；函数内部 hash token，只返回有效的公开 v1 payload。随机、撤销、过期、无效与不存在 token 的结果均为空。
 
 ### 权限要求
 
 - 对 table 启用 RLS，撤销 `anon`、`authenticated` 和 `public` 的直接表权限；不要建立允许直接 `select document_json` 的 policy。
 - 所有 security-definer RPC 固定 `search_path = public`、严格的参数长度与 JSON object 校验，并按最小角色 `grant execute`。
-- token hash 使用数据库可用的 SHA-256 或等价单向 hash；token 原文至少 256 bit 熵并采用 URL-safe encoding。hash 算法、编码和长度必须前后端固定为一个明确合约。
+- token hash 使用 `SHA-256("mylinker-public-share-v1:" || token)`；token 原文为 256 bit 随机值、32 字节无 padding Base64URL（恰好 43 字符）。hash 算法、编码和长度均已作为固定前后端合约实现。
 - verify script 必须以 anon、owner A、非 owner B 覆盖：直读拒绝、越权 owner 操作失败、有效 token 可读、撤销/过期/随机 token 同一失败结果。
 
 ## 1.17.4：分享管理与预览

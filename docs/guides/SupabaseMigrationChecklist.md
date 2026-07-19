@@ -97,9 +97,15 @@
     - 仅修改 locale check constraint，不新增表，不改变 RLS、grants、默认首页空间或同步数据模型。
     - 执行前会将非法历史值回填为 `zh-CN`，默认值继续保持 `zh-CN`。
 
+17. `supabase/migrations/017_public_home_shares.sql`
+    - 新增 `public_home_shares`，为账号托管首页空间保存独立、可撤销的 `PublicHomeDocumentV1` 快照；不复用同步空间、账号托管凭证、云端历史或审计表。
+    - 只保存 `SHA-256("mylinker-public-share-v1:" || token)` hash，不保存公开链接 token 原文；每个首页空间最多一条记录，撤销会替换旧 hash。
+    - 启用 RLS 并撤销所有前端角色的直接表权限；只提供三个 authenticated owner RPC 与一个 anon/authenticated 公开 read RPC。
+    - 在部署分享管理 UI 或 `/share/` 静态路由前，必须先执行本 migration 和 `019_public_home_shares_verify.sql`。
+
 ## 执行规则
 
-- 新 Supabase project：按 `001 -> 002 -> 003 -> 004 -> 005 -> 006 -> 007 -> 008 -> 009 -> 010 -> 011 -> 012 -> 013 -> 014 -> 015 -> 016` 顺序执行。
+- 新 Supabase project：按 `001 -> 002 -> 003 -> 004 -> 005 -> 006 -> 007 -> 008 -> 009 -> 010 -> 011 -> 012 -> 013 -> 014 -> 015 -> 016 -> 017` 顺序执行。
 - 已经执行过 `001`、`002`、`003`、`004`、`005` 的项目：先执行 `006`，再执行 `007`、`008`、`009`、`010`、`011`、`012`、`013`、`014`、`015` 和 `016`。
 - 已经执行过 `006`、`007` 但未执行 `008` 的项目：先执行 `008`，再执行 `009`、`010`、`011`、`012`、`013`、`014`、`015` 和 `016`。
 - 已经执行过 `006`、`007`、`008` 的项目：先执行 `009`，再执行 `010`、`011`、`012`、`013`、`014`、`015` 和 `016`。
@@ -185,6 +191,9 @@ where table_schema = 'public'
 - `014_product_analytics_events.sql` 不保存邮箱、用户 ID、URL、搜索词、首页内容、同步码、账号托管 secret 或云端历史 `document_json`；普通客户端只能调用 `record_product_event(...)`，不能直接查询埋点表。
 - `015_client_error_events.sql` 是 Phase 1.11.9 错误监控所需迁移。未执行时，前端错误监控会上报失败并静默降级，不影响首页、导入、同步或恢复主流程。
 - `015_client_error_events.sql` 不保存邮箱、用户 ID、URL、搜索词、首页内容、同步码、账号托管 secret 或云端历史 `document_json`；普通客户端只能调用 `record_client_error_event(...)`，不能直接查询错误监控表。
+- `017_public_home_shares.sql` 依赖既有 `001`（`pgcrypto`）与 `006`（`home_spaces(id, user_id)` 复合唯一约束）迁移；必须在已完成 `001`-`016` 的数据库中执行。它只允许 `account-managed` 首页空间发布，普通同步码空间不会获得公开读取旁路。
+- 执行 `017` 前不要先部署未来的分享管理 UI 或公开 `/share/` 路由；否则浏览器会调用不存在的 RPC。执行完成后先运行 `019_public_home_shares_verify.sql` 的只读段，再用两个测试账号执行其中 rollback A/B 段。
+- `017` 的安全回滚不删除表或用户快照：先 revoke `read_public_home_share` 对 `anon`/`authenticated` 的 execute，再 revoke 三个 owner RPC 的 execute。这样可立即关闭公开读取和管理入口，同时保留数据以便排查或受控恢复。
 - 新设备登录后看到账号空间列表，不代表已经拥有该空间的同步凭证；只有 `account-managed` 空间可以通过账号托管凭证直接恢复，普通 `sync-code` 空间仍需输入完整同步码。
 
 ## 辅助检查脚本
@@ -205,3 +214,4 @@ where table_schema = 'public'
 - `supabase/checks/016_product_analytics_events_verify.sql`：验证 Phase 1.11.8 基础埋点表、RLS、前端表权限、受控 RPC、敏感字段缺失和属性白名单/禁采字段约束。
 - `supabase/checks/017_client_error_events_verify.sql`：验证 Phase 1.11.9 错误监控表、RLS、前端表权限、受控 RPC、敏感字段缺失和属性白名单/禁采字段约束。
 - `supabase/checks/018_account_preferences_i18n_locale_verify.sql`：验证 Phase 1.15.0 多语言 locale 偏好约束、旧数据兼容、RLS、权限和 policy 边界。
+- `supabase/checks/019_public_home_shares_verify.sql`：验证 Phase 1.17.3 分享表、复合 owner FK、RLS、零 direct table grant、RPC grant 矩阵、fixed search path、公开 schema validator，以及可选的 rollback A/B token/撤销/越权回归。

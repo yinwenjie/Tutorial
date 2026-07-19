@@ -51,7 +51,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - Phase 1.15.6 已完成：新增 `verify:i18n` 校验、补齐同步/导入/设备/审计/错误等关键路径在 `fr-FR`、`es-ES`、`ja-JP`、`ko-KR`、`it-IT` 的覆盖，并完成桌面、平板、移动端多视口回归；回归中修复书签/URL 导入面板默认提示在语言偏好加载后仍停留简中的问题。
 - Phase 1.16 已完成并部署：Notes、Countdown、World Clock、模板组件组合、恢复预览摘要和观测隐私校验已落地；Cloudflare Pages 主站与 GitHub Pages legacy 已完成构建、发布和线上访问验证。
 
-Phase 1.17.0-1.17.2 已完成；只读 Renderer、公开快照白名单投影、严格 schema 校验、确定性序列化和观测隐私回归已落地。下一步进入 1.17.3 Supabase 分享快照与最小授权 RPC。
+Phase 1.17.0-1.17.3 已完成代码与 migration 准备；只读 Renderer、公开快照白名单投影、严格 schema 校验、确定性序列化、最小授权分享 RPC、token hash 合约和观测隐私回归已落地。`017_public_home_shares.sql` 尚待在 Supabase Dashboard 执行并通过 `019` 检查；完成后进入 1.17.4 分享管理与发布预览。
 
 ## Phase Plan
 
@@ -73,7 +73,7 @@ Phase 1.17.0-1.17.2 已完成；只读 Renderer、公开快照白名单投影、
 | Phase 1.14：主域名准备 | 已完成 | Cloudflare Pages 主站迁移、根路径构建、Supabase 回调、安全头、切流回归和回滚演练；1.14.5/1.14.6 暂缓，GitHub Pages legacy 保留完整应用 | 后续只做主域名运行观察和安全补强 |
 | Phase 1.15：多语言支持 v1 | 已完成 | 语言数据模型、账号/本地偏好、I18n Provider、静态 dictionary、日期时间/月历 locale formatter、首页、设置页、同步、导入和错误细节本地化；新增 i18n 校验、小语种关键路径覆盖和多视口人工回归 | 后续只做翻译修订和缺陷修复 |
 | Phase 1.16：低成本组件扩展 | 已完成并部署 | Notes、Countdown、World Clock、模板组合、恢复预览摘要、观测隐私校验和多视口回归已完成 | 后续仅做缺陷修复与组件候选评估 |
-| Phase 1.17：只读渲染与分享链接 v1 | 已规划，待实施 | 只读首页 renderer、公开快照分享、撤销机制、静态导出兼容公开入口 | 从 1.17.0 设计收口开始 |
+| Phase 1.17：只读渲染与分享链接 v1 | 实施中（1.17.0-1.17.3 已完成代码） | 只读首页 renderer、公开快照分享存储/RPC、撤销机制、静态导出兼容公开入口 | 先执行 017 migration/019 检查，再进入 1.17.4 UI |
 | Phase 1.18：受控服务端与后台 dashboard v1 | 候选 | Edge Function/受控后端、管理员身份、管理员审计、只读后台 | 仅在主域名稳定后评估，v1 必须只读 |
 
 ## Candidate Feature Evaluation
@@ -595,7 +595,7 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 
 ### Phase 1.17：只读渲染与分享链接 v1
 
-状态：已规划，待实施。
+状态：实施中；1.17.0-1.17.3 已完成代码与 migration 准备，待执行线上数据库迁移。
 
 目标：在不暴露同步码、账号托管凭证或可编辑首页原件的前提下，为账号托管首页提供可撤销的公开快照分享。该阶段同时沉淀可复用于模板展示、历史预览、未来后台预览和自定义域名的只读渲染底座。
 
@@ -660,7 +660,7 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 
 ### Phase 1.17.3：Supabase 分享快照与 RPC
 
-状态：待实施。
+状态：已完成代码与迁移脚本，待执行 Supabase Dashboard migration。
 
 目标：建立独立、最小授权的公开快照存储和读取路径。
 
@@ -671,6 +671,11 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 - anon 侧只提供按 token 读取有效公开快照的受限 RPC；表本身不向 `anon` 或 `authenticated` 直接开放读取。
 - token 使用浏览器密码学随机值，传入 RPC 后哈希比较；严格校验长度、有效状态、过期时间和 payload schema。
 - 撤销、过期、无效 token 和不存在记录返回同一公开失败语义，避免枚举分享状态；不在公开读取路径记录用户内容或 token。
+- 已新增 `017_public_home_shares.sql` 和 `019_public_home_shares_verify.sql`：分享表与同步空间、托管凭证、云端历史和审计物理隔离；`(home_space_id, user_id)` 复合 FK 绑定账号 owner，并以 `home_space_id`/`token_hash` 唯一约束限制为一个分享和一个 hash。
+- 分享 token 固定为 `crypto.getRandomValues()` 生成的 32 字节无 padding Base64URL（43 字符）；RPC 内固定使用 `SHA-256("mylinker-public-share-v1:" || token)`，数据库绝不保存 raw token。
+- 新增 `upsert_public_home_share`、`get_public_home_share_metadata`、`revoke_public_home_share` 和 `read_public_home_share`。三个 owner RPC 仅 `authenticated`，公开 read 仅 `anon`/`authenticated`；没有任何 frontend direct table grant 或 RLS policy。
+- 新增 v1 JSONB schema validator、固定 `security definer` search path、撤销时 hash 覆盖、过期状态过滤和 token/公开 payload 无日志语义；浏览器 `PublicHomeShareRepository` 只经 RPC 访问并统一包装原始错误。
+- 新增 `verify:public-share` 及 SQL rollback A/B 检查。未执行线上 migration 前，公开分享 UI/路由仍不可上线；本阶段不新增 UI 或公开页面。
 
 ### Phase 1.17.4：分享管理与发布预览
 
