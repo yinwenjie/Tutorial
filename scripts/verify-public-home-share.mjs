@@ -9,6 +9,7 @@ const shareModule = loadTypeScriptModule("src/domain/public-home-share.ts");
 
 verifyTokens(shareModule);
 verifyDatabaseContract();
+verifyClientPrivacyContract();
 
 if (failures.length > 0) {
   console.error("Public home share verification failed:\n");
@@ -29,6 +30,11 @@ function verifyTokens(share) {
     expectEqual(token.length, share.PUBLIC_HOME_SHARE_TOKEN_LENGTH, "tokens should use the v1 Base64URL length");
     expectTrue(share.isPublicHomeShareToken(token), "generated tokens should pass the strict v1 parser");
     expectTrue(/^[A-Za-z0-9_-]+$/.test(token), "generated tokens should be unpadded Base64URL");
+    expectEqual(
+      share.buildPublicHomeShareUrl(token),
+      `${share.PUBLIC_HOME_SHARE_CANONICAL_PREFIX}${token}`,
+      "public links should use the canonical fragment route"
+    );
   }
 
   expectEqual(tokens.size, 24, "test tokens should be independently generated");
@@ -36,6 +42,28 @@ function verifyTokens(share) {
   expectFalse(share.isPublicHomeShareToken("A".repeat(44)), "long tokens should fail");
   expectFalse(share.isPublicHomeShareToken(`${"A".repeat(42)}=`), "padding should fail");
   expectFalse(share.isPublicHomeShareToken("not-a-token"), "arbitrary values should fail");
+  expectEqual(
+    share.PUBLIC_HOME_SHARE_CANONICAL_PREFIX,
+    "https://mylinker.net/share/#",
+    "public links should always target the canonical production host"
+  );
+
+  const testToken = "A".repeat(share.PUBLIC_HOME_SHARE_TOKEN_LENGTH);
+  expectEqual(
+    share.buildPublicHomeShareUrl(testToken, "http://localhost:3000"),
+    `http://localhost:3000/share/#${testToken}`,
+    "localhost testing should keep the share route on the local service"
+  );
+  expectEqual(
+    share.buildPublicHomeShareUrl(testToken, "http://127.0.0.1:3000"),
+    `http://127.0.0.1:3000/share/#${testToken}`,
+    "IPv4 loopback testing should keep the share route on the local service"
+  );
+  expectEqual(
+    share.buildPublicHomeShareUrl(testToken, "https://preview.example.com"),
+    `${share.PUBLIC_HOME_SHARE_CANONICAL_PREFIX}${testToken}`,
+    "non-loopback deployments should keep the canonical production URL"
+  );
 }
 
 function verifyDatabaseContract() {
@@ -45,6 +73,14 @@ function verifyDatabaseContract() {
   );
   const check = fs.readFileSync(
     path.join(rootDir, "supabase/checks/019_public_home_shares_verify.sql"),
+    "utf8"
+  );
+  const hotfixMigration = fs.readFileSync(
+    path.join(rootDir, "supabase/migrations/018_public_home_share_upsert_conflict_fix.sql"),
+    "utf8"
+  );
+  const hotfixCheck = fs.readFileSync(
+    path.join(rootDir, "supabase/checks/020_public_home_share_upsert_conflict_fix_verify.sql"),
     "utf8"
   );
 
@@ -73,6 +109,72 @@ function verifyDatabaseContract() {
     "owner RPCs must not grant anon execution"
   );
   expectTrue(check.includes("Optional A/B functional verification"), "check script should contain the rollback A/B verification");
+  for (const [sourceName, source] of [
+    ["base migration", migration],
+    ["hotfix migration", hotfixMigration]
+  ]) {
+    const executableSql = source.replace(/^\s*--.*$/gm, "");
+    expectTrue(
+      executableSql.includes("on conflict on constraint public_home_shares_one_per_home_space"),
+      `${sourceName} should use the unambiguous named conflict constraint`
+    );
+    expectFalse(
+      /on conflict\s*\(\s*home_space_id\s*\)/i.test(executableSql),
+      `${sourceName} must not reintroduce the PL/pgSQL output-variable ambiguity`
+    );
+  }
+  expectTrue(
+    hotfixCheck.includes("conflict_target_is_unambiguous"),
+    "hotfix check should verify the live function definition"
+  );
+}
+
+function verifyClientPrivacyContract() {
+  const settingsPanel = fs.readFileSync(
+    path.join(rootDir, "src/components/public-home-share-panel.tsx"),
+    "utf8"
+  );
+  const sharePage = fs.readFileSync(
+    path.join(rootDir, "src/components/public-home-share-page.tsx"),
+    "utf8"
+  );
+  const route = fs.readFileSync(path.join(rootDir, "app/share/page.tsx"), "utf8");
+  const repository = fs.readFileSync(
+    path.join(rootDir, "src/infrastructure/public-home-share-repository.ts"),
+    "utf8"
+  );
+
+  for (const forbidden of ["localStorage", "sessionStorage", "trackProductEvent", "captureClientError", "recordLocalAuditEvent"]) {
+    expectFalse(
+      settingsPanel.includes(forbidden),
+      `share management should not use ${forbidden}`
+    );
+    expectFalse(
+      sharePage.includes(forbidden),
+      `public share page should not use ${forbidden}`
+    );
+  }
+
+  expectTrue(
+    sharePage.includes("window.location.hash.slice(1)"),
+    "public share page should read the token from the URL fragment"
+  );
+  expectFalse(
+    /useState[^\n]*(?:token|shareToken)/i.test(sharePage),
+    "public share page should not copy the fragment token into React state"
+  );
+  expectTrue(route.includes("noarchive: true"), "share route metadata should disable archiving");
+  expectTrue(route.includes("index: false"), "share route metadata should disable indexing");
+  expectTrue(route.includes("follow: false"), "share route metadata should disable link following");
+  expectTrue(
+    repository.includes('code === "42702"')
+      && repository.includes('"database-outdated"'),
+    "repository should classify the live PL/pgSQL ambiguity without exposing raw RPC errors"
+  );
+  expectFalse(
+    /super\([^)]*(?:error\.message|message)\)/.test(repository),
+    "repository errors must not retain raw database messages"
+  );
 }
 
 function loadTypeScriptModule(relativePath) {
@@ -85,6 +187,7 @@ function loadTypeScriptModule(relativePath) {
   }).outputText;
   const sandbox = {
     Uint8Array,
+    URL,
     crypto: globalThis.crypto,
     btoa: globalThis.btoa,
     module: { exports: {} },

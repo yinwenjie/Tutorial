@@ -24,11 +24,15 @@ export interface PublicHomeShareReadResult {
 }
 
 export type PublicHomeShareRepositoryErrorCode =
+  | "database-outdated"
   | "invalid-document"
   | "invalid-home-space"
   | "invalid-token"
   | "invalid-response"
-  | "request-failed";
+  | "network-failed"
+  | "request-failed"
+  | "session-expired"
+  | "space-unavailable";
 
 export class PublicHomeShareRepositoryError extends Error {
   constructor(
@@ -83,7 +87,7 @@ export class PublicHomeShareRepository {
     });
 
     if (error) {
-      throw new PublicHomeShareRepositoryError("request-failed", "publish");
+      throw mapRpcError(error, "publish");
     }
 
     const row = singleRow<PublicHomeShareMetadataRow>(data, "publish");
@@ -98,7 +102,7 @@ export class PublicHomeShareRepository {
     });
 
     if (error) {
-      throw new PublicHomeShareRepositoryError("request-failed", "get-metadata");
+      throw mapRpcError(error, "get-metadata");
     }
 
     const row = optionalSingleRow<PublicHomeShareMetadataRow>(data, "get-metadata");
@@ -113,7 +117,7 @@ export class PublicHomeShareRepository {
     });
 
     if (error) {
-      throw new PublicHomeShareRepositoryError("request-failed", "revoke");
+      throw mapRpcError(error, "revoke");
     }
 
     const row = optionalSingleRow<PublicHomeShareMetadataRow>(data, "revoke");
@@ -130,7 +134,7 @@ export class PublicHomeShareRepository {
     });
 
     if (error) {
-      throw new PublicHomeShareRepositoryError("request-failed", "read");
+      throw mapRpcError(error, "read");
     }
 
     const row = optionalSingleRow<PublicHomeShareReadRow>(data, "read");
@@ -152,6 +156,64 @@ export class PublicHomeShareRepository {
       payloadVersion: PUBLIC_HOME_DOCUMENT_VERSION
     };
   }
+}
+
+function mapRpcError(
+  error: unknown,
+  operation: PublicHomeShareRepositoryError["operation"]
+): PublicHomeShareRepositoryError {
+  const code = readErrorText(error, "code").toUpperCase();
+  const message = readErrorText(error, "message").toLowerCase();
+
+  if (code === "42702"
+    || code === "42883"
+    || code === "42P01"
+    || code === "PGRST202"
+    || message.includes("column reference \"home_space_id\" is ambiguous")
+    || message.includes("could not find the function public.upsert_public_home_share")) {
+    return new PublicHomeShareRepositoryError("database-outdated", operation);
+  }
+
+  if (code === "PGRST301"
+    || message.includes("jwt expired")
+    || message.includes("authentication required")) {
+    return new PublicHomeShareRepositoryError("session-expired", operation);
+  }
+
+  if (code === "28000"
+    && message.includes("public sharing unavailable for this home space")) {
+    return new PublicHomeShareRepositoryError("space-unavailable", operation);
+  }
+
+  if (code === "22023" && message.includes("document")) {
+    return new PublicHomeShareRepositoryError("invalid-document", operation);
+  }
+
+  if (code === "22023" && message.includes("token")) {
+    return new PublicHomeShareRepositoryError("invalid-token", operation);
+  }
+
+  if (code === "42501") {
+    return new PublicHomeShareRepositoryError("database-outdated", operation);
+  }
+
+  if (message.includes("failed to fetch")
+    || message.includes("networkerror")
+    || message.includes("network request failed")
+    || message.includes("load failed")) {
+    return new PublicHomeShareRepositoryError("network-failed", operation);
+  }
+
+  return new PublicHomeShareRepositoryError("request-failed", operation);
+}
+
+function readErrorText(error: unknown, key: "code" | "message"): string {
+  if (!isRecord(error)) {
+    return "";
+  }
+
+  const value = error[key];
+  return typeof value === "string" ? value : "";
 }
 
 function assertHomeSpaceId(

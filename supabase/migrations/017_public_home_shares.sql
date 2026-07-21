@@ -331,7 +331,10 @@ begin
     now(),
     null
   )
-  on conflict (home_space_id) do update
+  -- RETURNS TABLE declares a PL/pgSQL output variable named home_space_id.
+  -- Naming the constraint avoids a 42702 ambiguity between that variable and
+  -- the table column when PostgreSQL first executes this statement.
+  on conflict on constraint public_home_shares_one_per_home_space do update
   set
     user_id = excluded.user_id,
     token_hash = excluded.token_hash,

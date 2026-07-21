@@ -1,5 +1,6 @@
 export const PUBLIC_HOME_SHARE_TOKEN_BYTES = 32;
 export const PUBLIC_HOME_SHARE_TOKEN_LENGTH = 43;
+export const PUBLIC_HOME_SHARE_CANONICAL_PREFIX = "https://mylinker.net/share/#";
 
 const PUBLIC_HOME_SHARE_TOKEN_PATTERN = /^[A-Za-z0-9_-]+$/;
 
@@ -29,6 +30,36 @@ export function isPublicHomeShareToken(value: unknown): value is string {
   return typeof value === "string"
     && value.length === PUBLIC_HOME_SHARE_TOKEN_LENGTH
     && PUBLIC_HOME_SHARE_TOKEN_PATTERN.test(value);
+}
+
+export function buildPublicHomeShareUrl(token: string, runtimeOrigin?: string): string {
+  if (!isPublicHomeShareToken(token)) {
+    throw new TypeError("Invalid public home share token.");
+  }
+
+  const localPrefix = getLoopbackSharePrefix(runtimeOrigin);
+  return `${localPrefix ?? PUBLIC_HOME_SHARE_CANONICAL_PREFIX}${token}`;
+}
+
+function getLoopbackSharePrefix(runtimeOrigin: string | undefined): string | null {
+  if (!runtimeOrigin) {
+    return null;
+  }
+
+  try {
+    const origin = new URL(runtimeOrigin);
+    const loopbackHost = origin.hostname === "localhost"
+      || origin.hostname === "127.0.0.1"
+      || origin.hostname === "[::1]";
+
+    if (!loopbackHost || (origin.protocol !== "http:" && origin.protocol !== "https:")) {
+      return null;
+    }
+
+    return `${origin.origin}/share/#`;
+  } catch {
+    return null;
+  }
 }
 
 function toBase64Url(bytes: Uint8Array): string {

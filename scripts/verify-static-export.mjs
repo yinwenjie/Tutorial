@@ -31,6 +31,7 @@ console.log(`Static export verified for ${basePath || "/"} base path.`);
 
 function verifyStaticExport(directory) {
   const indexPath = path.join(directory, "index.html");
+  const shareIndexPath = path.join(directory, "share", "index.html");
   const nextDirectory = path.join(directory, "_next");
   const headersPath = path.join(directory, "_headers");
 
@@ -41,6 +42,8 @@ function verifyStaticExport(directory) {
   if (!existsSync(nextDirectory)) {
     fail("Missing out/_next directory.");
   }
+
+  verifyPublicShareEntry(shareIndexPath);
 
   verifyCloudflareHeaders(headersPath);
 
@@ -96,6 +99,24 @@ function verifyStaticExport(directory) {
 
   if (malformedReferences.length > 0) {
     fail(`Found malformed references with repeated slashes: ${malformedReferences.join(", ")}`);
+  }
+}
+
+function verifyPublicShareEntry(shareIndexPath) {
+  if (!existsSync(shareIndexPath)) {
+    fail("Missing out/share/index.html public-share entry.");
+    return;
+  }
+
+  const content = readFileSync(shareIndexPath, "utf8");
+  const robotsContent = content.match(/<meta[^>]+name=["']robots["'][^>]+content=["']([^"']+)["'][^>]*>/i)?.[1]
+    ?? content.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']robots["'][^>]*>/i)?.[1]
+    ?? "";
+
+  for (const directive of ["noindex", "nofollow", "noarchive"]) {
+    if (!robotsContent.includes(directive)) {
+      fail(`out/share/index.html robots metadata should contain ${directive}.`);
+    }
   }
 }
 

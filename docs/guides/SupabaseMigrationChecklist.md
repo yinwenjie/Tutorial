@@ -101,20 +101,19 @@
     - 新增 `public_home_shares`，为账号托管首页空间保存独立、可撤销的 `PublicHomeDocumentV1` 快照；不复用同步空间、账号托管凭证、云端历史或审计表。
     - 只保存 `SHA-256("mylinker-public-share-v1:" || token)` hash，不保存公开链接 token 原文；每个首页空间最多一条记录，撤销会替换旧 hash。
     - 启用 RLS 并撤销所有前端角色的直接表权限；只提供三个 authenticated owner RPC 与一个 anon/authenticated 公开 read RPC。
-    - 在部署分享管理 UI 或 `/share/` 静态路由前，必须先执行本 migration 和 `019_public_home_shares_verify.sql`。
+    - 分享管理 UI 与 `/share/` 静态路由代码已完成；执行后还必须继续执行 `018` 热修复，再运行 `020` 和 `019` 检查。
+
+18. `supabase/migrations/018_public_home_share_upsert_conflict_fix.sql`
+    - 修复 `upsert_public_home_share` 的 `ON CONFLICT (home_space_id)` 与 `RETURNS TABLE` 同名输出变量在首次发布时触发的 PostgreSQL `42702` 歧义。
+    - 改用命名唯一约束 `public_home_shares_one_per_home_space` 作为冲突目标；只替换函数并恢复 authenticated execute grant，不改表结构、不删除或重写已有分享数据。
+    - 执行后先运行 `supabase/checks/020_public_home_share_upsert_conflict_fix_verify.sql`，再运行 `019` Section 8 的 owner A/B rollback 检查。
 
 ## 执行规则
 
-- 新 Supabase project：按 `001 -> 002 -> 003 -> 004 -> 005 -> 006 -> 007 -> 008 -> 009 -> 010 -> 011 -> 012 -> 013 -> 014 -> 015 -> 016 -> 017` 顺序执行。
-- 已经执行过 `001`、`002`、`003`、`004`、`005` 的项目：先执行 `006`，再执行 `007`、`008`、`009`、`010`、`011`、`012`、`013`、`014`、`015` 和 `016`。
-- 已经执行过 `006`、`007` 但未执行 `008` 的项目：先执行 `008`，再执行 `009`、`010`、`011`、`012`、`013`、`014`、`015` 和 `016`。
-- 已经执行过 `006`、`007`、`008` 的项目：先执行 `009`，再执行 `010`、`011`、`012`、`013`、`014`、`015` 和 `016`。
-- 已经执行过 `009` 的项目：先补执行 `010`、`011`、`012`、`013`、`014`、`015` 和 `016`。
-- 已经执行过 `010` 的项目：先补执行 `011`，再执行 `012`、`013`、`014`、`015` 和 `016`。
-- 已经执行过 `012` 的项目：补执行 `013`、`014`、`015` 和 `016`。
-- 已经执行过 `013` 的项目：补执行 `014`、`015` 和 `016`。
-- 已经执行过 `014` 的项目：补执行 `015` 和 `016`。
-- 已经执行过 `015` 的项目：补执行 `016`。
+- 新 Supabase project：按 `001 -> 002 -> 003 -> 004 -> 005 -> 006 -> 007 -> 008 -> 009 -> 010 -> 011 -> 012 -> 013 -> 014 -> 015 -> 016 -> 017 -> 018` 顺序执行。
+- 已执行到任意早期版本的项目：从下一编号依次补执行至 `018`，不要跳过 `018`。
+- 已经执行过 `016` 的项目：依次执行 `017`、`018`，随后运行 `020_public_home_share_upsert_conflict_fix_verify.sql` 和 `019_public_home_shares_verify.sql`。
+- 已经执行过 `017` 且公开快照发布报错的项目：只需补执行 `018`；不需要重跑 `017`、删除分享表或清理已有快照。随后运行 `020`，再运行 `019` Section 8。
 - 已经手动创建 `home-assets` bucket 的项目：仍需执行 `012`，因为上传所需的 RLS policy 不会由 Dashboard 创建 bucket 自动生成。
 - 执行前确认目标 project 是线上使用的 Supabase project。
 - 执行 `003` 后可以在 SQL Editor 中检查 revision 函数是否存在：
@@ -191,8 +190,8 @@ where table_schema = 'public'
 - `014_product_analytics_events.sql` 不保存邮箱、用户 ID、URL、搜索词、首页内容、同步码、账号托管 secret 或云端历史 `document_json`；普通客户端只能调用 `record_product_event(...)`，不能直接查询埋点表。
 - `015_client_error_events.sql` 是 Phase 1.11.9 错误监控所需迁移。未执行时，前端错误监控会上报失败并静默降级，不影响首页、导入、同步或恢复主流程。
 - `015_client_error_events.sql` 不保存邮箱、用户 ID、URL、搜索词、首页内容、同步码、账号托管 secret 或云端历史 `document_json`；普通客户端只能调用 `record_client_error_event(...)`，不能直接查询错误监控表。
-- `017_public_home_shares.sql` 依赖既有 `001`（`pgcrypto`）与 `006`（`home_spaces(id, user_id)` 复合唯一约束）迁移；必须在已完成 `001`-`016` 的数据库中执行。它只允许 `account-managed` 首页空间发布，普通同步码空间不会获得公开读取旁路。
-- 执行 `017` 前不要先部署未来的分享管理 UI 或公开 `/share/` 路由；否则浏览器会调用不存在的 RPC。执行完成后先运行 `019_public_home_shares_verify.sql` 的只读段，再用两个测试账号执行其中 rollback A/B 段。
+- `017_public_home_shares.sql` 依赖既有 `001`（`pgcrypto`）与 `006`（`home_spaces(id, user_id)` 复合唯一约束）迁移；必须在已完成 `001`-`016` 的数据库中执行。它只允许 `account-managed` 首页空间发布，普通同步码空间不会获得公开读取旁路。`018` 必须紧随其后，用命名约束消除发布函数的 PL/pgSQL 输出变量歧义。
+- 分享管理 UI 与公开 `/share/` 路由代码已经完成，但生产启用仍需先执行 `017`。执行完成后先运行 `019_public_home_shares_verify.sql` 的只读段，再用两个测试账号执行其中 rollback A/B 段。完整流程见 `PublicHomeShareDatabaseRunbook.md`。
 - `017` 的安全回滚不删除表或用户快照：先 revoke `read_public_home_share` 对 `anon`/`authenticated` 的 execute，再 revoke 三个 owner RPC 的 execute。这样可立即关闭公开读取和管理入口，同时保留数据以便排查或受控恢复。
 - 新设备登录后看到账号空间列表，不代表已经拥有该空间的同步凭证；只有 `account-managed` 空间可以通过账号托管凭证直接恢复，普通 `sync-code` 空间仍需输入完整同步码。
 

@@ -16,6 +16,7 @@ import { HomeSpacesPanel } from "@/components/home-spaces-panel";
 import { HomeThemeStyleBridge } from "@/components/home-theme-style-bridge";
 import { LocalAuditLogPanel } from "@/components/local-audit-log-panel";
 import { ProductAnalyticsSettingsPanel } from "@/components/product-analytics-settings-panel";
+import { PublicHomeSharePanel } from "@/components/public-home-share-panel";
 import { SettingsSection } from "@/components/settings-section";
 import { StatusMessage, type StatusTone } from "@/components/status-message";
 import { SyncPanel } from "@/components/sync-panel";
@@ -497,6 +498,14 @@ export function SettingsDashboard() {
           onToggle={() => toggleSection("home-spaces")}
         >
           {homeSpacesPanel}
+          <PublicHomeSharePanel
+            key={`${auth.loading || accountData.loading}:${signedIn}:${storageReady}:${currentAccountHomeSpace?.id ?? "none"}`}
+            accountLoading={auth.loading || accountData.loading}
+            currentHomeSpace={currentAccountHomeSpace}
+            documentValue={homeDocument}
+            signedIn={signedIn}
+            storageReady={storageReady}
+          />
         </SettingsSection>
 
         <SettingsSection

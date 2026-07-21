@@ -28,6 +28,7 @@
 - `implementation/phase-1/Phase1_14_Implement.md`：Phase 1.14，主域名准备；记录 Cloudflare Pages 主站迁移、GitHub Pages legacy 角色、根路径构建、Supabase 回调、安全基线和回滚演练。
 - `implementation/phase-1/Phase1_15_Implement.md`：Phase 1.15，多语言支持 v1；记录语言数据模型、系统语言解析、Supabase locale 约束和后续 i18n 分层落地计划。
 - `implementation/phase-1/Phase1_16_Implement.md`：Phase 1.16，低成本组件扩展；记录 Notes、Countdown、World Clock 的纯前端组件边界、数据模型、隐私约束和实施顺序。
+- `implementation/phase-1/Phase1_17_Implement.md`：Phase 1.17，只读渲染与公开快照分享；记录公开投影、token/hash 合约、分享管理、`/share/` 静态入口、权限边界和上线回归。
 
 ## Tech Stack
 
@@ -40,7 +41,7 @@
 - Cloud sync：Supabase JavaScript SDK 调用 Postgres RPC。
 - Asset storage：Supabase Storage private bucket `home-assets` 保存登录用户的 Banner/背景图片。
 - Client-side encryption：普通同步码空间由浏览器 Web Crypto 对首页文档加密后上传；账号托管空间采用账号可信托管模型，可保存有效用户首页的明文云端历史用于恢复和审计。
-- Database：Supabase Postgres，核心表包括 `sync_spaces`、`profiles`、`account_preferences`、`home_spaces`、`home_space_snapshots`、`home_space_audit_events`、`product_analytics_events` 和 `client_error_events`，配合 RLS、权限收敛和 `security definer` RPC。
+- Database：Supabase Postgres，核心表包括 `sync_spaces`、`profiles`、`account_preferences`、`home_spaces`、`home_space_snapshots`、`home_space_audit_events`、`product_analytics_events`、`client_error_events` 和独立公开快照表 `public_home_shares`，配合 RLS、权限收敛和 `security definer` RPC。
 - Deployment：Next.js static export 输出到 `out/`；当前通过 GitHub Actions 部署到 GitHub Pages，Phase 1.14 迁移到 Cloudflare Pages 主站，GitHub Pages 转为 legacy 入口。
 - CI checks：`npm run lint`、`npm run typecheck`、`npm run build`、`npm run verify:export`。
 
@@ -58,6 +59,7 @@
 - `guides/ProductAnalyticsUsageGuide.md`：Phase 1.11.8 基础埋点数据使用指南，说明可分析问题、禁采边界、常用 SQL、解读规则和保留策略。
 - `guides/ErrorMonitoringUsageGuide.md`：Phase 1.11.9 错误监控数据使用指南，说明脱敏错误数据边界、常用 SQL、解读规则和上线检查。
 - `guides/WidgetExperienceDesignGuide.md`：Phase 1.12.0 组件体验审计与设计规范，说明 Widget Shell、Todo、月历、配置入口、空状态、错误态、移动端和数据边界。
+- `guides/PublicHomeShareDatabaseRunbook.md`：Phase 1.17 公开快照分享数据库上线手册，说明 `017` 基础 migration、`018` 发布 RPC 热修复、`020`/`019` 权限与 A-B 检查、前端 smoke test 和无损安全回滚。
 
 ## Backlog
 

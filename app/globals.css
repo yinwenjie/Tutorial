@@ -962,6 +962,18 @@ h1 {
   opacity: 0.62;
 }
 
+.public-share-page-shell {
+  min-height: 100vh;
+}
+
+.public-share-page-help {
+  width: min(100% - 28px, 720px);
+  margin: -24px auto 40px;
+  color: var(--quiet);
+  font-size: 12px;
+  text-align: center;
+}
+
 .site-link {
   display: grid;
   grid-template-columns: 32px minmax(0, 1fr);
@@ -3279,6 +3291,7 @@ h1 {
 
 .account-panel,
 .home-spaces-panel-content,
+.public-share-panel-content,
 .theme-preset-panel-content,
 .theme-image-panel-content,
 .account-preferences-panel-content,
@@ -3286,6 +3299,184 @@ h1 {
   display: grid;
   gap: var(--stack-gap);
   min-width: 0;
+}
+
+.public-share-panel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: var(--panel-padding);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.public-share-panel-head,
+.public-share-preview > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+
+.public-share-panel-head > div,
+.public-share-preview > header > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.public-share-panel-head span,
+.public-share-preview > header p,
+.public-share-link-block > p,
+.public-share-manual-copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.public-share-panel-head h3,
+.public-share-preview h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.public-share-status-badge,
+.public-share-preview > header > span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--glass-bg-soft);
+  color: var(--success);
+  font-size: 12px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.public-share-metadata {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.public-share-metadata > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--glass-bg-soft);
+}
+
+.public-share-metadata dt,
+.public-share-metadata dd {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.public-share-metadata dt {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.public-share-metadata dd {
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.public-share-preview,
+.public-share-disclosure,
+.public-share-link-block {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--glass-bg-soft);
+}
+
+.public-share-link-block[hidden] {
+  display: none;
+}
+
+.public-share-preview-frame {
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--background);
+}
+
+.public-share-preview-frame .page {
+  width: min(100% - 28px, 980px);
+  min-height: 0;
+  padding: 24px 0;
+}
+
+.public-share-preview-frame h1 {
+  font-size: clamp(30px, 7vw, 46px);
+}
+
+.public-share-preview-frame .read-only-masthead {
+  margin-bottom: 20px;
+}
+
+.public-share-preview-frame .read-only-section {
+  grid-template-columns: minmax(100px, 140px) minmax(0, 1fr);
+}
+
+.public-share-disclosure strong,
+.public-share-link-block label {
+  font-size: 13px;
+  font-weight: 680;
+}
+
+.public-share-disclosure p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.public-share-link-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.public-share-link-row input {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-height);
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+}
+
+.public-share-manual-copy {
+  color: var(--warning);
+}
+
+.public-share-primary-button {
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--line));
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .auth-form {
@@ -5042,7 +5233,13 @@ h1 {
   .theme-image-main-controls,
   .template-choice-grid,
   .home-space-inline-form,
-  .home-space-activate-form {
+  .home-space-activate-form,
+  .public-share-metadata,
+  .public-share-link-row {
+    grid-template-columns: 1fr;
+  }
+
+  .public-share-preview-frame .read-only-section {
     grid-template-columns: 1fr;
   }
 

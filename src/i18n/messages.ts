@@ -417,6 +417,59 @@ export const DEFAULT_MESSAGES = {
   "settings.homeSpaces.access.accountManaged": "账号托管",
   "settings.homeSpaces.access.passwordProtected": "密码保护",
   "settings.homeSpaces.access.syncCode": "同步码",
+  "settings.publicShare.kicker": "Public snapshot",
+  "settings.publicShare.title": "公开快照分享",
+  "settings.publicShare.activeBadge": "已发布",
+  "settings.publicShare.reasonAccountLoading": "正在确认账号和首页空间状态，稍后可管理分享。",
+  "settings.publicShare.reasonSignedOut": "登录后才能为当前账号托管空间发布公开快照。",
+  "settings.publicShare.reasonStorageLoading": "当前本地首页仍在读取，暂不能生成公开预览。",
+  "settings.publicShare.reasonNoActiveSpace": "当前浏览器没有已激活的账号首页空间。请先创建、恢复或激活空间。",
+  "settings.publicShare.reasonAccountManagedOnly": "仅账号托管空间可公开分享；普通同步码空间继续保持密文边界。",
+  "settings.publicShare.metadataFailed": "分享状态读取失败。请确认数据库 migration 已执行后重试。",
+  "settings.publicShare.loading": "正在读取公开分享状态。",
+  "settings.publicShare.activeStatus": "当前空间已有有效公开快照。只有再次发布才会更新公开内容。",
+  "settings.publicShare.revokedStatus": "上一条分享已撤销，旧链接不会恢复。",
+  "settings.publicShare.notPublished": "当前空间尚未发布公开快照。",
+  "settings.publicShare.publishedAt": "首次发布",
+  "settings.publicShare.updatedAt": "快照更新",
+  "settings.publicShare.previewTitle": "实际公开预览",
+  "settings.publicShare.previewMetrics": "{groups} 个分组 · {sites} 个网站",
+  "settings.publicShare.previewBadge": "只读",
+  "settings.publicShare.previewUnavailable": "公开预览不可用。",
+  "settings.publicShare.previewEmpty": "没有可公开的网站。",
+  "settings.publicShare.includedTitle": "公开范围",
+  "settings.publicShare.includedFields": "包含：首页标题、主题风格、分组和网站的名称、URL、标记与排序。",
+  "settings.publicShare.excludedFields": "不包含：组件及配置、Banner、背景图片、账号、同步、审计和恢复信息。",
+  "settings.publicShare.snapshotNotice": "这是显式发布的静态快照；后续编辑首页不会自动更新公开内容。",
+  "settings.publicShare.currentSessionLink": "本次会话生成的公开链接",
+  "settings.publicShare.copy": "复制链接",
+  "settings.publicShare.manualCopy": "自动复制失败，请在上方输入框中手动选择并复制完整链接。",
+  "settings.publicShare.sessionOnlyNotice": "链接只在本次页面会话中显示；刷新后不能恢复旧链接。",
+  "settings.publicShare.linkUnavailableAfterRefresh": "数据库只保存不可逆 token hash，旧链接无法在刷新后恢复。如需再次复制，请重新发布并生成新链接，旧链接将立即失效。",
+  "settings.publicShare.publish": "发布并生成链接",
+  "settings.publicShare.publishConfirm": "将按当前预览发布静态快照并生成新链接。如果已有有效链接，它会立即失效。继续？",
+  "settings.publicShare.publishing": "发布中",
+  "settings.publicShare.updateSnapshot": "更新快照并生成新链接",
+  "settings.publicShare.republish": "重新发布并生成新链接",
+  "settings.publicShare.revoke": "撤销分享",
+  "settings.publicShare.revoking": "撤销中",
+  "settings.publicShare.published": "公开快照已发布，新链接仅在本次会话显示。",
+  "settings.publicShare.copied": "公开链接已复制。",
+  "settings.publicShare.copyFailed": "自动复制失败，请手动复制链接。",
+  "settings.publicShare.revokeConfirm": "撤销后当前公开链接会立即失效，且旧 token 永不恢复。继续？",
+  "settings.publicShare.revoked": "公开分享已撤销，旧链接已失效。",
+  "settings.publicShare.publishFailed": "公开快照发布失败，请稍后重试。",
+  "settings.publicShare.publishDatabaseOutdated": "数据库发布函数尚未修复。请执行 018_public_home_share_upsert_conflict_fix.sql 后重试。",
+  "settings.publicShare.publishSessionExpired": "登录会话已失效，请重新登录后发布。",
+  "settings.publicShare.publishSpaceUnavailable": "当前账号无权公开此空间，或该空间已不再是账号托管模式。请刷新后确认当前空间。",
+  "settings.publicShare.publishNetworkFailed": "无法连接公开快照服务，请检查网络后重试。",
+  "settings.publicShare.revokeFailed": "撤销分享失败，请稍后重试。",
+  "settings.publicShare.projectionEmpty": "当前首页没有可公开的网站，暂不能发布。",
+  "settings.publicShare.projectionLimit": "公开内容超过数量或大小限制，请精简后再发布。",
+  "settings.publicShare.projectionInvalid": "当前首页包含无法安全公开的字段或 URL，请修正后再发布。",
+  "settings.publicShare.pageLoading": "正在读取公开快照。",
+  "settings.publicShare.pageUnavailable": "此分享不可用。",
+  "settings.publicShare.pageUnavailableHelp": "链接可能无效、已撤销或已过期，也可能暂时无法连接服务。",
   "settings.document.class.systemDefault": "系统默认",
   "settings.document.class.blank": "空白首页",
   "settings.document.class.templateUnedited": "未编辑模板",
@@ -1654,6 +1707,59 @@ const PHASE_1_15_4_EN_US_MESSAGES: Partial<MessageDictionary> = {
   "settings.analytics.allowEvents": "Allow anonymous basic analytics",
   "settings.analytics.allowErrors": "Allow anonymous error diagnostics",
   "settings.analytics.description": "Only allowlisted feature events, redacted error types, and approximate counts are recorded. Site URLs, search terms, home content, sync codes, account-managed credentials, and full error objects are not uploaded."
+  ,"settings.publicShare.kicker": "Public snapshot"
+  ,"settings.publicShare.title": "Public snapshot sharing"
+  ,"settings.publicShare.activeBadge": "Published"
+  ,"settings.publicShare.reasonAccountLoading": "Account and home-space status is being checked. Sharing will be available shortly."
+  ,"settings.publicShare.reasonSignedOut": "Sign in to publish a public snapshot for the current account-managed space."
+  ,"settings.publicShare.reasonStorageLoading": "The local home is still loading, so a public preview cannot be generated yet."
+  ,"settings.publicShare.reasonNoActiveSpace": "This browser has no active account home space. Create, restore, or activate one first."
+  ,"settings.publicShare.reasonAccountManagedOnly": "Only account-managed spaces can be shared publicly. Normal sync-code spaces keep their encrypted boundary."
+  ,"settings.publicShare.metadataFailed": "The share status could not be loaded. Confirm the database migration has been applied and try again."
+  ,"settings.publicShare.loading": "Reading public share status."
+  ,"settings.publicShare.activeStatus": "This space has an active public snapshot. Public content changes only when you publish again."
+  ,"settings.publicShare.revokedStatus": "The previous share was revoked and its old link cannot be restored."
+  ,"settings.publicShare.notPublished": "This space has not published a public snapshot."
+  ,"settings.publicShare.publishedAt": "First published"
+  ,"settings.publicShare.updatedAt": "Snapshot updated"
+  ,"settings.publicShare.previewTitle": "Actual public preview"
+  ,"settings.publicShare.previewMetrics": "{groups} groups · {sites} sites"
+  ,"settings.publicShare.previewBadge": "Read only"
+  ,"settings.publicShare.previewUnavailable": "The public preview is unavailable."
+  ,"settings.publicShare.previewEmpty": "There are no sites that can be shared."
+  ,"settings.publicShare.includedTitle": "Public scope"
+  ,"settings.publicShare.includedFields": "Includes the home title, theme style, groups, and site names, URLs, marks, and ordering."
+  ,"settings.publicShare.excludedFields": "Excludes widgets and config, banner, background, account, sync, audit, and recovery data."
+  ,"settings.publicShare.snapshotNotice": "This is an explicitly published static snapshot. Later home edits do not update it automatically."
+  ,"settings.publicShare.currentSessionLink": "Public link generated in this session"
+  ,"settings.publicShare.copy": "Copy link"
+  ,"settings.publicShare.manualCopy": "Automatic copy failed. Select and copy the full link from the field above."
+  ,"settings.publicShare.sessionOnlyNotice": "The link is shown only in this page session and cannot be recovered after refresh."
+  ,"settings.publicShare.linkUnavailableAfterRefresh": "The database stores only an irreversible token hash, so the old link cannot be recovered after refresh. Republish to generate a new link; the old link will stop working immediately."
+  ,"settings.publicShare.publish": "Publish and generate link"
+  ,"settings.publicShare.publishConfirm": "Publish the current preview as a static snapshot and generate a new link? Any existing active link will stop working immediately."
+  ,"settings.publicShare.publishing": "Publishing"
+  ,"settings.publicShare.updateSnapshot": "Update snapshot and create new link"
+  ,"settings.publicShare.republish": "Republish and generate new link"
+  ,"settings.publicShare.revoke": "Revoke share"
+  ,"settings.publicShare.revoking": "Revoking"
+  ,"settings.publicShare.published": "The public snapshot was published. The new link is visible only in this session."
+  ,"settings.publicShare.copied": "Public link copied."
+  ,"settings.publicShare.copyFailed": "Automatic copy failed. Copy the link manually."
+  ,"settings.publicShare.revokeConfirm": "Revoking makes the current public link unavailable immediately, and its old token can never be restored. Continue?"
+  ,"settings.publicShare.revoked": "The public share was revoked and the old link is unavailable."
+  ,"settings.publicShare.publishFailed": "The public snapshot could not be published. Try again later."
+  ,"settings.publicShare.publishDatabaseOutdated": "The database publish function still needs its fix. Run 018_public_home_share_upsert_conflict_fix.sql and try again."
+  ,"settings.publicShare.publishSessionExpired": "Your sign-in session expired. Sign in again before publishing."
+  ,"settings.publicShare.publishSpaceUnavailable": "This account cannot publish the current space, or the space is no longer account-managed. Refresh and confirm the active space."
+  ,"settings.publicShare.publishNetworkFailed": "The public snapshot service could not be reached. Check your network and try again."
+  ,"settings.publicShare.revokeFailed": "The share could not be revoked. Try again later."
+  ,"settings.publicShare.projectionEmpty": "This home has no public sites and cannot be published yet."
+  ,"settings.publicShare.projectionLimit": "The public content exceeds a count or size limit. Reduce it before publishing."
+  ,"settings.publicShare.projectionInvalid": "This home contains a field or URL that cannot be shared safely. Fix it before publishing."
+  ,"settings.publicShare.pageLoading": "Loading the public snapshot."
+  ,"settings.publicShare.pageUnavailable": "This share is unavailable."
+  ,"settings.publicShare.pageUnavailableHelp": "The link may be invalid, revoked, or expired, or the service may be temporarily unreachable."
 };
 
 const PHASE_1_15_4_ZH_TW_MESSAGES = createSettingsMessageOverrides(toTraditionalChinese);
@@ -2011,7 +2117,60 @@ const PHASE_1_15_4_LOCALE_ROWS = [
   ["settings.homeSpaces.removeDefaultNote", "Il s'agit de l'espace par défaut. Le retirer du compte effacera le réglage par défaut.", "Actualmente es el espacio predeterminado. Quitararlo de la cuenta borrará la configuración predeterminada.", "これは現在の既定スペースです。アカウントから削除すると既定スペース設定がクリアされます。", "현재 기본 공간입니다. 계정에서 제거하면 기본 공간 설정이 지워집니다.", "È lo spazio predefinito attuale. Rimuoverlo dall'account cancellerà l'impostazione predefinita."],
   ["settings.homeSpaces.access.accountManaged", "Géré par le compte", "Gestionado por cuenta", "アカウント管理", "계정 관리", "Gestito dall'account"],
   ["settings.homeSpaces.access.passwordProtected", "Protégé par mot de passe", "Protegido con contraseña", "パスワード保護", "비밀번호 보호", "Protetto da password"],
-  ["settings.homeSpaces.access.syncCode", "Code de synchro", "Código de sincronización", "同期コード", "동기화 코드", "Codice sync"]
+  ["settings.homeSpaces.access.syncCode", "Code de synchro", "Código de sincronización", "同期コード", "동기화 코드", "Codice sync"],
+  ["settings.publicShare.kicker", "Instantané public", "Instantánea pública", "公開スナップショット", "공개 스냅샷", "Snapshot pubblico"],
+  ["settings.publicShare.title", "Partage d'instantané public", "Compartir instantánea pública", "公開スナップショット共有", "공개 스냅샷 공유", "Condivisione snapshot pubblico"],
+  ["settings.publicShare.activeBadge", "Publié", "Publicado", "公開済み", "게시됨", "Pubblicato"],
+  ["settings.publicShare.reasonAccountLoading", "Vérification du compte et de l'espace en cours. Le partage sera bientôt disponible.", "Comprobando la cuenta y el espacio. Compartir estará disponible en breve.", "アカウントとホームスペースを確認中です。まもなく共有を管理できます。", "계정과 홈 공간 상태를 확인 중입니다. 잠시 후 공유할 수 있습니다.", "Verifica di account e spazio home in corso. La condivisione sarà presto disponibile."],
+  ["settings.publicShare.reasonSignedOut", "Connectez-vous pour publier un instantané de l'espace géré actuel.", "Inicia sesión para publicar una instantánea del espacio gestionado actual.", "現在のアカウント管理スペースを公開するにはサインインしてください。", "현재 계정 관리 공간을 공개하려면 로그인하세요.", "Accedi per pubblicare uno snapshot dello spazio gestito attuale."],
+  ["settings.publicShare.reasonStorageLoading", "L'accueil local est encore en cours de lecture ; aucun aperçu public ne peut être créé.", "El inicio local aún se está cargando; no se puede generar la vista previa pública.", "ローカルホームを読み込み中のため、公開プレビューを生成できません。", "로컬 홈을 읽는 중이라 공개 미리보기를 만들 수 없습니다.", "La home locale è ancora in caricamento; non è possibile generare l'anteprima pubblica."],
+  ["settings.publicShare.reasonNoActiveSpace", "Aucun espace de compte actif dans ce navigateur. Créez, restaurez ou activez-en un.", "Este navegador no tiene un espacio de cuenta activo. Crea, restaura o activa uno.", "このブラウザには有効なアカウントホームスペースがありません。作成、復元、または有効化してください。", "이 브라우저에 활성 계정 홈 공간이 없습니다. 먼저 만들거나 복원 또는 활성화하세요.", "Questo browser non ha uno spazio account attivo. Creane, ripristinane o attivane uno."],
+  ["settings.publicShare.reasonAccountManagedOnly", "Seuls les espaces gérés par compte peuvent être publics. Les espaces à code conservent leur limite chiffrée.", "Solo los espacios gestionados por cuenta pueden compartirse. Los espacios con código conservan el límite cifrado.", "公開共有できるのはアカウント管理スペースのみです。通常の同期コードスペースは暗号化境界を維持します。", "계정 관리 공간만 공개 공유할 수 있습니다. 일반 동기화 코드 공간은 암호화 경계를 유지합니다.", "Solo gli spazi gestiti dall'account possono essere pubblici. Gli spazi con codice mantengono il confine cifrato."],
+  ["settings.publicShare.metadataFailed", "Impossible de lire l'état du partage. Vérifiez la migration de base de données puis réessayez.", "No se pudo leer el estado. Confirma la migración de base de datos y reintenta.", "共有状態を読み込めませんでした。データベース migration を確認して再試行してください。", "공유 상태를 읽지 못했습니다. 데이터베이스 migration 적용 후 다시 시도하세요.", "Impossibile leggere lo stato. Verifica la migration del database e riprova."],
+  ["settings.publicShare.loading", "Lecture de l'état du partage public.", "Leyendo el estado de la publicación.", "公開共有状態を読み込み中です。", "공개 공유 상태를 읽는 중입니다.", "Lettura dello stato di condivisione pubblica."],
+  ["settings.publicShare.activeStatus", "Cet espace a un instantané public actif. Le contenu ne change qu'après une nouvelle publication.", "Este espacio tiene una instantánea activa. El contenido solo cambia al volver a publicar.", "このスペースには有効な公開スナップショットがあります。再公開するまで内容は変わりません。", "이 공간에는 활성 공개 스냅샷이 있습니다. 다시 게시할 때만 내용이 바뀝니다.", "Questo spazio ha uno snapshot pubblico attivo. Il contenuto cambia solo con una nuova pubblicazione."],
+  ["settings.publicShare.revokedStatus", "Le partage précédent a été révoqué et son ancien lien ne peut pas être restauré.", "La publicación anterior fue revocada y el enlace antiguo no puede recuperarse.", "以前の共有は取り消され、旧リンクは復元できません。", "이전 공유는 취소되었으며 기존 링크를 복구할 수 없습니다.", "La condivisione precedente è stata revocata e il vecchio link non è recuperabile."],
+  ["settings.publicShare.notPublished", "Cet espace n'a pas encore d'instantané public.", "Este espacio aún no tiene una instantánea pública.", "このスペースはまだ公開されていません。", "이 공간은 아직 공개되지 않았습니다.", "Questo spazio non ha ancora uno snapshot pubblico."],
+  ["settings.publicShare.publishedAt", "Première publication", "Primera publicación", "初回公開", "최초 게시", "Prima pubblicazione"],
+  ["settings.publicShare.updatedAt", "Instantané mis à jour", "Instantánea actualizada", "スナップショット更新", "스냅샷 업데이트", "Snapshot aggiornato"],
+  ["settings.publicShare.previewTitle", "Aperçu public réel", "Vista previa pública real", "実際の公開プレビュー", "실제 공개 미리보기", "Anteprima pubblica effettiva"],
+  ["settings.publicShare.previewMetrics", "{groups} groupes · {sites} sites", "{groups} grupos · {sites} sitios", "{groups} グループ · {sites} サイト", "{groups}개 그룹 · {sites}개 사이트", "{groups} gruppi · {sites} siti"],
+  ["settings.publicShare.previewBadge", "Lecture seule", "Solo lectura", "読み取り専用", "읽기 전용", "Sola lettura"],
+  ["settings.publicShare.previewUnavailable", "L'aperçu public est indisponible.", "La vista previa pública no está disponible.", "公開プレビューを利用できません。", "공개 미리보기를 사용할 수 없습니다.", "L'anteprima pubblica non è disponibile."],
+  ["settings.publicShare.previewEmpty", "Aucun site ne peut être partagé.", "No hay sitios que puedan compartirse.", "公開できるサイトがありません。", "공개할 수 있는 사이트가 없습니다.", "Nessun sito può essere condiviso."],
+  ["settings.publicShare.includedTitle", "Périmètre public", "Contenido público", "公開範囲", "공개 범위", "Ambito pubblico"],
+  ["settings.publicShare.includedFields", "Inclut le titre, le thème, les groupes et les noms, URL, marques et ordre des sites.", "Incluye título, tema, grupos y nombres, URL, marcas y orden de sitios.", "ホームタイトル、テーマ、グループ、サイト名、URL、マーク、並び順を含みます。", "홈 제목, 테마, 그룹, 사이트 이름, URL, 표시와 순서를 포함합니다.", "Include titolo, tema, gruppi, nomi, URL, segni e ordine dei siti."],
+  ["settings.publicShare.excludedFields", "Exclut widgets et config, bannière, arrière-plan, compte, synchro, audit et récupération.", "Excluye widgets y config, banner, fondo, cuenta, sincronización, auditoría y recuperación.", "ウィジェットと設定、バナー、背景、アカウント、同期、監査、復元情報は含みません。", "위젯과 설정, 배너, 배경, 계정, 동기화, 감사와 복구 정보는 제외됩니다.", "Esclude widget e config, banner, sfondo, account, sync, audit e recupero."],
+  ["settings.publicShare.snapshotNotice", "Il s'agit d'un instantané statique publié explicitement. Les modifications ultérieures ne le mettent pas à jour.", "Es una instantánea estática publicada explícitamente. Los cambios posteriores no la actualizan.", "明示的に公開した静的スナップショットです。以後の編集では自動更新されません。", "명시적으로 게시한 정적 스냅샷입니다. 이후 편집으로 자동 업데이트되지 않습니다.", "È uno snapshot statico pubblicato esplicitamente. Le modifiche successive non lo aggiornano."],
+  ["settings.publicShare.currentSessionLink", "Lien public généré dans cette session", "Enlace generado en esta sesión", "このセッションで生成した公開リンク", "이번 세션에서 생성한 공개 링크", "Link pubblico generato in questa sessione"],
+  ["settings.publicShare.copy", "Copier le lien", "Copiar enlace", "リンクをコピー", "링크 복사", "Copia link"],
+  ["settings.publicShare.manualCopy", "La copie automatique a échoué. Sélectionnez et copiez le lien complet ci-dessus.", "La copia automática falló. Selecciona y copia el enlace completo de arriba.", "自動コピーに失敗しました。上の欄から完全なリンクを選択してコピーしてください。", "자동 복사에 실패했습니다. 위 입력란에서 전체 링크를 선택해 복사하세요.", "La copia automatica non è riuscita. Seleziona e copia il link completo sopra."],
+  ["settings.publicShare.sessionOnlyNotice", "Le lien n'est visible que dans cette session et ne peut pas être récupéré après actualisation.", "El enlace solo se muestra en esta sesión y no puede recuperarse tras recargar.", "リンクはこのページセッション中のみ表示され、更新後は復元できません。", "링크는 이번 페이지 세션에만 표시되며 새로고침 후 복구할 수 없습니다.", "Il link è visibile solo in questa sessione e non è recuperabile dopo il refresh."],
+  ["settings.publicShare.linkUnavailableAfterRefresh", "La base ne stocke qu'un hash irréversible. Republiez pour obtenir un nouveau lien ; l'ancien cessera immédiatement de fonctionner.", "La base solo guarda un hash irreversible. Vuelve a publicar para generar un enlace nuevo; el anterior dejará de funcionar.", "データベースは不可逆 hash のみ保存します。新しいリンクを得るには再公開してください。旧リンクは即時無効になります。", "데이터베이스에는 되돌릴 수 없는 hash만 저장됩니다. 새 링크가 필요하면 다시 게시하세요. 기존 링크는 즉시 무효화됩니다.", "Il database salva solo un hash irreversibile. Ripubblica per un nuovo link; il vecchio smetterà subito di funzionare."],
+  ["settings.publicShare.publish", "Publier et créer le lien", "Publicar y crear enlace", "公開してリンクを生成", "게시하고 링크 생성", "Pubblica e genera link"],
+  ["settings.publicShare.publishConfirm", "Publier cet aperçu comme instantané statique et créer un nouveau lien ? Tout lien actif cessera immédiatement de fonctionner.", "¿Publicar esta vista como instantánea estática y crear un enlace nuevo? Cualquier enlace activo dejará de funcionar de inmediato.", "現在のプレビューを静的スナップショットとして公開し、新しいリンクを生成しますか？既存の有効リンクは即時無効になります。", "현재 미리보기를 정적 스냅샷으로 게시하고 새 링크를 생성할까요? 기존 활성 링크는 즉시 무효화됩니다.", "Pubblicare questa anteprima come snapshot statico e generare un nuovo link? Qualsiasi link attivo smetterà subito di funzionare."],
+  ["settings.publicShare.publishing", "Publication", "Publicando", "公開中", "게시 중", "Pubblicazione"],
+  ["settings.publicShare.updateSnapshot", "Mettre à jour et créer un nouveau lien", "Actualizar y crear enlace nuevo", "更新して新しいリンクを生成", "업데이트하고 새 링크 생성", "Aggiorna e crea un nuovo link"],
+  ["settings.publicShare.republish", "Republier et créer un nouveau lien", "Volver a publicar y crear enlace", "再公開して新しいリンクを生成", "다시 게시하고 새 링크 생성", "Ripubblica e genera un nuovo link"],
+  ["settings.publicShare.revoke", "Révoquer le partage", "Revocar publicación", "共有を取り消す", "공유 취소", "Revoca condivisione"],
+  ["settings.publicShare.revoking", "Révocation", "Revocando", "取り消し中", "취소 중", "Revoca"],
+  ["settings.publicShare.published", "L'instantané a été publié. Le nouveau lien n'est visible que dans cette session.", "La instantánea se publicó. El enlace nuevo solo se muestra en esta sesión.", "公開しました。新しいリンクはこのセッション中のみ表示されます。", "공개 스냅샷을 게시했습니다. 새 링크는 이번 세션에만 표시됩니다.", "Lo snapshot è stato pubblicato. Il nuovo link è visibile solo in questa sessione."],
+  ["settings.publicShare.copied", "Lien public copié.", "Enlace público copiado.", "公開リンクをコピーしました。", "공개 링크를 복사했습니다.", "Link pubblico copiato."],
+  ["settings.publicShare.copyFailed", "La copie automatique a échoué. Copiez le lien manuellement.", "La copia automática falló. Copia el enlace manualmente.", "自動コピーに失敗しました。手動でコピーしてください。", "자동 복사에 실패했습니다. 링크를 직접 복사하세요.", "La copia automatica non è riuscita. Copia il link manualmente."],
+  ["settings.publicShare.revokeConfirm", "La révocation rend le lien immédiatement indisponible et l'ancien token ne pourra jamais être restauré. Continuer ?", "Revocar inutiliza el enlace de inmediato y el token antiguo nunca podrá recuperarse. ¿Continuar?", "取り消すとリンクは即時無効になり、旧 token は復元できません。続行しますか？", "취소하면 현재 링크가 즉시 무효화되며 기존 token은 복구할 수 없습니다. 계속할까요?", "La revoca rende subito indisponibile il link e il vecchio token non sarà mai recuperabile. Continuare?"],
+  ["settings.publicShare.revoked", "Le partage a été révoqué et l'ancien lien est indisponible.", "La publicación fue revocada y el enlace anterior ya no funciona.", "共有を取り消し、旧リンクは無効になりました。", "공유를 취소했으며 기존 링크가 무효화되었습니다.", "La condivisione è stata revocata e il vecchio link non è disponibile."],
+  ["settings.publicShare.publishFailed", "Publication impossible. Réessayez plus tard.", "No se pudo publicar. Inténtalo de nuevo más tarde.", "公開できませんでした。後でもう一度お試しください。", "게시하지 못했습니다. 나중에 다시 시도하세요.", "Pubblicazione non riuscita. Riprova più tardi."],
+  ["settings.publicShare.publishDatabaseOutdated", "La fonction de publication doit être corrigée. Exécutez 018_public_home_share_upsert_conflict_fix.sql puis réessayez.", "La función de publicación necesita la corrección. Ejecuta 018_public_home_share_upsert_conflict_fix.sql y reintenta.", "データベースの公開関数に修正が必要です。018_public_home_share_upsert_conflict_fix.sql を実行して再試行してください。", "데이터베이스 게시 함수를 수정해야 합니다. 018_public_home_share_upsert_conflict_fix.sql 실행 후 다시 시도하세요.", "La funzione di pubblicazione richiede la correzione. Esegui 018_public_home_share_upsert_conflict_fix.sql e riprova."],
+  ["settings.publicShare.publishSessionExpired", "Votre session a expiré. Reconnectez-vous avant de publier.", "Tu sesión caducó. Vuelve a iniciar sesión antes de publicar.", "ログインセッションの期限が切れました。再ログインしてから公開してください。", "로그인 세션이 만료되었습니다. 다시 로그인한 후 게시하세요.", "La sessione è scaduta. Accedi di nuovo prima di pubblicare."],
+  ["settings.publicShare.publishSpaceUnavailable", "Ce compte ne peut pas publier cet espace, ou l'espace n'est plus géré par le compte. Actualisez et vérifiez l'espace actif.", "Esta cuenta no puede publicar el espacio, o ya no está gestionado por la cuenta. Recarga y confirma el espacio activo.", "このアカウントでは現在のスペースを公開できないか、アカウント管理対象ではありません。更新して確認してください。", "이 계정은 현재 공간을 게시할 수 없거나 공간이 계정 관리 모드가 아닙니다. 새로고침 후 확인하세요.", "Questo account non può pubblicare lo spazio oppure lo spazio non è più gestito dall'account. Aggiorna e verifica lo spazio attivo."],
+  ["settings.publicShare.publishNetworkFailed", "Le service d'instantané public est inaccessible. Vérifiez le réseau et réessayez.", "No se pudo conectar al servicio de instantáneas. Comprueba la red y reintenta.", "公開スナップショットサービスに接続できません。ネットワークを確認して再試行してください。", "공개 스냅샷 서비스에 연결할 수 없습니다. 네트워크 확인 후 다시 시도하세요.", "Il servizio snapshot pubblico non è raggiungibile. Controlla la rete e riprova."],
+  ["settings.publicShare.revokeFailed", "Révocation impossible. Réessayez plus tard.", "No se pudo revocar. Reintenta más tarde.", "取り消しに失敗しました。後で再試行してください。", "공유 취소에 실패했습니다. 나중에 다시 시도하세요.", "Revoca non riuscita. Riprova più tardi."],
+  ["settings.publicShare.projectionEmpty", "Cet accueil n'a aucun site public et ne peut pas encore être publié.", "Este inicio no tiene sitios públicos y aún no puede publicarse.", "公開できるサイトがないため、まだ公開できません。", "공개할 사이트가 없어 아직 게시할 수 없습니다.", "Questa home non ha siti pubblici e non può ancora essere pubblicata."],
+  ["settings.publicShare.projectionLimit", "Le contenu dépasse une limite de nombre ou de taille. Réduisez-le avant publication.", "El contenido supera un límite de cantidad o tamaño. Redúcelo antes de publicar.", "件数またはサイズ上限を超えています。減らしてから公開してください。", "공개 콘텐츠가 개수 또는 크기 제한을 초과했습니다. 줄인 후 게시하세요.", "Il contenuto supera un limite di quantità o dimensione. Riducilo prima di pubblicare."],
+  ["settings.publicShare.projectionInvalid", "Un champ ou une URL ne peut pas être partagé en sécurité. Corrigez-le avant publication.", "Un campo o URL no puede compartirse de forma segura. Corrígelo antes de publicar.", "安全に公開できないフィールドまたは URL があります。修正してください。", "안전하게 공유할 수 없는 필드 또는 URL이 있습니다. 수정 후 게시하세요.", "Un campo o URL non può essere condiviso in sicurezza. Correggilo prima di pubblicare."],
+  ["settings.publicShare.pageLoading", "Chargement de l'instantané public.", "Cargando la instantánea pública.", "公開スナップショットを読み込み中です。", "공개 스냅샷을 불러오는 중입니다.", "Caricamento dello snapshot pubblico."],
+  ["settings.publicShare.pageUnavailable", "Ce partage est indisponible.", "Esta publicación no está disponible.", "この共有は利用できません。", "이 공유를 사용할 수 없습니다.", "Questa condivisione non è disponibile."],
+  ["settings.publicShare.pageUnavailableHelp", "Le lien peut être invalide, révoqué ou expiré, ou le service temporairement inaccessible.", "El enlace puede ser inválido, revocado o caducado, o el servicio puede no estar disponible.", "リンクが無効、取り消し済み、期限切れ、またはサービスに一時接続できない可能性があります。", "링크가 잘못되었거나 취소 또는 만료되었거나 서비스에 일시적으로 연결할 수 없습니다.", "Il link può essere non valido, revocato o scaduto, oppure il servizio temporaneamente irraggiungibile."]
 ] as const satisfies ReadonlyArray<readonly [I18nMessageKey, string, string, string, string, string]>;
 
 function createSettingsMessagesFromRows(index: 1 | 2 | 3 | 4 | 5): Partial<MessageDictionary> {

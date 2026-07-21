@@ -51,7 +51,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - Phase 1.15.6 已完成：新增 `verify:i18n` 校验、补齐同步/导入/设备/审计/错误等关键路径在 `fr-FR`、`es-ES`、`ja-JP`、`ko-KR`、`it-IT` 的覆盖，并完成桌面、平板、移动端多视口回归；回归中修复书签/URL 导入面板默认提示在语言偏好加载后仍停留简中的问题。
 - Phase 1.16 已完成并部署：Notes、Countdown、World Clock、模板组件组合、恢复预览摘要和观测隐私校验已落地；Cloudflare Pages 主站与 GitHub Pages legacy 已完成构建、发布和线上访问验证。
 
-Phase 1.17.0-1.17.3 已完成代码与 migration 准备；只读 Renderer、公开快照白名单投影、严格 schema 校验、确定性序列化、最小授权分享 RPC、token hash 合约和观测隐私回归已落地。`017_public_home_shares.sql` 尚待在 Supabase Dashboard 执行并通过 `019` 检查；完成后进入 1.17.4 分享管理与发布预览。
+Phase 1.17.0-1.17.5 已完成仓库实现，1.17.6 的本地自动校验与根路径/legacy 子路径静态导出已通过；只读 Renderer、公开投影、最小授权 RPC、设置页分享管理、会话内链接、`/share/` 通用失败页和 robots 边界均已落地。2026-07-21 已确认目标 Supabase 的 `017` 公开读取 RPC 在线，并修复发布 RPC 因冲突列与输出变量同名导致的 PostgreSQL `42702`：新增 `018` 热修复、`020` 在线检查与前端安全错误分类。下一步是在目标数据库执行 `018`，通过 `020`/`019` 后完成真实账号 A-B、撤销链路和线上双站 smoke test。
 
 ## Phase Plan
 
@@ -73,7 +73,7 @@ Phase 1.17.0-1.17.3 已完成代码与 migration 准备；只读 Renderer、公�
 | Phase 1.14：主域名准备 | 已完成 | Cloudflare Pages 主站迁移、根路径构建、Supabase 回调、安全头、切流回归和回滚演练；1.14.5/1.14.6 暂缓，GitHub Pages legacy 保留完整应用 | 后续只做主域名运行观察和安全补强 |
 | Phase 1.15：多语言支持 v1 | 已完成 | 语言数据模型、账号/本地偏好、I18n Provider、静态 dictionary、日期时间/月历 locale formatter、首页、设置页、同步、导入和错误细节本地化；新增 i18n 校验、小语种关键路径覆盖和多视口人工回归 | 后续只做翻译修订和缺陷修复 |
 | Phase 1.16：低成本组件扩展 | 已完成并部署 | Notes、Countdown、World Clock、模板组合、恢复预览摘要、观测隐私校验和多视口回归已完成 | 后续仅做缺陷修复与组件候选评估 |
-| Phase 1.17：只读渲染与分享链接 v1 | 实施中（1.17.0-1.17.3 已完成代码） | 只读首页 renderer、公开快照分享存储/RPC、撤销机制、静态导出兼容公开入口 | 先执行 017 migration/019 检查，再进入 1.17.4 UI |
+| Phase 1.17：只读渲染与分享链接 v1 | 发布缺陷已修复，待数据库热修复与线上验收 | 只读首页 renderer、公开快照存储/RPC、设置页发布管理、会话内链接、撤销机制、`/share/` 静态公开入口 | 执行 018 hotfix、020 检查及 019 A-B 检查，再做真实账号与双站 smoke test |
 | Phase 1.18：受控服务端与后台 dashboard v1 | 候选 | Edge Function/受控后端、管理员身份、管理员审计、只读后台 | 仅在主域名稳定后评估，v1 必须只读 |
 
 ## Candidate Feature Evaluation
@@ -595,7 +595,7 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 
 ### Phase 1.17：只读渲染与分享链接 v1
 
-状态：实施中；1.17.0-1.17.3 已完成代码与 migration 准备，待执行线上数据库迁移。
+状态：仓库实现完成；1.17.0-1.17.5 已完成代码，1.17.6 本地自动与双 base path 导出回归已通过，待执行线上数据库迁移、A-B 与双站 smoke test。
 
 目标：在不暴露同步码、账号托管凭证或可编辑首页原件的前提下，为账号托管首页提供可撤销的公开快照分享。该阶段同时沉淀可复用于模板展示、历史预览、未来后台预览和自定义域名的只读渲染底座。
 
@@ -606,7 +606,7 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 - 公开 payload 使用独立 `PublicHomeDocumentV1` 投影，不直接返回完整 `HomeDocumentV2`；必须移除 `syncMeta`、账号信息、同步凭证、审计信息和私有资源引用。
 - v1 默认公开页面标题、主题外观、分组和网站；Notes、Todo、Countdown、World Clock 等组件及其用户自定义内容默认不进入公开 payload，后续如需公开必须新增明确 opt-in 和逐类审查。
 - 分享 token 与同步码、账号托管 access token、encryption key 完全隔离；数据库只保存 token hash。
-- 公开链接优先使用 `https://mylinker.net/share/#<token>`。token 位于 URL fragment，不随 HTTP 请求或外链 Referer 发送；`/share/` 保持 Next.js 静态导出，兼容 Cloudflare Pages 根路径和 GitHub Pages 子路径。
+- 正式公开链接使用 `https://mylinker.net/share/#<token>`；loopback 本地测试使用当前 origin 的 `/share/#<token>`，避免未部署的新路由跳到线上旧构建。token 位于 URL fragment，不随 HTTP 请求或外链 Referer 发送；`/share/` 保持 Next.js 静态导出，兼容 Cloudflare Pages 根路径和 GitHub Pages 子路径。
 - v1 不做密码保护、搜索引擎索引、访问统计、访问者身份、协作编辑、公开评论或自定义域名。
 
 ### Phase 1.17.0：方案与安全边界收口
@@ -660,7 +660,7 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 
 ### Phase 1.17.3：Supabase 分享快照与 RPC
 
-状态：已完成代码与迁移脚本，待执行 Supabase Dashboard migration。
+状态：基础 migration 已在线；`018` 发布热修复已完成，待 Supabase Dashboard 执行与回归。
 
 目标：建立独立、最小授权的公开快照存储和读取路径。
 
@@ -671,13 +671,16 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 - anon 侧只提供按 token 读取有效公开快照的受限 RPC；表本身不向 `anon` 或 `authenticated` 直接开放读取。
 - token 使用浏览器密码学随机值，传入 RPC 后哈希比较；严格校验长度、有效状态、过期时间和 payload schema。
 - 撤销、过期、无效 token 和不存在记录返回同一公开失败语义，避免枚举分享状态；不在公开读取路径记录用户内容或 token。
-- 已新增 `017_public_home_shares.sql` 和 `019_public_home_shares_verify.sql`：分享表与同步空间、托管凭证、云端历史和审计物理隔离；`(home_space_id, user_id)` 复合 FK 绑定账号 owner，并以 `home_space_id`/`token_hash` 唯一约束限制为一个分享和一个 hash。
+- 已新增 `017_public_home_shares.sql`、`018_public_home_share_upsert_conflict_fix.sql`、`019_public_home_shares_verify.sql` 和 `020_public_home_share_upsert_conflict_fix_verify.sql`：分享表与同步空间、托管凭证、云端历史和审计物理隔离；`(home_space_id, user_id)` 复合 FK 绑定账号 owner，并以 `home_space_id`/`token_hash` 唯一约束限制为一个分享和一个 hash。
 - 分享 token 固定为 `crypto.getRandomValues()` 生成的 32 字节无 padding Base64URL（43 字符）；RPC 内固定使用 `SHA-256("mylinker-public-share-v1:" || token)`，数据库绝不保存 raw token。
 - 新增 `upsert_public_home_share`、`get_public_home_share_metadata`、`revoke_public_home_share` 和 `read_public_home_share`。三个 owner RPC 仅 `authenticated`，公开 read 仅 `anon`/`authenticated`；没有任何 frontend direct table grant 或 RLS policy。
-- 新增 v1 JSONB schema validator、固定 `security definer` search path、撤销时 hash 覆盖、过期状态过滤和 token/公开 payload 无日志语义；浏览器 `PublicHomeShareRepository` 只经 RPC 访问并统一包装原始错误。
-- 新增 `verify:public-share` 及 SQL rollback A/B 检查。未执行线上 migration 前，公开分享 UI/路由仍不可上线；本阶段不新增 UI 或公开页面。
+- 新增 v1 JSONB schema validator、固定 `security definer` search path、撤销时 hash 覆盖、过期状态过滤和 token/公开 payload 无日志语义；浏览器 `PublicHomeShareRepository` 只经 RPC 访问并以不保留 raw error 的安全类别区分数据库未更新、会话、空间、网络与内容问题。
+- 首次真实发布暴露 `ON CONFLICT (home_space_id)` 与 `RETURNS TABLE` 同名输出变量的 PostgreSQL `42702`；`018` 改为命名约束冲突目标，`017` 同步修正新环境，`020` 校验在线函数定义与 grant。
+- 新增 `verify:public-share` 及 SQL rollback A/B 检查。目标数据库执行 `018` 且通过 `020`/`019` 前，公开分享仍不可完成验收。
 
 ### Phase 1.17.4：分享管理与发布预览
+
+状态：代码已完成，待 `018` 热修复后真实 owner 回归。
 
 状态：待实施。
 
@@ -691,7 +694,15 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 - 链接复制失败时提供可见且可访问的降级提示；撤销操作使用明确确认，成功后立即清除 UI 中旧链接。
 - 所有新增文案纳入现有 i18n dictionary；管理 UI 在窄屏和小语种下保持可操作。
 
+实施结果：
+
+- 设置页“首页空间”内新增公开快照分享面板，覆盖账号/空间资格说明、owner metadata、实际公开预览、字段边界、发布/更新/刷新后重新发布、复制 fallback 和撤销确认。
+- token/链接只存在于当前页面会话的只读输入框，不进入本地持久化、埋点、错误监控或审计；资格变化与撤销会清空链接。
+- 八种支持语言均有分享路径文案，预览、metadata、链接和操作在窄屏下降为单列。
+
 ### Phase 1.17.5：公开分享页与静态部署兼容
+
+状态：代码与静态导出验证已完成，待 `018` 热修复后真实 token smoke test。
 
 状态：待实施。
 
@@ -704,7 +715,15 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 - 渲染完成后不展示编辑、登录恢复、同步、设置或数据恢复入口；外链保持安全的 `noopener noreferrer` 行为。
 - 校验 `NEXT_PUBLIC_BASE_PATH` 下的资源、返回入口和 URL 生成，分别覆盖 Cloudflare Pages 根路径与 GitHub Pages legacy 子路径。
 
+实施结果：
+
+- 新增静态 `/share/` 页面；token 仅从 fragment 读取且不进入 React state，公开 RPC 成功后只渲染严格解析的 `PublicHomeDocumentV1`。
+- 缺少、随机、撤销、过期 token、网络失败与非法响应使用同一失败页；固定 title 和 `noindex/nofollow/noarchive/nocache` metadata 不含用户内容。
+- 根路径与 `/PersonalHomepge` 两套构建均已验证 `out/share/index.html`、robots 和 `_next` 资源前缀；对外链接固定为 `mylinker.net`。
+
 ### Phase 1.17.6：回归、上线与运行观察
+
+状态：本地自动回归已完成；数据库 A-B、真实账号交互和线上双站 smoke test 待执行。
 
 状态：待实施。
 
@@ -718,6 +737,12 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 - 创建、预览、复制、更新快照、撤销和重新发布均经过人工回归；已撤销链接和随机 token 显示相同通用失败页。
 - 桌面、平板、移动端以及全部支持语言下，公开页和分享管理 UI 无横向溢出、无编辑入口、无 token 泄露到可观测 metadata。
 - Cloudflare Pages 主站与 GitHub Pages legacy 均完成 `/share/` 静态入口验证；对外复制链接始终指向 `mylinker.net`。
+
+本地实施结果：
+
+- 类型、lint、i18n、公开投影、分享 token/权限合约、观测隐私、构建和静态导出校验均通过。
+- 自动校验已覆盖 canonical fragment URL、分享组件不持久化/不上报、公开页 token 不进入 React state、静态 share entry 与 robots。
+- 新增 `PublicHomeShareDatabaseRunbook.md`，固化 `017`、`019` 只读检查、transaction-scoped A-B、前端 smoke test 和不删数据的 execute-grant 安全回滚。
 
 ## Shared Foundations
 
