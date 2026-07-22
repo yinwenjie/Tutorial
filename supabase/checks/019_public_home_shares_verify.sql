@@ -141,63 +141,222 @@ select pg_get_functiondef('public.read_public_home_share(text)'::regprocedure)
 -- - filters token_hash, active status, expiry, account-managed space, and schema validity.
 -- - contains no read-event/audit insert.
 
--- 8. Optional A/B functional verification. Replace all placeholders before
--- running. It rolls back every test write.
+-- 8. Optional A/B functional verification. Replace all UUID placeholders
+-- before running. This block rolls back every test write and raises an error
+-- immediately if any expectation fails.
 -- - USER_A_UUID: authenticated owner of HOME_SPACE_A_UUID (account-managed)
 -- - USER_B_UUID: a different authenticated user
 -- - HOME_SPACE_A_UUID: an account-managed public.home_spaces.id owned by user A
 -- - HOME_SPACE_B_UUID: an account-managed public.home_spaces.id owned by user B
 --
--- Expected:
--- - user A can publish and see metadata for A.
--- - user B sees zero metadata rows for A and receives an authorization error
---   for A's upsert/revoke operations.
--- - anon cannot directly select public_home_shares.
--- - anon can read only with the active token; random, revoked and expired
---   tokens all return 0 rows from read_public_home_share.
+-- This block intentionally uses synthetic 43-character test tokens only. Do
+-- not paste a real share URL or real token into SQL Editor.
 /*
 begin;
 
--- Use a freshly generated 43-character test token. Do not use a real share URL.
-select set_config('request.jwt.claim.sub', 'USER_A_UUID', true);
-set local role authenticated;
+create temp table public_home_share_verify_context (
+  user_a uuid not null,
+  user_b uuid not null,
+  home_space_a uuid not null,
+  home_space_b uuid not null,
+  token_a text not null,
+  token_a_expired text not null,
+  token_b text not null,
+  token_random text not null,
+  document_a jsonb not null,
+  document_a_updated jsonb not null,
+  document_b jsonb not null
+) on commit drop;
 
-select *
-from public.upsert_public_home_share(
+insert into public_home_share_verify_context (
+  user_a,
+  user_b,
+  home_space_a,
+  home_space_b,
+  token_a,
+  token_a_expired,
+  token_b,
+  token_random,
+  document_a,
+  document_a_updated,
+  document_b
+)
+values (
+  'USER_A_UUID'::uuid,
+  'USER_B_UUID'::uuid,
   'HOME_SPACE_A_UUID'::uuid,
-  'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+  'HOME_SPACE_B_UUID'::uuid,
+  repeat('A', 43),
+  repeat('D', 43),
+  repeat('B', 43),
+  repeat('C', 43),
   '{
     "version": 1,
-    "documentTitle": "Public verification",
+    "documentTitle": "Public verification A",
     "theme": { "presetId": "classic", "accent": "#246bfe" },
     "groups": [{
       "id": "group-1",
-      "title": "Verification",
+      "title": "Verification A",
       "order": 1,
       "sites": [{
         "id": "site-1-1",
-        "name": "Example",
-        "url": "https://example.com/",
-        "mark": "E",
+        "name": "Example A",
+        "url": "https://example.com/a/",
+        "mark": "A",
+        "order": 1
+      }]
+    }]
+  }'::jsonb,
+  '{
+    "version": 1,
+    "documentTitle": "Public verification A updated",
+    "theme": { "presetId": "classic", "accent": "#246bfe" },
+    "groups": [{
+      "id": "group-1",
+      "title": "Verification A updated",
+      "order": 1,
+      "sites": [{
+        "id": "site-1-1",
+        "name": "Example A updated",
+        "url": "https://example.com/a-updated/",
+        "mark": "AU",
+        "order": 1
+      }]
+    }]
+  }'::jsonb,
+  '{
+    "version": 1,
+    "documentTitle": "Public verification B",
+    "theme": { "presetId": "classic", "accent": "#246bfe" },
+    "groups": [{
+      "id": "group-1",
+      "title": "Verification B",
+      "order": 1,
+      "sites": [{
+        "id": "site-1-1",
+        "name": "Example B",
+        "url": "https://example.com/b/",
+        "mark": "B",
         "order": 1
       }]
     }]
   }'::jsonb
 );
 
-select 'owner_metadata_count' as check_name, count(*) as value
-from public.get_public_home_share_metadata('HOME_SPACE_A_UUID'::uuid);
+do $$
+declare
+  v_context record;
+begin
+  select *
+  into v_context
+  from public_home_share_verify_context;
 
-reset role;
-select set_config('request.jwt.claim.sub', 'USER_B_UUID', true);
+  if v_context.user_a = v_context.user_b then
+    raise exception 'USER_A_UUID and USER_B_UUID must be different';
+  end if;
+
+  if v_context.home_space_a = v_context.home_space_b then
+    raise exception 'HOME_SPACE_A_UUID and HOME_SPACE_B_UUID must be different';
+  end if;
+
+  if not exists (
+    select 1
+    from public.home_spaces hs
+    where hs.id = v_context.home_space_a
+      and hs.user_id = v_context.user_a
+      and hs.access_mode = 'account-managed'
+  ) then
+    raise exception 'HOME_SPACE_A_UUID must be owned by USER_A_UUID and account-managed';
+  end if;
+
+  if not exists (
+    select 1
+    from public.home_spaces hs
+    where hs.id = v_context.home_space_b
+      and hs.user_id = v_context.user_b
+      and hs.access_mode = 'account-managed'
+  ) then
+    raise exception 'HOME_SPACE_B_UUID must be owned by USER_B_UUID and account-managed';
+  end if;
+end;
+$$;
+
+create temp table public_home_share_verify_baseline as
+select *
+from public.public_home_shares phs
+where phs.home_space_id in (
+  (select home_space_a from public_home_share_verify_context),
+  (select home_space_b from public_home_share_verify_context)
+);
+
+select set_config('request.jwt.claim.sub', (select user_a::text from public_home_share_verify_context), true);
 set local role authenticated;
 
-select 'other_owner_metadata_count' as check_name, count(*) as value
-from public.get_public_home_share_metadata('HOME_SPACE_A_UUID'::uuid);
+select *
+from public.upsert_public_home_share(
+  (select home_space_a from public_home_share_verify_context),
+  (select token_a from public_home_share_verify_context),
+  (select document_a from public_home_share_verify_context)
+);
+
+do $$
+declare
+  v_count integer;
+begin
+  select count(*)
+  into v_count
+  from public.get_public_home_share_metadata(
+    (select home_space_a from public_home_share_verify_context)
+  );
+
+  if v_count <> 1 then
+    raise exception 'owner A metadata count expected 1, got %', v_count;
+  end if;
+end;
+$$;
+
+reset role;
+select set_config('request.jwt.claim.sub', (select user_b::text from public_home_share_verify_context), true);
+set local role authenticated;
+
+select *
+from public.upsert_public_home_share(
+  (select home_space_b from public_home_share_verify_context),
+  (select token_b from public_home_share_verify_context),
+  (select document_b from public_home_share_verify_context)
+);
+
+do $$
+declare
+  v_count integer;
+begin
+  select count(*)
+  into v_count
+  from public.get_public_home_share_metadata(
+    (select home_space_a from public_home_share_verify_context)
+  );
+
+  if v_count <> 0 then
+    raise exception 'owner B metadata count for A expected 0, got %', v_count;
+  end if;
+
+  select count(*)
+  into v_count
+  from public.get_public_home_share_metadata(
+    (select home_space_b from public_home_share_verify_context)
+  );
+
+  if v_count <> 1 then
+    raise exception 'owner B metadata count for B expected 1, got %', v_count;
+  end if;
+end;
+$$;
 
 do $$
 begin
-  perform public.revoke_public_home_share('HOME_SPACE_A_UUID'::uuid);
+  perform public.revoke_public_home_share(
+    (select home_space_a from public_home_share_verify_context)
+  );
   raise exception 'other owner unexpectedly revoked share';
 exception
   when insufficient_privilege or invalid_authorization_specification then
@@ -208,9 +367,9 @@ $$;
 do $$
 begin
   perform public.upsert_public_home_share(
-    'HOME_SPACE_A_UUID'::uuid,
-    'BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB',
-    '{"version":1,"documentTitle":"x","theme":{"presetId":"classic","accent":"#246bfe"},"groups":[{"id":"group-1","title":"x","order":1,"sites":[{"id":"site-1-1","name":"x","url":"https://example.com/","mark":"x","order":1}]}]}'::jsonb
+    (select home_space_a from public_home_share_verify_context),
+    (select token_a_expired from public_home_share_verify_context),
+    (select document_a_updated from public_home_share_verify_context)
   );
   raise exception 'other owner unexpectedly published share';
 exception
@@ -224,7 +383,7 @@ set local role anon;
 
 do $$
 begin
-  perform 1 from public.public_home_shares;
+  perform 1 from public.public_home_shares limit 1;
   raise exception 'anon unexpectedly read public_home_shares directly';
 exception
   when insufficient_privilege then
@@ -232,26 +391,109 @@ exception
 end;
 $$;
 
--- This public read should return exactly one row for the active token, and
--- zero rows for the random token.
-select 'active_token_count' as check_name, count(*) as value
-from public.read_public_home_share('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
-select 'random_token_count' as check_name, count(*) as value
-from public.read_public_home_share('CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC');
+do $$
+declare
+  v_count integer;
+begin
+  select count(*)
+  into v_count
+  from public.read_public_home_share(
+    (select token_a from public_home_share_verify_context)
+  );
+
+  if v_count <> 1 then
+    raise exception 'active token A read count expected 1, got %', v_count;
+  end if;
+
+  select count(*)
+  into v_count
+  from public.read_public_home_share(
+    (select token_b from public_home_share_verify_context)
+  );
+
+  if v_count <> 1 then
+    raise exception 'active token B read count expected 1, got %', v_count;
+  end if;
+
+  select count(*)
+  into v_count
+  from public.read_public_home_share(
+    (select token_random from public_home_share_verify_context)
+  );
+
+  if v_count <> 0 then
+    raise exception 'random token read count expected 0, got %', v_count;
+  end if;
+end;
+$$;
 
 reset role;
-select set_config('request.jwt.claim.sub', 'USER_A_UUID', true);
+select set_config('request.jwt.claim.sub', (select user_a::text from public_home_share_verify_context), true);
 set local role authenticated;
-select * from public.revoke_public_home_share('HOME_SPACE_A_UUID'::uuid);
+select *
+from public.revoke_public_home_share(
+  (select home_space_a from public_home_share_verify_context)
+);
 
 reset role;
 set local role anon;
-select 'revoked_original_token_count' as check_name, count(*) as value
-from public.read_public_home_share('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
+do $$
+declare
+  v_count integer;
+begin
+  select count(*)
+  into v_count
+  from public.read_public_home_share(
+    (select token_a from public_home_share_verify_context)
+  );
+
+  if v_count <> 0 then
+    raise exception 'revoked original token read count expected 0, got %', v_count;
+  end if;
+end;
+$$;
+
+reset role;
+select set_config('request.jwt.claim.sub', (select user_a::text from public_home_share_verify_context), true);
+set local role authenticated;
+select *
+from public.upsert_public_home_share(
+  (select home_space_a from public_home_share_verify_context),
+  (select token_a_expired from public_home_share_verify_context),
+  (select document_a_updated from public_home_share_verify_context)
+);
+
+reset role;
+update public.public_home_shares phs
+set
+  published_at = now() - interval '2 hours',
+  expires_at = now() - interval '1 hour',
+  updated_at = now()
+where phs.home_space_id = (
+  select home_space_a from public_home_share_verify_context
+);
+
+set local role anon;
+do $$
+declare
+  v_count integer;
+begin
+  select count(*)
+  into v_count
+  from public.read_public_home_share(
+    (select token_a_expired from public_home_share_verify_context)
+  );
+
+  if v_count <> 0 then
+    raise exception 'expired token read count expected 0, got %', v_count;
+  end if;
+end;
+$$;
+
+reset role;
+select
+  'phase_1_17_6_ab_checks_passed_before_rollback' as check_name,
+  (select count(*) from public_home_share_verify_baseline) as baseline_rows_preserved_by_rollback;
 
 rollback;
 */
-
--- Test expiry by updating expires_at only inside a separate rollback
--- transaction as a table owner, then confirm read_public_home_share returns
--- 0 rows. Never paste a production share token into SQL Editor.

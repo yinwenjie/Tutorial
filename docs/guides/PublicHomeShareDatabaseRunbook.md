@@ -4,6 +4,8 @@
 
 Phase 1.17 的分享管理 UI、`/share/` 静态入口、公开投影、repository 和自动校验已在仓库完成。2026-07-21 对当前 Supabase 项目的匿名 `read_public_home_share` RPC 探测返回 HTTP 200，确认 `017_public_home_shares.sql` 已存在于目标数据库；真实发布失败定位为原 `upsert_public_home_share` 中 `ON CONFLICT (home_space_id)` 与 `RETURNS TABLE` 同名输出变量的 PostgreSQL `42702` 歧义。目标数据库需执行 `018_public_home_share_upsert_conflict_fix.sql` 并通过 `020_public_home_share_upsert_conflict_fix_verify.sql`，随后再做 `019` Section 8 的事务内 A/B 回归。
 
+Phase 1.17.6 已补齐验收工具：`019_public_home_shares_verify.sql` 的 A/B 段现在会在 rollback transaction 内自动断言 owner 隔离、anon 表直读拒绝、active/random/revoked/expired token 语义；`verify:public-share-deployment` 用于部署后检查 Cloudflare Pages preview、`mylinker.net` 与 GitHub Pages legacy 的 `/share/` 静态入口均返回 HTTP 200。2026-07-22 已通过该部署 smoke 脚本验证三个无 token 静态入口。目标数据库完成 `020` / `019` 和真实账号验证前，不把公开分享标记为生产闭环。
+
 本流程只新增独立的公开快照表、校验函数和四个最小授权 RPC，不修改普通同步码密文，不读取或改写 `home_space_credentials`、`home_space_snapshots`、账号审计或本地首页。数据库只保存分享 token 的 SHA-256 hash，不保存原 token 或完整公开链接。
 
 ## 一、上线前确认
@@ -13,7 +15,7 @@ Phase 1.17 的分享管理 UI、`/share/` 静态入口、公开投影、reposito
    - `001` 提供 `pgcrypto` / `extensions.digest`。
    - `006` 提供 `home_spaces(id, user_id)` owner 复合约束和 `account-managed` 模式。
 3. 确认至少准备两个非生产数据测试账号：owner A 和非 owner B；owner A/B 各有一个账号托管空间。
-4. 不要在 SQL Editor、工单、日志或聊天中粘贴真实分享链接或真实 token。A/B 检查使用新生成的 43 字符测试 token。
+4. 不要在 SQL Editor、工单、日志或聊天中粘贴真实分享链接或真实 token。A/B 检查使用脚本内 synthetic 43 字符测试 token。
 5. 记录回滚窗口。`018` 使用 `begin` / `commit`，只原位替换发布函数并恢复最小 grant；执行失败会整体回滚，不修改表结构或已有分享数据。
 
 ## 二、执行 migration
@@ -57,16 +59,18 @@ Phase 1.17 的分享管理 UI、`/share/` 静态入口、公开投影、reposito
    - `HOME_SPACE_A_UUID`
    - `HOME_SPACE_B_UUID`
 3. 保持 `begin;` 和末尾 `rollback;`，不要改为 `commit`。
-4. 使用测试 token，不要使用真实用户的分享 token。
-5. 预期：
-   - owner A 发布成功，metadata count 为 1。
-   - owner B 读取 A 的 metadata count 为 0，更新和撤销均被拒绝。
-   - anon 直接读取分享表被拒绝。
-   - active token read count 为 1；随机 token 为 0。
-   - 撤销后原 token read count 为 0。
-   - `rollback` 后不留下测试分享记录。
+4. 不要改脚本内的测试 token，也不要换成真实用户分享 token。
+5. 脚本会自动断言：
+   - A/B 用户和空间必须不同，且各自空间必须为对应 owner 的 `account-managed` 空间。
+   - owner A 可发布 A，owner B 可发布 B。
+   - owner B 读取 A metadata 返回 0，更新和撤销 A 均被拒绝。
+   - anon 直接读取 `public_home_shares` 被拒绝。
+   - A/B active token 均可读，random token 不可读。
+   - 撤销后原 token 不可读。
+   - 重新发布后临时设置过期时间，expired token 不可读。
+   - `rollback` 后不留下测试分享记录，并恢复测试前已有分享状态。
 
-过期校验按 `019` 文件末尾说明，在单独 rollback transaction 中临时设置 `expires_at` 后验证 read 返回 0；不要修改生产分享记录。
+任一断言失败都会抛出 error；不要继续前端 smoke test。
 
 ## 五、前端 smoke test
 
@@ -80,9 +84,30 @@ Phase 1.17 的分享管理 UI、`/share/` 静态入口、公开投影、reposito
 6. 刷新设置页，旧链接不可恢复；界面应提供“重新发布并生成新链接”。
 7. 撤销分享，当前链接立即显示统一的“此分享不可用”；随机、撤销、过期和不存在 token 的文案必须相同。
 8. 用普通同步码空间和未登录状态检查入口原因说明，不能出现可发布按钮。
-9. 检查 Network、console、analytics、error monitoring 和本地审计：不得出现 token、完整分享 URL、首页标题、网站 URL 或 snapshot JSON。
+9. 检查 Network、console、analytics、error monitoring 和本地审计：token 必然出现在 Supabase RPC 的 TLS request body 中，公开 snapshot 必然出现在成功读取 RPC response 中；除此之外不得出现在 URL query、Referer、console、localStorage、sessionStorage、cookie、analytics、error monitoring 或本地审计中。首页标题、完整网站 URL 和 snapshot JSON 不得进入可观测 metadata。
 
-## 六、安全回滚
+## 六、部署 smoke test
+
+部署后运行：
+
+```bash
+npm run verify:public-share-deployment
+```
+
+该脚本只访问三个无 token 静态入口：
+
+- `https://personalhomepge.pages.dev/share/`
+- `https://mylinker.net/share/`
+- `https://yinwenjie.github.io/PersonalHomepge/share/`
+
+预期三者均返回 HTTP 200、`text/html`，并包含 `noindex`、`nofollow`、`noarchive`。若失败，按以下方式定位：
+
+- 三个入口均 404：当前部署产物不含 `/share/`。
+- `pages.dev` 200 但 `mylinker.net` 404：Cloudflare 自定义域名、部署别名或缓存问题。
+- Cloudflare 入口 200 但 GitHub Pages 404：GitHub Pages workflow、base path 或发布分支问题。
+- 静态入口 200 但真实 token 不可读：回到 `020`、`019`、真实账号发布/撤销链路排查 RPC、权限或 payload。
+
+## 七、安全回滚
 
 若权限、泄露或公开读取出现异常，先在 SQL Editor 执行：
 
@@ -97,7 +122,7 @@ revoke execute on function public.revoke_public_home_share(uuid) from authentica
 
 问题修复并重新运行 `020` 与 `019` 后，可按 migration 末尾的四条 `grant execute` 恢复。恢复前先确认主站已回滚或修复，避免前端再次触发错误路径。
 
-## 七、上线记录
+## 八、上线记录
 
 建议记录：
 
@@ -110,4 +135,5 @@ revoke execute on function public.revoke_public_home_share(uuid) from authentica
 - 前端部署版本：
 - Cloudflare `/share/` smoke test：
 - GitHub Pages legacy `/share/` smoke test：
+- 真实 token 创建/更新/撤销 smoke test：
 - 回滚窗口与结论：

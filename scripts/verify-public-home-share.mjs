@@ -9,6 +9,7 @@ const shareModule = loadTypeScriptModule("src/domain/public-home-share.ts");
 
 verifyTokens(shareModule);
 verifyDatabaseContract();
+verifyAcceptanceHardening();
 verifyClientPrivacyContract();
 
 if (failures.length > 0) {
@@ -126,6 +127,63 @@ function verifyDatabaseContract() {
   expectTrue(
     hotfixCheck.includes("conflict_target_is_unambiguous"),
     "hotfix check should verify the live function definition"
+  );
+}
+
+function verifyAcceptanceHardening() {
+  const check = fs.readFileSync(
+    path.join(rootDir, "supabase/checks/019_public_home_shares_verify.sql"),
+    "utf8"
+  );
+  const deploymentCheck = fs.readFileSync(
+    path.join(rootDir, "scripts/verify-public-home-share-deployment.mjs"),
+    "utf8"
+  );
+  const packageJson = JSON.parse(fs.readFileSync(path.join(rootDir, "package.json"), "utf8"));
+
+  for (const fragment of [
+    "public_home_share_verify_context",
+    "public_home_share_verify_baseline",
+    "USER_A_UUID and USER_B_UUID must be different",
+    "HOME_SPACE_A_UUID must be owned by USER_A_UUID and account-managed",
+    "HOME_SPACE_B_UUID must be owned by USER_B_UUID and account-managed",
+    "owner B metadata count for A expected 0",
+    "owner B metadata count for B expected 1",
+    "anon unexpectedly read public_home_shares directly",
+    "active token A read count expected 1",
+    "active token B read count expected 1",
+    "random token read count expected 0",
+    "revoked original token read count expected 0",
+    "expired token read count expected 0",
+    "published_at = now() - interval '2 hours'",
+    "expires_at = now() - interval '1 hour'",
+    "rollback;"
+  ]) {
+    expectTrue(check.includes(fragment), `A/B SQL check should contain ${fragment}`);
+  }
+
+  for (const url of [
+    "https://personalhomepge.pages.dev/share/",
+    "https://mylinker.net/share/",
+    "https://yinwenjie.github.io/PersonalHomepge/share/"
+  ]) {
+    expectTrue(deploymentCheck.includes(url), `deployment check should cover ${url}`);
+  }
+
+  for (const fragment of [
+    "response.status !== 200",
+    "noindex",
+    "nofollow",
+    "noarchive",
+    "token_hash"
+  ]) {
+    expectTrue(deploymentCheck.includes(fragment), `deployment check should verify ${fragment}`);
+  }
+
+  expectEqual(
+    packageJson.scripts?.["verify:public-share-deployment"],
+    "node scripts/verify-public-home-share-deployment.mjs",
+    "package scripts should expose the deployment smoke check"
   );
 }
 

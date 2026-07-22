@@ -6,7 +6,7 @@ Phase 1.17 为账号托管首页提供可撤销的公开分享能力，并沉淀
 
 分享对象是用户显式发布的 `PublicHomeDocumentV1` 快照，而不是当前 `HomeDocumentV2` 的实时公开映射：用户之后继续编辑首页，不会自动修改已发布内容；更新分享必须再次确认。这样既避免把同步读取路径变成公开旁路，也让分享内容、撤销和恢复语义稳定可解释。
 
-当前状态：1.17.0-1.17.5 已完成仓库实现；1.17.6 的本地自动校验、根路径与 GitHub Pages legacy 子路径静态导出回归已通过。2026-07-21 已通过匿名公开 RPC 确认目标 Supabase 存在 `017`，并定位首次发布失败为 upsert 冲突目标的 PostgreSQL `42702` 歧义；仓库已新增 `018` 热修复、`020` 在线检查和前端安全错误分类。真实 owner/anon A-B 回归、双站部署 smoke test 和生产启用仍待目标数据库执行 `018` 后完成。
+当前状态：1.17.0-1.17.5 已完成仓库实现；1.17.6 已补齐防偏差验收工具，包括事务内 A/B SQL 断言、过期/撤销 token 检查、本地分享合约校验和双站 `/share/` 部署 smoke 脚本。2026-07-21 已通过匿名公开 RPC 确认目标 Supabase 存在 `017`，并定位首次发布失败为 upsert 冲突目标的 PostgreSQL `42702` 歧义；仓库已新增 `018` 热修复、`020` 在线检查和前端安全错误分类。2026-07-22 三个无 token 线上静态入口已通过 smoke test；真实 owner/anon A-B 回归、真实账号交互、真实 token smoke 和生产闭环仍待目标数据库执行 `018` 后完成。
 
 ## 已确认范围与边界
 
@@ -28,7 +28,7 @@ Phase 1.17 为账号托管首页提供可撤销的公开分享能力，并沉淀
 | 1.17.3 | 分享存储与 RPC | migration、verify、repository | 表无直接公开读取；RPC 满足 owner/anon 边界 |
 | 1.17.4 | 发布管理（代码已完成） | 设置页分享面板、预览、复制/更新/撤销 | 本地 UI/静态检查已通过，待 `018` 后 owner 回归 |
 | 1.17.5 | 公开页面（代码已完成） | `/share/`、通用失败页、metadata | 根路径与 legacy 子路径导出已通过，待真实 token smoke test |
-| 1.17.6 | 回归与发布（本地已完成） | 自动校验、人工回归、双站 smoke test | 自动与本地入口回归已完成；数据库 A-B 和线上双站待执行 |
+| 1.17.6 | 回归与发布（仓库验收工具已完成） | 自动校验、人工回归、双站 smoke test | 防偏差脚本已落地，线上静态入口已验；数据库 A-B、真实账号和真实 token 待执行 |
 
 ## 1.17.1：只读 Renderer 基座
 
@@ -206,7 +206,7 @@ public_home_shares
 
 ## 1.17.6：验收与上线
 
-状态：本地自动回归和双 base path 静态导出已完成；Supabase A-B、真实账号交互和线上双站 smoke test 待执行。
+状态：仓库验收工具已完成，线上静态入口 smoke 已通过；Supabase A-B、真实账号交互和真实 token smoke test 待执行。
 
 自动校验：
 
@@ -217,6 +217,7 @@ public_home_shares
 - `npm run verify:i18n`
 - `npm run verify:privacy`（同步扩展规则，禁止分享 token、payload 和用户内容进入可观测 metadata）
 - 分享 migration verify script 与公开投影校验。
+- `npm run verify:public-share-deployment`（部署后执行，只验证无 token 的三个 `/share/` 静态入口）。
 
 人工回归：
 
@@ -224,15 +225,16 @@ public_home_shares
 - 普通同步码空间、未登录用户、owner B、随机 token、撤销 token、过期 token。
 - 发布后修改本机首页，确认公开页仍显示旧快照；明确更新后才变化。
 - 桌面、平板、390px/320px、深浅主题与所有支持语言；公开页无编辑/设置/同步入口，无横向溢出。
-- 检查 Network、console、analytics/error/audit 内容，确认 URL fragment、token、完整 URL、标题和 snapshot JSON 不出现。
+- 检查 Network、console、analytics/error/audit 内容：token 只允许出现在分享 URL fragment 和 Supabase RPC 的 TLS request body 中；公开 snapshot 只允许出现在成功读取 RPC response 中；不得进入 URL query、Referer、console、持久化存储或可观测 metadata。
 - Cloudflare 主站和 GitHub legacy 完成静态入口验证；真实对外链接仅使用 `mylinker.net`。
 
 ### 已完成回归
 
 - `npm run typecheck`、`npm run lint`、`npm run verify:i18n`、`npm run verify:public-document`、`npm run verify:public-share`、`npm run verify:privacy`、`npm run build`、`npm run verify:export` 全部通过。
-- `verify:public-share` 已扩展 canonical fragment URL、分享管理禁用持久化/观测调用、公开页 fragment 局部读取、token 不进入 React state 以及 route robots metadata 检查。
+- `verify:public-share` 已扩展 canonical fragment URL、分享管理禁用持久化/观测调用、公开页 fragment 局部读取、token 不进入 React state、route robots metadata、A/B rollback SQL 防偏差和部署 smoke 脚本存在性检查。
 - 根路径构建与 `NEXT_PUBLIC_BASE_PATH=/PersonalHomepge` 构建均包含静态 `/share/`，对应 `_next` 资源前缀和 robots 指令均通过验证。
-- 数据库上线与回滚步骤已固化到 `docs/guides/PublicHomeShareDatabaseRunbook.md`；在未执行 `017` / `019` 前，不将真实分享功能标记为线上可用。
+- 2026-07-22 已运行 `npm run verify:public-share-deployment`，Cloudflare Pages preview、`mylinker.net` 与 GitHub Pages legacy 的无 token `/share/` 静态入口均通过 HTTP 200/robots smoke test。
+- 数据库上线、A/B rollback、部署 smoke test 与回滚步骤已固化到 `docs/guides/PublicHomeShareDatabaseRunbook.md`；在目标数据库未通过 `020` / `019` 和真实账号回归前，不将真实分享功能标记为生产闭环。
 
 ## 依赖与风险门槛
 

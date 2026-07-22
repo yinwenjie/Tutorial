@@ -51,7 +51,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - Phase 1.15.6 已完成：新增 `verify:i18n` 校验、补齐同步/导入/设备/审计/错误等关键路径在 `fr-FR`、`es-ES`、`ja-JP`、`ko-KR`、`it-IT` 的覆盖，并完成桌面、平板、移动端多视口回归；回归中修复书签/URL 导入面板默认提示在语言偏好加载后仍停留简中的问题。
 - Phase 1.16 已完成并部署：Notes、Countdown、World Clock、模板组件组合、恢复预览摘要和观测隐私校验已落地；Cloudflare Pages 主站与 GitHub Pages legacy 已完成构建、发布和线上访问验证。
 
-Phase 1.17.0-1.17.5 已完成仓库实现，1.17.6 的本地自动校验与根路径/legacy 子路径静态导出已通过；只读 Renderer、公开投影、最小授权 RPC、设置页分享管理、会话内链接、`/share/` 通用失败页和 robots 边界均已落地。2026-07-21 已确认目标 Supabase 的 `017` 公开读取 RPC 在线，并修复发布 RPC 因冲突列与输出变量同名导致的 PostgreSQL `42702`：新增 `018` 热修复、`020` 在线检查与前端安全错误分类。下一步是在目标数据库执行 `018`，通过 `020`/`019` 后完成真实账号 A-B、撤销链路和线上双站 smoke test。
+Phase 1.17.0-1.17.5 已完成仓库实现，1.17.6 已补齐防偏差验收工具；只读 Renderer、公开投影、最小授权 RPC、设置页分享管理、会话内链接、`/share/` 通用失败页和 robots 边界均已落地。2026-07-21 已确认目标 Supabase 的 `017` 公开读取 RPC 在线，并修复发布 RPC 因冲突列与输出变量同名导致的 PostgreSQL `42702`：新增 `018` 热修复、`020` 在线检查与前端安全错误分类。2026-07-22 三个无 token 线上静态入口已通过 smoke test。下一步是在目标数据库执行 `018`，通过 `020`/`019` 后完成真实账号 A-B、撤销链路和真实 token smoke test。
 
 ## Phase Plan
 
@@ -73,7 +73,7 @@ Phase 1.17.0-1.17.5 已完成仓库实现，1.17.6 的本地自动校验与根�
 | Phase 1.14：主域名准备 | 已完成 | Cloudflare Pages 主站迁移、根路径构建、Supabase 回调、安全头、切流回归和回滚演练；1.14.5/1.14.6 暂缓，GitHub Pages legacy 保留完整应用 | 后续只做主域名运行观察和安全补强 |
 | Phase 1.15：多语言支持 v1 | 已完成 | 语言数据模型、账号/本地偏好、I18n Provider、静态 dictionary、日期时间/月历 locale formatter、首页、设置页、同步、导入和错误细节本地化；新增 i18n 校验、小语种关键路径覆盖和多视口人工回归 | 后续只做翻译修订和缺陷修复 |
 | Phase 1.16：低成本组件扩展 | 已完成并部署 | Notes、Countdown、World Clock、模板组合、恢复预览摘要、观测隐私校验和多视口回归已完成 | 后续仅做缺陷修复与组件候选评估 |
-| Phase 1.17：只读渲染与分享链接 v1 | 发布缺陷已修复，待数据库热修复与线上验收 | 只读首页 renderer、公开快照存储/RPC、设置页发布管理、会话内链接、撤销机制、`/share/` 静态公开入口 | 执行 018 hotfix、020 检查及 019 A-B 检查，再做真实账号与双站 smoke test |
+| Phase 1.17：只读渲染与分享链接 v1 | 仓库验收工具完成，静态入口已验，待数据库热修复与真实 token 验收 | 只读首页 renderer、公开快照存储/RPC、设置页发布管理、会话内链接、撤销机制、`/share/` 静态公开入口 | 执行 018 hotfix、020 检查及 019 A-B 检查，再做真实账号与真实 token smoke test |
 | Phase 1.18：受控服务端与后台 dashboard v1 | 候选 | Edge Function/受控后端、管理员身份、管理员审计、只读后台 | 仅在主域名稳定后评估，v1 必须只读 |
 
 ## Candidate Feature Evaluation
@@ -595,7 +595,7 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 
 ### Phase 1.17：只读渲染与分享链接 v1
 
-状态：仓库实现完成；1.17.0-1.17.5 已完成代码，1.17.6 本地自动与双 base path 导出回归已通过，待执行线上数据库迁移、A-B 与双站 smoke test。
+状态：仓库实现和 1.17.6 防偏差验收工具完成，线上静态入口 smoke 已通过；待执行线上数据库迁移、A-B 与真实 token smoke test。
 
 目标：在不暴露同步码、账号托管凭证或可编辑首页原件的前提下，为账号托管首页提供可撤销的公开快照分享。该阶段同时沉淀可复用于模板展示、历史预览、未来后台预览和自定义域名的只读渲染底座。
 
@@ -682,8 +682,6 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 
 状态：代码已完成，待 `018` 热修复后真实 owner 回归。
 
-状态：待实施。
-
 目标：在已有账号空间管理路径中提供可理解、可撤销的发布操作。
 
 主要任务：
@@ -704,8 +702,6 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 
 状态：代码与静态导出验证已完成，待 `018` 热修复后真实 token smoke test。
 
-状态：待实施。
-
 目标：在两个静态站点目标上可靠加载公开快照并以只读方式渲染。
 
 主要任务：
@@ -723,9 +719,7 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 
 ### Phase 1.17.6：回归、上线与运行观察
 
-状态：本地自动回归已完成；数据库 A-B、真实账号交互和线上双站 smoke test 待执行。
-
-状态：待实施。
+状态：仓库验收工具已完成，线上静态入口 smoke 已通过；数据库 A-B、真实账号交互和真实 token smoke test 待执行。
 
 目标：完成公开数据、权限、静态导出和双站发布的端到端收口。
 
@@ -735,14 +729,15 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 - 新增 Supabase migration 与只读验证脚本通过：无直接表读取权限、owner 隔离、anon 只能按有效 token 获取投影快照、撤销/过期立即失效。
 - 公开 payload 不含同步码、access token、encryption key、账号资料、`syncMeta`、组件用户内容、Storage 私有 URL 或审计信息。
 - 创建、预览、复制、更新快照、撤销和重新发布均经过人工回归；已撤销链接和随机 token 显示相同通用失败页。
-- 桌面、平板、移动端以及全部支持语言下，公开页和分享管理 UI 无横向溢出、无编辑入口、无 token 泄露到可观测 metadata。
+- 桌面、平板、移动端以及全部支持语言下，公开页和分享管理 UI 无横向溢出、无编辑入口；token 只允许存在于分享 URL fragment 和 Supabase RPC TLS request body，不得泄露到可观测 metadata。
 - Cloudflare Pages 主站与 GitHub Pages legacy 均完成 `/share/` 静态入口验证；对外复制链接始终指向 `mylinker.net`。
 
 本地实施结果：
 
-- 类型、lint、i18n、公开投影、分享 token/权限合约、观测隐私、构建和静态导出校验均通过。
-- 自动校验已覆盖 canonical fragment URL、分享组件不持久化/不上报、公开页 token 不进入 React state、静态 share entry 与 robots。
-- 新增 `PublicHomeShareDatabaseRunbook.md`，固化 `017`、`019` 只读检查、transaction-scoped A-B、前端 smoke test 和不删数据的 execute-grant 安全回滚。
+- 类型、lint、i18n、公开投影、分享 token/权限合约、观测隐私、构建和静态导出校验保持为本地回归门禁。
+- 自动校验已覆盖 canonical fragment URL、分享组件不持久化/不上报、公开页 token 不进入 React state、静态 share entry、robots、A/B rollback SQL 防偏差和部署 smoke 脚本存在性。
+- 2026-07-22 已运行 `npm run verify:public-share-deployment`，Cloudflare Pages preview、`mylinker.net` 与 GitHub Pages legacy 的无 token `/share/` 静态入口均通过 HTTP 200/robots smoke test。
+- `PublicHomeShareDatabaseRunbook.md` 已固化 `017`/`018`、`020`、`019` 只读检查、transaction-scoped A/B、部署 smoke test、真实账号验证和不删数据的 execute-grant 安全回滚。
 
 ## Shared Foundations
 
