@@ -29,6 +29,7 @@
 - `implementation/phase-1/Phase1_15_Implement.md`：Phase 1.15，多语言支持 v1；记录语言数据模型、系统语言解析、Supabase locale 约束和后续 i18n 分层落地计划。
 - `implementation/phase-1/Phase1_16_Implement.md`：Phase 1.16，低成本组件扩展；记录 Notes、Countdown、World Clock 的纯前端组件边界、数据模型、隐私约束和实施顺序。
 - `implementation/phase-1/Phase1_17_Implement.md`：Phase 1.17，只读渲染与公开快照分享；记录公开投影、token/hash 合约、分享管理、`/share/` 静态入口、权限边界和上线回归。
+- `implementation/phase-1/Phase1_18_Implement.md`：Phase 1.18，受控服务端与只读后台 Dashboard v1；记录 Edge Function、管理员身份、管理员审计、跨用户只读查询、私有独立 Admin Pages、Cloudflare Access、快照预览、部署和回滚边界。
 
 ## Tech Stack
 
@@ -43,7 +44,7 @@
 - Client-side encryption：普通同步码空间由浏览器 Web Crypto 对首页文档加密后上传；账号托管空间采用账号可信托管模型，可保存有效用户首页的明文云端历史用于恢复和审计。
 - Database：Supabase Postgres，核心表包括 `sync_spaces`、`profiles`、`account_preferences`、`home_spaces`、`home_space_snapshots`、`home_space_audit_events`、`product_analytics_events`、`client_error_events` 和独立公开快照表 `public_home_shares`，配合 RLS、权限收敛和 `security definer` RPC。
 - Deployment：Next.js static export 输出到 `out/`；当前通过 GitHub Actions 部署到 GitHub Pages，Phase 1.14 迁移到 Cloudflare Pages 主站，GitHub Pages 转为 legacy 入口。
-- CI checks：`npm run lint`、`npm run typecheck`、`npm run build`、`npm run verify:export`。
+- CI checks：`npm run lint`、`npm run typecheck`、`npm run build`、`npm run verify:export`；Phase 1.18 准备阶段新增 `npm run verify:supabase-preparation` 和本地 Supabase/Deno GitHub Actions。
 
 ## Guides
 
@@ -66,7 +67,7 @@
 - `backlog/SyncAutoRequestOptimization.md`：同步请求优化备忘。
 - `backlog/AccountHomeSyncBacklog.md`：账号系统、首页空间、同步码管理和未来会员权益 backlog。
 - `backlog/AccountManagedSyncBacklog.md`：账号托管同步、空白设备恢复、同步码认领/迁移和未来密码保护空间 backlog。
-- `backlog/AdminDashboardBacklog.md`：后台管理 dashboard 候选，记录 Phase 1.18 之后的受控后台入口、管理员审计、权限边界和延期原因。
+- `backlog/AdminDashboardBacklog.md`：后台管理 dashboard 的原始候选依据；Phase 1.18.0 已转入实施计划，后续以 `Phase1_18_Implement.md` 为准。
 - `backlog/EncryptedFileCacheBacklog.md`：轻量级端到端加密文件缓存组件候选，记录 Supabase Storage、密钥模型、数据表和风险边界。
 - `backlog/DataPreservationBacklog.md`：Phase 1.11 数据保全与恢复体系 backlog，记录本地/云端快照、数据恢复中心、危险写入保护、同步误覆盖防护，以及后台 dashboard 延期到 Phase 1.18 的边界。
 - `backlog/WidgetCandidatesBacklog.md`：Phase 1.12.6 后续组件候选设计，评估 Notes、倒计时、世界时钟、RSS、天气、GitHub 等候选的价值、数据边界、后端需求和实现优先级。

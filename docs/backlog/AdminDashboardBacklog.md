@@ -2,16 +2,16 @@
 
 ## 状态
 
-- 当前状态：候选大需求，延期到 Phase 1.18。
-- 延期原因：后台管理 dashboard 需要受控服务端入口、管理员身份、管理员审计、service role 隔离和独立部署策略，复杂度明显高于 Phase 1.11 用户侧数据保全功能。
-- 触发条件：商业化正式域名上线后，再进入实现评估。
-- 当前阶段：只保存设计方案，不进入近期实现。
+- 当前状态：已进入 Phase 1.18；Phase 1.18.0 隔离方案和本地 Supabase/CI 准备阶段已完成，业务 migration、Edge Function、私有 Admin 仓库和 Access 配置尚未实施。
+- 原延期条件已满足：正式主域名与 Phase 1.17 公开分享均已完成线上验收。
+- v1 固定为只读、强审计和最小权限；不会直接修改、恢复、删除或导出用户数据。
+- 后续以 `docs/implementation/phase-1/Phase1_18_Implement.md` 为唯一实施基线，本 backlog 只保留背景和候选依据；若两者冲突，以实施计划为准。
 
 ## 背景
 
 Phase 1.11.5 已为账号托管空间建立云端历史版本，Phase 1.11.6 已明确账号托管空间是“账号可信托管、可恢复、可审计”模型。后台管理 dashboard 的目标是在受控、留痕、最小权限的前提下，让管理员能够帮助用户排障、审计和恢复非离线加密数据。
 
-这个能力不能直接放进 GitHub Pages 前端，也不能把 Supabase service role、管理员密钥或跨用户查询能力暴露给普通浏览器代码。
+跨用户管理能力不能由 GitHub Pages 或任何静态前端直接执行，也不能把 Supabase service role、管理员密钥或跨用户表权限暴露给普通浏览器代码。Phase 1.18 不再向公开主站或 GitHub Pages legacy 构建加入 `/admin/` 外壳；Admin UI 使用私有仓库和独立 Cloudflare Pages project。
 
 ## 产品目标
 
@@ -19,16 +19,16 @@ Phase 1.11.5 已为账号托管空间建立云端历史版本，Phase 1.11.6 已
 - 查看账号托管空间云端历史版本和审计事件。
 - 对账号托管云端历史生成完整只读预览。
 - 查看普通同步码空间的元数据和风险事件，但不默认查看明文内容。
-- 记录管理员自己的访问、预览、导出和恢复辅助行为。
+- 记录管理员自己的访问和预览行为。
 
 ## v1 范围
 
-Phase 1.18 v1 建议只做只读后台：
+Phase 1.18.0 已确认 v1 只做只读后台：
 
 - 用户搜索：按邮箱、用户 id、空间 id 查询。
 - 空间列表：展示 `home_spaces`、access mode、sync space id、创建时间、更新时间。
 - 账号托管云端历史：读取 `home_space_snapshots`。
-- 快照预览：读取 `document_json`，完整展示分组、网站、组件、主题和图片状态。
+- 快照预览：Edge Function 单条读取 `document_json` 并服务端投影为字段白名单 DTO，Admin Pages 不接收 raw JSON，只读展示分组、网站、组件、主题和图片状态。
 - 云端操作记录：读取 `home_space_audit_events`。
 - 管理员审计：写入并展示 `admin_audit_events`。
 
@@ -43,16 +43,18 @@ v1 不做：
 
 ## 推荐架构
 
-优先方案：Supabase Edge Functions + Admin Web UI。
+已确认方案：Supabase Edge Functions + 私有独立 Admin Pages + Cloudflare Access。
 
-- Admin UI 可独立部署，也可在正式域名下提供受保护路由。
+- Admin UI 使用私有源码仓库、独立 static export、独立 Cloudflare Pages project 和 `admin.mylinker.net`，不进入公开主站或 GitHub Pages。
+- `admin.mylinker.net`、生产 `<admin-project>.pages.dev` 和所有 preview hostname 必须分别受 Access 默认拒绝策略保护，只允许精确管理员身份/组。
 - Admin UI 只持有公开 anon key 和当前管理员 session。
 - 所有跨用户数据读取都通过 Edge Function。
 - Edge Function 使用 service role，但 service role 只存在服务端环境变量中。
 - Edge Function 每次执行前检查当前用户是否在 `admin_users` 且启用。
-- 每次读取敏感数据前或后写入 `admin_audit_events`。
+- 每次敏感读取都必须成功写入 `admin_audit_events` 后才向 Admin Pages 返回结果；审计失败时 fail closed。
+- Cloudflare Access 只保护页面资源；Supabase JWT、`admin_users` 和角色矩阵仍独立保护公网 Edge Function。
 
-备选方案：独立后台服务。
+未采用方案：独立常驻后台服务。
 
 - 使用 Vercel、Cloudflare 或其他后端服务承载 admin API。
 - 安全边界更清楚，部署和运维成本更高。
@@ -108,38 +110,41 @@ metadata
 created_at
 ```
 
-建议事件：
+Phase 1.18.0 固定事件：
 
-- `admin.user_search`
-- `admin.user_view`
-- `admin.home_space_view`
-- `admin.snapshot_list`
-- `admin.snapshot_preview`
-- `admin.audit_event_view`
-- `admin.export_requested`
-- `admin.restore_assistance_requested`
+- `admin.session.check`
+- `admin.user.resolve`
+- `admin.home_space.list`
+- `admin.snapshot.list`
+- `admin.snapshot.preview`
+- `admin.home_audit.list`
+- `admin.audit.list`
 
 ## 权限原则
 
 - 管理员入口必须要求 Supabase 登录态。
+- Admin Pages 的 HTML、JS 和 CSS 在返回浏览器前必须通过 Cloudflare Access；Access 和 Supabase 登录是两道独立门禁。
 - 管理员身份由 `admin_users` 控制，不依赖前端隐藏路由。
-- 普通用户界面不暴露管理员入口。
+- 普通主站不提供管理员入口、`/admin/` 路由、sitemap 项或 Admin bundle。
 - 所有读取账号托管明文历史的动作必须留痕。
 - 普通同步码空间默认只展示元数据，不展示明文。
-- 管理员导出、复制、恢复辅助属于高风险操作，需要更高 severity 和二次确认。
+- v1 不提供管理员导出、恢复辅助或用户数据写入；快照正文预览需要 owner/admin 权限、逐次理由和审计成功后才返回。
 
-## 需要额外确认的信息
+## Phase 1.18.0 已确认事项
 
-- 后台部署位置：Supabase Edge Functions、独立后台服务，还是正式域名下的 admin app。
-- 初始管理员名单：至少需要一个 Supabase user id 或邮箱。
-- v1 是否严格只读：建议是。
-- 是否允许查看账号托管“当前内容”：v1 建议先用最新云端快照表示，不做服务端解密当前 `sync_spaces`。
-- 是否允许导出：v1 建议不允许完整导出，只允许人工复制有限字段并写审计。
-- 审计保留策略：v1 建议永久保留，后续再设计归档。
+- 后端采用 Supabase Edge Functions；Admin UI 使用私有仓库和独立 Cloudflare Pages project，正式入口为 `admin.mylinker.net`，不部署到主站或 GitHub Pages legacy。
+- Access 分别保护自定义域名、生产 `pages.dev` 和预览通配域名，采用默认拒绝、精确管理员身份/组、MFA 和短会话。
+- “不暴露”指普通用户拿不到 Admin HTML/JS/CSS 和管理数据；不承诺隐藏后台域名、TLS 证书或 Access 登录页存在性。
+- v1 严格只读；唯一业务写入是由服务端追加 `admin_audit_events`。
+- “当前内容”只表示最新账号托管云端快照，不服务端解密或读取当前 `sync_spaces`。
+- v1 不允许完整导出、原始 JSON 下载、恢复、修改或删除用户数据。
+- 审计 v1 永久保留，归档和清理后续单独设计。
+- 首个 owner 的精确 Supabase Auth user UUID 仍是部署前外部输入，不写入 migration 或仓库。
 
 ## 依赖
 
 - 正式域名和 Auth redirect 稳定。
+- 私有 Admin 仓库、独立 Cloudflare Pages project、`admin.mylinker.net` 和 Access IdP/策略已由负责人确认。
 - 服务端或 Edge Function 部署通道稳定。
 - Supabase secrets 管理明确，service role 不进入静态前端。
 - Phase 1.11.5 云端历史表和审计表已经在线。
@@ -152,10 +157,13 @@ created_at
 - 如果后台误读普通同步码空间，会破坏密文边界。
 - 如果 v1 同时加入写操作，可能引入新的 P0 数据事故入口。
 - 后台 dashboard 一旦上线，权限、日志和访问理由都要长期维护。
+- 如果只保护自定义域名而遗漏生产 `pages.dev` 或 preview hostname，普通用户仍可能直接取得后台资源。
+- 如果 Admin UI 源码进入当前公开仓库，即使线上受 Access 保护，源码仍会公开。
 
 ## 验收标准
 
-- 普通前端构建产物中没有 service role 或管理员密钥。
+- 普通主站和 GitHub Pages 构建中没有 `/admin/`、Admin bundle、service role 或管理员密钥。
+- 未通过 Access 的请求无法从自定义域名、生产 `pages.dev` 或任一 preview hostname 取得 Admin HTML/JS/CSS。
 - 非管理员无法调用任何 admin API。
 - 管理员每次查看用户首页内容或云端历史都会写入 `admin_audit_events`。
 - 普通同步码空间不会显示明文首页内容。

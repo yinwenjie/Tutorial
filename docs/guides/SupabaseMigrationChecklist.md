@@ -2,7 +2,7 @@
 
 ## Summary
 
-本项目的 Supabase 数据库变更保存在 `supabase/migrations/` 目录。当前阶段没有接入 Supabase CLI 自动迁移，线上数据库需要在 Supabase Dashboard 的 SQL Editor 中手动执行对应 SQL。
+本项目的 Supabase 数据库变更保存在 `supabase/migrations/` 目录。2026-07-25 已接入 Supabase CLI 本地 migration replay、数据库 lint、pgTAP 和 Deno Functions 测试基线；当前仍未启用生产自动迁移，线上数据库继续通过 Supabase Dashboard SQL Editor 执行已批准 SQL。目标线上项目已于 2026-07-22 执行至 `018`，并通过 `020`、`019` 和真实账号公开分享验收；以下顺序继续作为新环境、补迁移和故障复核基线。
 
 ## 当前迁移顺序
 
@@ -116,6 +116,35 @@
 - 已经执行过 `017` 且公开快照发布报错的项目：只需补执行 `018`；不需要重跑 `017`、删除分享表或清理已有快照。随后运行 `020`，再运行 `019` Section 8。
 - 已经手动创建 `home-assets` bucket 的项目：仍需执行 `012`，因为上传所需的 RLS policy 不会由 Dashboard 创建 bucket 自动生成。
 - 执行前确认目标 project 是线上使用的 Supabase project。
+
+## 本地自动重放与检查
+
+Phase 1.18 准备阶段新增：
+
+- `supabase/config.toml`：仅用于本地 Supabase；没有远端 project ref 或服务端密钥。
+- `supabase/tests/database/000_existing_migrations_test.sql`：验证 `001-018` 重放后的关键表和公开分享 RPC。
+- `supabase/functions/deno.json` 与 `supabase/functions/tests/000_preparation_test.ts`：验证 Deno Functions 测试运行时。
+- `scripts/verify-supabase-preparation.mjs` 与 `.github/workflows/verify-supabase.yml`：统一执行本地 migration、lint、pgTAP 和 Deno 门禁。
+
+本机已安装并验证 Supabase CLI、Colima/Docker 和 Deno 后，可在仓库根目录执行：
+
+```bash
+npm run verify:supabase-preparation
+```
+
+该命令固定执行本地 `supabase db start`、`supabase db reset`、`supabase db lint --level error`、`supabase test db` 和 Deno 检查。它不带 `--linked`、`--db-url`、`db push` 或 Functions deploy，不会连接生产数据库。首次执行会下载本地 Supabase 容器镜像；后续复用本机镜像。
+
+2026-07-25 基线结果：
+
+- PostgreSQL 17 本地数据库成功从空库重放 `001-018`。
+- 数据库 lint 零错误。
+- pgTAP：`1` 个文件、`10` 项断言全部通过。
+- Deno：fmt、lint、type-check 和 `1` 项运行时测试全部通过。
+
+生产 migration 自动执行、远端 verification 和 protected environment 审批留到 Phase 1.18.6；在该阶段完成前，不得把本地命令改成自动生产 `db push`。
+
+## 迁移后手动结构检查
+
 - 执行 `003` 后可以在 SQL Editor 中检查 revision 函数是否存在：
 
 ```sql
@@ -191,7 +220,7 @@ where table_schema = 'public'
 - `015_client_error_events.sql` 是 Phase 1.11.9 错误监控所需迁移。未执行时，前端错误监控会上报失败并静默降级，不影响首页、导入、同步或恢复主流程。
 - `015_client_error_events.sql` 不保存邮箱、用户 ID、URL、搜索词、首页内容、同步码、账号托管 secret 或云端历史 `document_json`；普通客户端只能调用 `record_client_error_event(...)`，不能直接查询错误监控表。
 - `017_public_home_shares.sql` 依赖既有 `001`（`pgcrypto`）与 `006`（`home_spaces(id, user_id)` 复合唯一约束）迁移；必须在已完成 `001`-`016` 的数据库中执行。它只允许 `account-managed` 首页空间发布，普通同步码空间不会获得公开读取旁路。`018` 必须紧随其后，用命名约束消除发布函数的 PL/pgSQL 输出变量歧义。
-- 分享管理 UI 与公开 `/share/` 路由代码已经完成，但生产启用仍需先执行 `017`。执行完成后先运行 `019_public_home_shares_verify.sql` 的只读段，再用两个测试账号执行其中 rollback A/B 段。完整流程见 `PublicHomeShareDatabaseRunbook.md`。
+- 分享管理 UI 与公开 `/share/` 路由代码已经完成，当前目标线上项目也已执行 `017`、`018` 并通过 `020`、`019` 和真实账号验收。新环境仍须按顺序执行 migration，再运行 `019_public_home_shares_verify.sql` 的只读段和两个测试账号的 rollback A/B 段。完整流程见 `PublicHomeShareDatabaseRunbook.md`。
 - `017` 的安全回滚不删除表或用户快照：先 revoke `read_public_home_share` 对 `anon`/`authenticated` 的 execute，再 revoke 三个 owner RPC 的 execute。这样可立即关闭公开读取和管理入口，同时保留数据以便排查或受控恢复。
 - 新设备登录后看到账号空间列表，不代表已经拥有该空间的同步凭证；只有 `account-managed` 空间可以通过账号托管凭证直接恢复，普通 `sync-code` 空间仍需输入完整同步码。
 

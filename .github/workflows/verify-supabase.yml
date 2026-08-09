@@ -1,0 +1,77 @@
+name: Verify Supabase
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/verify-supabase.yml"
+      - "package.json"
+      - "scripts/verify-supabase-preparation.mjs"
+      - "supabase/**"
+      - "tsconfig.json"
+  push:
+    branches:
+      - master
+      - production
+    paths:
+      - ".github/workflows/verify-supabase.yml"
+      - "package.json"
+      - "scripts/verify-supabase-preparation.mjs"
+      - "supabase/**"
+      - "tsconfig.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  database:
+    name: Database migration replay
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.109.1
+
+      - name: Start local database
+        run: supabase db start
+
+      - name: Replay migrations
+        run: supabase db reset
+
+      - name: Lint database
+        run: supabase db lint --level error
+
+      - name: Run database tests
+        run: supabase test db
+
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop --no-backup
+
+  functions:
+    name: Edge Function test runtime
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: 2.9.4
+
+      - name: Check formatting
+        run: deno fmt --check --config supabase/functions/deno.json supabase/functions
+
+      - name: Lint
+        run: deno lint --config supabase/functions/deno.json supabase/functions
+
+      - name: Type-check
+        run: deno task --config supabase/functions/deno.json check
+
+      - name: Test
+        run: deno task --config supabase/functions/deno.json test

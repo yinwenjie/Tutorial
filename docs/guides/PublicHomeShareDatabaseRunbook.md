@@ -2,9 +2,9 @@
 
 ## 目标与当前状态
 
-Phase 1.17 的分享管理 UI、`/share/` 静态入口、公开投影、repository 和自动校验已在仓库完成。2026-07-21 对当前 Supabase 项目的匿名 `read_public_home_share` RPC 探测返回 HTTP 200，确认 `017_public_home_shares.sql` 已存在于目标数据库；真实发布失败定位为原 `upsert_public_home_share` 中 `ON CONFLICT (home_space_id)` 与 `RETURNS TABLE` 同名输出变量的 PostgreSQL `42702` 歧义。目标数据库需执行 `018_public_home_share_upsert_conflict_fix.sql` 并通过 `020_public_home_share_upsert_conflict_fix_verify.sql`，随后再做 `019` Section 8 的事务内 A/B 回归。
+Phase 1.17 的分享管理 UI、`/share/` 静态入口、公开投影、repository 和自动校验已在仓库完成。2026-07-21 对当前 Supabase 项目的匿名 `read_public_home_share` RPC 探测返回 HTTP 200，确认 `017_public_home_shares.sql` 已存在于目标数据库；真实发布失败定位为原 `upsert_public_home_share` 中 `ON CONFLICT (home_space_id)` 与 `RETURNS TABLE` 同名输出变量的 PostgreSQL `42702` 歧义。目标数据库随后已执行 `018_public_home_share_upsert_conflict_fix.sql`，并通过 `020_public_home_share_upsert_conflict_fix_verify.sql` 与 `019` Section 8 的事务内 A/B 回归。
 
-Phase 1.17.6 已补齐验收工具：`019_public_home_shares_verify.sql` 的 A/B 段现在会在 rollback transaction 内自动断言 owner 隔离、anon 表直读拒绝、active/random/revoked/expired token 语义；`verify:public-share-deployment` 用于部署后检查 Cloudflare Pages preview、`mylinker.net` 与 GitHub Pages legacy 的 `/share/` 静态入口均返回 HTTP 200。2026-07-22 已通过该部署 smoke 脚本验证三个无 token 静态入口。目标数据库完成 `020` / `019` 和真实账号验证前，不把公开分享标记为生产闭环。
+Phase 1.17.6 已补齐并执行验收工具：`019_public_home_shares_verify.sql` 的 A/B 段在 rollback transaction 内断言 owner 隔离、anon 表直读拒绝、active/random/revoked/expired token 语义；`verify:public-share-deployment` 检查 Cloudflare Pages preview、`mylinker.net` 与 GitHub Pages legacy 的 `/share/` 静态入口。2026-07-22 数据库 A/B、真实账号发布/更新/撤销/重新发布、真实 token 生命周期和三个无 token 静态入口均已完成 smoke test，Phase 1.17 已形成生产闭环。本手册后续用于新环境上线、权限复核和故障恢复。
 
 本流程只新增独立的公开快照表、校验函数和四个最小授权 RPC，不修改普通同步码密文，不读取或改写 `home_space_credentials`、`home_space_snapshots`、账号审计或本地首页。数据库只保存分享 token 的 SHA-256 hash，不保存原 token 或完整公开链接。
 
