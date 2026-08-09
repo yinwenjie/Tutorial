@@ -56,6 +56,8 @@ npm run verify:supabase-preparation
 
 ## 线上执行前检查
 
+以下检查用于新环境首次部署；当前生产目标已于 2026-08-10 完成 019/021 与 history 门禁。
+
 1. 确认目标是当前正式站点实际使用的 Supabase project。
 2. 确认目标数据库已执行至 `018_public_home_share_upsert_conflict_fix.sql`。
 3. 保存当前 migration 状态、数据库备份状态、执行人和回滚窗口。
@@ -63,17 +65,17 @@ npm run verify:supabase-preparation
 5. 准备 A=owner/admin、B=support、C=普通账号的测试 Auth UUID；不得使用真实用户首页内容作为后续预览样本。
 6. 不在公开仓库、提交信息、工单、截图或聊天摘要中保存邮箱和 UUID 对照。
 
-仓库已新增受保护的远程 migration/verification 工作流；GitHub `supabase-production` Environment、required reviewer、`master` 分支限制和 project ref 已配置，仍缺两项 Environment secret，migration history 也尚未完成对齐。完成前不得运行远程 `apply`。完整配置和一次性 history 对齐见 `SupabaseRemoteDeployment.md`。
+仓库已新增并验证受保护的远程 migration/verification 工作流；GitHub `supabase-production` Environment、secrets、required reviewer、禁止管理员绕过、`master` 分支限制和 project ref 均已配置。2026-08-10 已完成 001-019 migration history 对齐、标准 dry-run 和 verify，完整 `021` rollback 通过。配置和一次性 history 记录见 `SupabaseRemoteDeployment.md`。
 
 ## 执行 migration 与验证
 
 推荐使用 `.github/workflows/deploy-supabase.yml`：
 
-1. 先从 `master` 运行 `dry-run`，确认 history/schema preflight 通过且只显示 `019`。
+1. 先从 `master` 运行 `dry-run`，确认 history/schema preflight 通过且只显示预期的新 migration。
 2. 再运行 `apply`，输入精确 project ref，并通过 `supabase-production` required reviewer 审批。
-3. workflow 自动执行 `019`，随后通过 `supabase db query --linked --file` 完整运行 `021`。
-4. 确认 `021` 输出 `admin_readonly_foundation_structural_assertions_ok` 和 `admin_readonly_foundation_rollback_ok`。
-5. 确认最终 migration list 已记录 `019`。
+3. workflow 自动执行待部署 migration，随后通过 `supabase db query --linked --file` 运行 manifest 白名单 verification。
+4. 确认 verification 的机器断言和 rollback 标记均通过。
+5. 确认最终 migration list 已记录新版本。
 
 如果 GitHub Actions 不可用，才使用 Supabase Dashboard SQL Editor 作为人工 fallback：先完整执行 `019`，再完整执行 `021`，不能只执行输出查询而跳过机器断言、Section 8 或末尾 rollback。人工执行后还必须安全对齐 `019` migration history，不能直接让后续 `db push` 猜测状态。
 

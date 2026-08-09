@@ -2,7 +2,7 @@
 
 ## Summary
 
-Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持续扩展的个人首页产品。Phase 1.1-1.17 已完成本地编辑、同步码、账号托管、模板、主题、组件、导入、数据保全、观测、产品化、多语言、主域名、低成本组件和公开快照分享。正式主域名为 `mylinker.net`，Cloudflare Pages 主站与 GitHub Pages legacy 部署链路均已建立。2026-07-22 Phase 1.17 已通过线上数据库、真实账号、真实 token 和静态入口验收；Phase 1.18.0 方案与本地/CI 准备已完成，2026-08-09 Phase 1.18.1 管理员身份和审计数据库完成仓库实现及本地验证，下一步是受控执行线上 `019` / `021` 并初始化 A/B/C 测试身份。
+Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持续扩展的个人首页产品。Phase 1.1-1.17 已完成本地编辑、同步码、账号托管、模板、主题、组件、导入、数据保全、观测、产品化、多语言、主域名、低成本组件和公开快照分享。正式主域名为 `mylinker.net`，Cloudflare Pages 主站与 GitHub Pages legacy 部署链路均已建立。2026-07-22 Phase 1.17 已通过线上验收；2026-08-10 Phase 1.18.1 管理员身份和审计数据库已完成仓库、本地、CI、远端 history/schema 和 `021` rollback 门禁，下一步是在初始化明确测试管理员后实施 1.18.2 受控 Edge Function 基座。
 
 当前产品原则：
 
@@ -51,7 +51,7 @@ Phase 1 的目标是把当前静态首页推进到可公测、可恢复、可持
 - Phase 1.15.6 已完成：新增 `verify:i18n` 校验、补齐同步/导入/设备/审计/错误等关键路径在 `fr-FR`、`es-ES`、`ja-JP`、`ko-KR`、`it-IT` 的覆盖，并完成桌面、平板、移动端多视口回归；回归中修复书签/URL 导入面板默认提示在语言偏好加载后仍停留简中的问题。
 - Phase 1.16 已完成并部署：Notes、Countdown、World Clock、模板组件组合、恢复预览摘要和观测隐私校验已落地；Cloudflare Pages 主站与 GitHub Pages legacy 已完成构建、发布和线上访问验证。
 
-Phase 1.17 已完成并通过线上验收。只读 Renderer、公开投影、最小授权 RPC、设置页分享管理、会话内链接、`/share/` 通用失败页和 robots 边界均已落地；目标 Supabase 已执行 `018` 热修复并通过 `020`、`019` 结构权限与 transaction-scoped A/B 检查，真实账号的发布、更新、撤销、重新发布及真实 token 生命周期已完成 smoke test。2026-07-22 Cloudflare Pages preview、`mylinker.net` 与 GitHub Pages legacy 三个静态入口也已通过部署检查。Phase 1.18.1 仓库实现和本地验证已完成；线上项目尚未执行新的 `019` 管理员 migration，也没有管理员记录或 Edge Function。
+Phase 1.17 已完成并通过线上验收。只读 Renderer、公开投影、最小授权 RPC、设置页分享管理、会话内链接、`/share/` 通用失败页和 robots 边界均已落地；目标 Supabase 已执行 `018` 热修复并通过 `020`、`019` 结构权限与 transaction-scoped A/B 检查，真实账号的发布、更新、撤销、重新发布及真实 token 生命周期已完成 smoke test。2026-07-22 Cloudflare Pages preview、`mylinker.net` 与 GitHub Pages legacy 三个静态入口也已通过部署检查。Phase 1.18.1 数据库基础已于 2026-08-10 完成线上门禁；尚未创建持久化管理员或 Edge Function。
 
 ## Phase Plan
 
@@ -74,7 +74,7 @@ Phase 1.17 已完成并通过线上验收。只读 Renderer、公开投影、最
 | Phase 1.15：多语言支持 v1 | 已完成 | 语言数据模型、账号/本地偏好、I18n Provider、静态 dictionary、日期时间/月历 locale formatter、首页、设置页、同步、导入和错误细节本地化；新增 i18n 校验、小语种关键路径覆盖和多视口人工回归 | 后续只做翻译修订和缺陷修复 |
 | Phase 1.16：低成本组件扩展 | 已完成并部署 | Notes、Countdown、World Clock、模板组合、恢复预览摘要、观测隐私校验和多视口回归已完成 | 后续仅做缺陷修复与组件候选评估 |
 | Phase 1.17：只读渲染与分享链接 v1 | 已完成并通过线上验收 | 只读首页 renderer、公开快照存储/RPC、设置页发布管理、会话内链接、撤销机制、`/share/` 静态公开入口 | 后续仅做缺陷修复、安全回归和运行观察 |
-| Phase 1.18：受控服务端与后台 dashboard v1 | 1.18.1 仓库实现和本地验证完成，待线上数据库门禁 | Edge Function、管理员身份、管理员审计、独立私有 Admin Pages、Cloudflare Access | 执行线上 `019` / `021` 并初始化 A/B/C；通过前不开始 1.18.2 部署，继续保持只读、强审计、双层鉴权和主站零后台资源 |
+| Phase 1.18：受控服务端与后台 dashboard v1 | 1.18.1 数据库基础与线上门禁完成 | Edge Function、管理员身份、管理员审计、独立私有 Admin Pages、Cloudflare Access | 初始化明确测试管理员后实施 1.18.2，继续保持只读、强审计、双层鉴权和主站零后台资源 |
 
 ## Candidate Feature Evaluation
 
@@ -746,7 +746,7 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 
 ### Phase 1.18：受控服务端与只读后台 Dashboard v1
 
-状态：1.18.0 与准备阶段已完成；1.18.1 已完成仓库实现和本地验证，待线上执行 `019` / `021` 与初始化测试管理员；Edge Function、私有 Admin 仓库和 Access 配置尚未实施。
+状态：1.18.0 与准备阶段已完成；1.18.1 已完成仓库、本地、CI 和线上数据库门禁，待 1.18.2 联调前初始化测试管理员；Edge Function、私有 Admin 仓库和 Access 配置尚未实施。
 
 目标：建立第一条受控服务端管理链路，使授权管理员能够在强审计、最小权限和不破坏普通同步码密文边界的前提下，精确查询账号、查看空间元数据、账号托管云端历史和用户侧云端审计，并受控预览单个账号托管快照。
 
@@ -781,11 +781,11 @@ Phase 1.15 采用分层交付：先固化语言偏好的数据模型和兼容边
 
 ### Phase 1.18.1：管理员身份与审计数据库
 
-状态：仓库实现和本地验证已完成，待线上数据库执行与验收。
+状态：仓库、本地、CI 和线上数据库门禁已完成。
 
 目标：新增 `admin_users`、`admin_audit_events`、RLS/zero-direct-grant 边界、`019` migration、`021` verify 和管理员初始化/停用运行手册。不得修改既有用户表权限或在 migration 中硬编码管理员。
 
-实施结果：已新增 `019`、`021`、Phase 1.18.1 pgTAP 和 `AdminDashboardRunbook.md`。本地 PostgreSQL 17 从空库重放 `001-019`、数据库 lint、`56` 项 pgTAP 和完整 `021` A/B/C rollback 检查均通过，回滚后测试数据为零；并已准备默认 dry-run、history fail-closed、SQL 白名单、protected Environment 审批和 project-ref 二次确认的远程 migration/verification workflow。GitHub Environment、reviewer、禁止管理员绕过、`master` 分支限制和 project ref 已配置，仍缺 access-token/database-password secrets 和一次性 migration history 对齐；线上项目仍停留在 `018`，没有创建管理员记录。
+实施结果：已新增 `019`、`021`、Phase 1.18.1 pgTAP 和 `AdminDashboardRunbook.md`。本地 PostgreSQL 17 从空库重放 `001-019`、数据库 lint、`56` 项 pgTAP 和完整 `021` A/B/C rollback 检查均通过，回滚后测试数据为零；默认 dry-run、history fail-closed、SQL 白名单、protected Environment 审批和 project-ref 二次确认的远程 workflow 已上线。2026-08-10 经一次性受保护审计将手动执行的 001-019 schema 与 CLI history 对齐；后续标准 dry-run 显示远端 up to date，verify 再次通过 021 rollback。一次性 repair 入口已删除，没有持久化管理员记录。
 
 ### Phase 1.18.2：受控 Edge Function 基座
 

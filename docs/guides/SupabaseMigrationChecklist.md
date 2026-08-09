@@ -2,7 +2,7 @@
 
 ## Summary
 
-本项目的 Supabase 数据库变更保存在 `supabase/migrations/` 目录。2026-07-25 已接入 Supabase CLI 本地 migration replay、数据库 lint、pgTAP 和 Deno Functions 测试基线；2026-08-09 进一步新增受保护的远程 dry-run/apply/verification 工作流，并已创建 GitHub `supabase-production` Environment、required reviewer、`master` 分支限制和 project-ref variable。当前仍缺两项 Environment secret，migration history 也尚未对齐，因此不会自动修改线上数据库。目标线上项目已于 2026-07-22 执行至 `018`，并通过 `020`、`019` 和真实账号公开分享验收；Phase 1.18.1 已在仓库新增 `019` 管理员数据库 migration 和 `021` 检查，但执行线上 migration 前目标项目仍保持在 `018`。
+本项目的 Supabase 数据库变更保存在 `supabase/migrations/` 目录。2026-07-25 已接入 Supabase CLI 本地 migration replay、数据库 lint、pgTAP 和 Deno Functions 测试基线；2026-08-10 已完成受保护远程 dry-run/apply/verification 工作流、GitHub `supabase-production` Environment、secrets、reviewer、`master` 分支限制和 project-ref 配置。目标项目已存在 001-019 schema；经一次性受保护审计后，CLI migration history 已安全对齐到 019，标准 dry-run 返回远端 up to date，标准 verify 和完整 `021` rollback 通过。
 
 ## 当前迁移顺序
 
@@ -150,7 +150,7 @@ npm run verify:supabase-preparation
 - pgTAP：`1` 个文件、`10` 项断言全部通过。
 - Deno：fmt、lint、type-check 和 `1` 项运行时测试全部通过。
 
-Phase 1.18.1 增量结果记录在 `Phase1_18_Implement.md`；线上执行前仍须按 `AdminDashboardRunbook.md` 运行 `021`，本地通过不等于生产数据库已更新。
+Phase 1.18.1 增量结果记录在 `Phase1_18_Implement.md`；新环境线上执行仍须按 `AdminDashboardRunbook.md` 运行 `021`，本地通过不能替代生产数据库验证。
 
 2026-08-09 Phase 1.18.1 本地结果：
 
@@ -161,6 +161,8 @@ Phase 1.18.1 增量结果记录在 `Phase1_18_Implement.md`；线上执行前仍
 - 没有执行远端 project link、生产 migration、管理员初始化或 Edge Function 部署。
 
 仓库已新增 `npm run verify:supabase-remote-config`、`supabase/remote-deploy.json` 和 `.github/workflows/deploy-supabase.yml`。远程链路只允许 manifest 白名单 SQL，默认 dry-run，apply 必须通过 `supabase-production` Environment 审批并再次输入精确 project ref。它不会执行 `migration repair`、`--include-all`、远程 reset 或 Edge Function deploy；一次性 history 对齐和外部配置详见 `SupabaseRemoteDeployment.md`。Phase 1.18.6 仍负责 Edge Function、Admin Pages、Access 和完整上线回归。
+
+2026-08-10 线上结果：001-019 schema 审计通过；CLI history 由空记录一次性对齐为 001-019；对齐后的 dry-run 显示 Local/Remote 完全一致且远端 up to date；verify 再次通过 `021` 结构、权限、负向约束与 rollback。没有执行 migration apply，也没有保留 synthetic A/B/C 数据。
 
 ## 迁移后手动结构检查
 

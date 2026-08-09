@@ -4,7 +4,7 @@
 
 Phase 1.18 为 MyLinker 建立第一条受控服务端管理链路，使授权管理员能够在留痕、最小权限、不破坏普通同步码密文边界且不向普通用户交付后台页面资源的前提下排查账号托管首页空间。
 
-当前状态：Phase 1.18.0 方案、安全边界和本地/CI 准备阶段已完成；2026-08-09 已完成 Phase 1.18.1 的仓库实现和本地数据库验证，目标线上数据库仍停留在 `018`，尚未初始化管理员。下一步是在受控窗口执行线上 `019`、完整运行 `021` 并初始化 A/B/C 测试身份；这些门禁通过前不得开始 1.18.2 部署。Edge Function、私有 Admin 仓库、管理页面和 Access 配置仍未实施。
+当前状态：Phase 1.18.0 方案、安全边界和准备阶段已完成；2026-08-10 Phase 1.18.1 已完成仓库、本地、CI 和线上数据库门禁，目标项目的 001-019 schema/history 一致，标准 dry-run 与完整 `021` verify 通过。尚未初始化持久化管理员；开始 1.18.2 联调前仍须按运行手册初始化明确的测试管理员。Edge Function、私有 Admin 仓库、管理页面和 Access 配置仍未实施。
 
 v1 的产品结果是只读后台：管理员可以精确查找用户、查看空间元数据、查看账号托管云端历史与用户侧云端审计，并在高权限和强审计条件下预览单个账号托管快照。除管理员审计记录外，后台不得写入任何用户数据。
 
@@ -96,7 +96,7 @@ v1 的产品结果是只读后台：管理员可以精确查找用户、查看�
 
 ## 1.18.1：管理员身份与审计数据库
 
-状态：仓库实现和本地验证已于 2026-08-09 完成；待线上执行 `019` / `021` 并初始化测试管理员。
+状态：仓库、本地、CI 和线上数据库门禁已于 2026-08-10 完成；待 1.18.2 联调前初始化明确的测试管理员。
 
 ### 文件范围
 
@@ -181,8 +181,9 @@ created_at timestamptz not null
 - 本地 Supabase CLI `2.113.0` 已从空库重放 `001-019`；数据库 lint 零错误。pgTAP 共 `2` 个文件、`56` 项断言通过，其中 Phase 1.18.1 为 `46` 项。
 - 已在本地完整执行 `021`，A/B/C、两条合法审计和全部负向约束通过；rollback 后 synthetic Auth、管理员和审计行数均为 `0`。
 - 已补充 `.github/workflows/deploy-supabase.yml`、`scripts/deploy-supabase-remote.mjs`、`supabase/remote-deploy.json` 和远程 history preflight；`021` 也增加机器可失败的结构/权限和 rollback 残留断言。远程链路默认 dry-run，只执行 manifest 白名单检查，apply 需要受保护 Environment 审批和精确 project-ref 二次确认。
-- GitHub `supabase-production` Environment 已创建，required reviewer、禁止管理员绕过、`master` deployment branch policy 和 `SUPABASE_PROJECT_ID` variable 已配置；仍缺 access-token/database-password secrets 和一次性 migration history 对齐。
-- 没有执行 `supabase link`、`db push`、远端 SQL、管理员初始化、Functions deploy 或 Cloudflare 变更。目标线上项目仍保持 `018`，因此 1.18.1 尚未完成线上门禁。
+- GitHub `supabase-production` Environment、secrets、required reviewer、禁止管理员绕过、`master` deployment branch policy 和 project ref 已配置。
+- 2026-08-10 先由标准 dry-run 确认远端 schema 已存在但 CLI history 为空；经一次性受保护 schema/permission/021 审计，将固定 001-019 history 标记为 applied。对齐后标准 dry-run 返回远端 up to date，标准 verify 再次通过 baseline 和 `021` rollback。
+- 一次性 repair workflow 已删除，正式远程 workflow 继续禁止 `migration repair`、`--include-all` 和远程 reset。本次没有重跑 migration、执行 apply、初始化持久化管理员、部署 Functions 或修改 Cloudflare。
 
 ## 1.18.2：受控 Edge Function 基座
 

@@ -2,7 +2,7 @@
 
 ## 状态
 
-仓库已经具备受保护的远程执行链路。2026-08-09 已在 GitHub 创建 `supabase-production` Environment，将 required reviewer 设为仓库所有者、关闭管理员审批绕过、deployment branch 限定为 `master`，并从现有公开 Supabase URL 核对后写入 `SUPABASE_PROJECT_ID` Environment variable。当前只缺 `SUPABASE_ACCESS_TOKEN` 和 `SUPABASE_DB_PASSWORD` 两项 Environment secret；写入前远程工作流会因为缺少环境参数而 fail closed，也尚未 link 或修改远程 Supabase project。
+仓库已经具备并验证受保护的远程执行链路。GitHub `supabase-production` Environment 已配置 required reviewer、禁止管理员绕过、仅允许 `master`，并保存 `SUPABASE_PROJECT_ID`、`SUPABASE_ACCESS_TOKEN` 和 `SUPABASE_DB_PASSWORD`。2026-08-10 已完成目标项目的 001-019 schema 审计、一次性 migration history 对齐、标准 dry-run 和 verify；当前 Local/Remote history 一致，远端没有待执行 migration。
 
 该链路只自动执行：
 
@@ -31,7 +31,7 @@ CLI 固定为 `2.113.0`。本地验证 workflow、远程 workflow 和 manifest �
 
 默认模式。执行本地全量验证、远程 link、migration list、history/schema preflight 和 `db push --dry-run`，不应用 migration，也不运行依赖新 schema 的 post-migration check。
 
-首次配置完成后必须先运行此模式。预期只显示确实待部署的 migration；Phase 1.18.1 首次部署时应只出现 `019_admin_readonly_foundation.sql`。
+首次配置完成后必须先运行此模式。预期只显示确实待部署的 migration；当前目标项目应显示 001-019 一致并返回远端 up to date。
 
 ### `verify`
 
@@ -45,7 +45,7 @@ CLI 固定为 `2.113.0`。本地验证 workflow、远程 workflow 和 manifest �
 
 ## GitHub Environment 配置
 
-当前第 1-5 项已于 2026-08-09 完成；首次运行远程 workflow 前仍须完成第 6 项：
+以下配置已于 2026-08-10 全部完成；secret 只保存于受保护 Environment：
 
 1. 打开 `Settings -> Environments`。
 2. 新建 environment：`supabase-production`。
@@ -79,7 +79,11 @@ project ref 不是密钥，但必须精确指向生产 project。access token �
 
 ## 一次性 Migration History 对齐
 
-当前线上 001-018 历史上通过 Dashboard SQL Editor 执行，因此数据库结构和 `supabase_migrations.schema_migrations` 可能不同步。远程 workflow 不会自动 repair；基线不满足时会在 `db push` 前终止。
+目标线上 001-019 历史上通过 Dashboard SQL Editor 执行，因此最初数据库结构完整但 `supabase_migrations.schema_migrations` 为空。2026-08-10 首次标准 dry-run 在 history preflight 处按设计终止；随后经明确授权，使用一次性受保护工作流先完成关键表、列、RLS、Storage、RPC、约束、grant 和完整 `021` rollback 审计，再将固定 001-019 标记为 applied。一次性 repair workflow 和审计脚本已从 `master` 删除，正式远程 workflow 仍不具备 repair 能力。
+
+对齐后重新运行的标准 dry-run 已确认 001-019 Local/Remote 一一对应、`remote_migration_history_baseline_ok`，并返回 `Remote database is up to date.`；随后 verify 再次通过 history baseline、dry-run 和 `admin_readonly_foundation_rollback_ok`。本次没有重跑 migration，也没有执行 `apply`。
+
+新环境或再次发现 history 不一致时，远程 workflow 仍会在 `db push` 前终止。先使用只读命令检查：
 
 先使用只读命令检查：
 
@@ -108,20 +112,15 @@ supabase migration repair \
 
 如果 `019` 已被手动执行，必须先运行 `021` 并单独核对 019 history/schema，再决定是否将 `019` 标记为 applied；不能让 workflow 重复猜测。
 
-## Phase 1.18.1 首次自动部署
+## Phase 1.18.1 线上验证结果
 
-history 对齐后：
+2026-08-10 已确认目标项目在自动化接入前手动执行过 `019`，因此没有再次运行 `apply`。完成的线上门禁为：
 
-1. 将本次仓库修改提交并推送到 `master`。
-2. 打开 GitHub `Actions -> Deploy Supabase Remote -> Run workflow`。
-3. 选择 `master` 和 `dry-run`，confirmation 留空。
-4. 审批 `supabase-production` environment。
-5. 检查输出：preflight 成功，dry-run 只包含 `019`。
-6. 再次运行 workflow，选择 `apply`。
-7. 在 `confirm_project_ref` 输入精确 production project ref。
-8. required reviewer 核对 target、dry-run 和回滚窗口后批准。
-9. workflow 自动执行 `019`，随后运行完整 `021`。
-10. 确认最终 migration list 已记录 `019`，且 `021` 输出结构和 rollback 两个 `*_ok` 标记。
+1. 一次性 schema/permission 审计与完整 `021` rollback 通过。
+2. migration history 001-019 与已存在 schema 安全对齐。
+3. 标准 `dry-run` 确认远端 up to date，没有待执行 migration。
+4. 标准 `verify` 再次运行 021，结构、权限、负向约束和 rollback 均通过。
+5. synthetic Auth/admin/audit 数据未保留，现有业务 migration 未被重复执行。
 
 `021` 成功不等于管理员已初始化。首个 owner 仍按 `AdminDashboardRunbook.md` 使用明确 Auth UUID 受控初始化。
 
