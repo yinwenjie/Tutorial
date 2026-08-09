@@ -4,7 +4,7 @@
 
 Phase 1.18 为 MyLinker 建立第一条受控服务端管理链路，使授权管理员能够在留痕、最小权限、不破坏普通同步码密文边界且不向普通用户交付后台页面资源的前提下排查账号托管首页空间。
 
-当前状态：Phase 1.18.0 方案、安全边界和本地/CI 准备阶段已完成；尚未新增业务 migration、Edge Function、私有 Admin 仓库、管理页面或 Access 配置。下一步是 1.18.1 管理员身份与审计数据库，后续必须按 1.18.1-1.18.6 顺序实施；上一阶段未通过对应门禁时，不得开始下一阶段。
+当前状态：Phase 1.18.0 方案、安全边界和本地/CI 准备阶段已完成；2026-08-09 已完成 Phase 1.18.1 的仓库实现和本地数据库验证，目标线上数据库仍停留在 `018`，尚未初始化管理员。下一步是在受控窗口执行线上 `019`、完整运行 `021` 并初始化 A/B/C 测试身份；这些门禁通过前不得开始 1.18.2 部署。Edge Function、私有 Admin 仓库、管理页面和 Access 配置仍未实施。
 
 v1 的产品结果是只读后台：管理员可以精确查找用户、查看空间元数据、查看账号托管云端历史与用户侧云端审计，并在高权限和强审计条件下预览单个账号托管快照。除管理员审计记录外，后台不得写入任何用户数据。
 
@@ -96,12 +96,13 @@ v1 的产品结果是只读后台：管理员可以精确查找用户、查看�
 
 ## 1.18.1：管理员身份与审计数据库
 
-状态：待实施。
+状态：仓库实现和本地验证已于 2026-08-09 完成；待线上执行 `019` / `021` 并初始化测试管理员。
 
 ### 文件范围
 
 - 新增 `supabase/migrations/019_admin_readonly_foundation.sql`。
 - 新增 `supabase/checks/021_admin_readonly_foundation_verify.sql`。
+- 新增 `supabase/tests/database/001_admin_readonly_foundation_test.sql`。
 - 更新 `docs/guides/SupabaseMigrationChecklist.md`。
 - 新增 `docs/guides/AdminDashboardRunbook.md`，记录初始化、验证、停用和回滚流程。
 
@@ -169,6 +170,19 @@ created_at timestamptz not null
 - 没有允许普通用户跨用户查询的 policy 或前端 RPC grant。
 - 非法 role/action/severity、过短理由、过大结果数和非法 metadata 被拒绝。
 - A（owner）、B（support）、C（普通账号）使用 transaction-scoped 测试，结束必须 `rollback`，不得留下管理员或审计测试数据。
+
+### 实施结果
+
+- `019` 已创建空的 `admin_users` 和 `admin_audit_events`，复用 `set_updated_at()` trigger；没有管理员、邮箱或 UUID 被写入 migration。
+- 两张表均启用 RLS 且没有 policy；`anon`、`authenticated`、`PUBLIC` 零 direct table grant。`service_role` 对 `admin_users` 只有 `SELECT`，对 `admin_audit_events` 只有 `SELECT, INSERT`，没有 update/delete。
+- 数据库约束已固化角色、七类 action、三类 severity、固定 session reason、8-500 字符理由、邮箱/URL/JWT/token/同步码形态拒绝、0-50 结果数和四类低敏感 metadata。
+- 审计索引覆盖管理员、目标用户、目标首页空间、目标同步空间、目标快照、action 和稳定的 `created_at desc, id desc` 游标顺序。
+- `021` Section 1-7 提供只读结构/权限检查；Section 8 自动创建 synthetic A=owner、B=support、C=普通账号，验证负向约束和 service-role 追加后统一 rollback。
+- 本地 Supabase CLI `2.113.0` 已从空库重放 `001-019`；数据库 lint 零错误。pgTAP 共 `2` 个文件、`56` 项断言通过，其中 Phase 1.18.1 为 `46` 项。
+- 已在本地完整执行 `021`，A/B/C、两条合法审计和全部负向约束通过；rollback 后 synthetic Auth、管理员和审计行数均为 `0`。
+- 已补充 `.github/workflows/deploy-supabase.yml`、`scripts/deploy-supabase-remote.mjs`、`supabase/remote-deploy.json` 和远程 history preflight；`021` 也增加机器可失败的结构/权限和 rollback 残留断言。远程链路默认 dry-run，只执行 manifest 白名单检查，apply 需要受保护 Environment 审批和精确 project-ref 二次确认。
+- GitHub `supabase-production` Environment 已创建，required reviewer、禁止管理员绕过、`master` deployment branch policy 和 `SUPABASE_PROJECT_ID` variable 已配置；仍缺 access-token/database-password secrets 和一次性 migration history 对齐。
+- 没有执行 `supabase link`、`db push`、远端 SQL、管理员初始化、Functions deploy 或 Cloudflare 变更。目标线上项目仍保持 `018`，因此 1.18.1 尚未完成线上门禁。
 
 ## 1.18.2：受控 Edge Function 基座
 

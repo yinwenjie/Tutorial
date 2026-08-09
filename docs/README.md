@@ -42,9 +42,9 @@
 - Cloud sync：Supabase JavaScript SDK 调用 Postgres RPC。
 - Asset storage：Supabase Storage private bucket `home-assets` 保存登录用户的 Banner/背景图片。
 - Client-side encryption：普通同步码空间由浏览器 Web Crypto 对首页文档加密后上传；账号托管空间采用账号可信托管模型，可保存有效用户首页的明文云端历史用于恢复和审计。
-- Database：Supabase Postgres，核心表包括 `sync_spaces`、`profiles`、`account_preferences`、`home_spaces`、`home_space_snapshots`、`home_space_audit_events`、`product_analytics_events`、`client_error_events` 和独立公开快照表 `public_home_shares`，配合 RLS、权限收敛和 `security definer` RPC。
+- Database：Supabase Postgres，核心表包括 `sync_spaces`、`profiles`、`account_preferences`、`home_spaces`、`home_space_snapshots`、`home_space_audit_events`、`product_analytics_events`、`client_error_events`、独立公开快照表 `public_home_shares`，以及 Phase 1.18 的 `admin_users` / `admin_audit_events` 受控服务端表，配合 RLS、权限收敛和 `security definer` RPC。
 - Deployment：Next.js static export 输出到 `out/`；当前通过 GitHub Actions 部署到 GitHub Pages，Phase 1.14 迁移到 Cloudflare Pages 主站，GitHub Pages 转为 legacy 入口。
-- CI checks：`npm run lint`、`npm run typecheck`、`npm run build`、`npm run verify:export`；Phase 1.18 准备阶段新增 `npm run verify:supabase-preparation` 和本地 Supabase/Deno GitHub Actions。
+- CI checks：`npm run lint`、`npm run typecheck`、`npm run build`、`npm run verify:export`；Phase 1.18 新增本地 Supabase/Deno 门禁、远程部署配置校验，以及经 `supabase-production` Environment 审批的 migration dry-run/apply/verification 工作流。
 
 ## Guides
 
@@ -61,6 +61,8 @@
 - `guides/ErrorMonitoringUsageGuide.md`：Phase 1.11.9 错误监控数据使用指南，说明脱敏错误数据边界、常用 SQL、解读规则和上线检查。
 - `guides/WidgetExperienceDesignGuide.md`：Phase 1.12.0 组件体验审计与设计规范，说明 Widget Shell、Todo、月历、配置入口、空状态、错误态、移动端和数据边界。
 - `guides/PublicHomeShareDatabaseRunbook.md`：Phase 1.17 公开快照分享数据库上线手册，说明 `017` 基础 migration、`018` 发布 RPC 热修复、`020`/`019` 权限与 A-B 检查、前端 smoke test 和无损安全回滚。
+- `guides/AdminDashboardRunbook.md`：Phase 1.18 管理员数据库运行手册，说明 `019` migration、`021` 验证、首个 owner 初始化、停用/角色调整、A/B/C 检查和不删除审计的安全回滚。
+- `guides/SupabaseRemoteDeployment.md`：Supabase 远程 migration/verification 自动化手册，说明 history 一次性对齐、GitHub Environment secrets、dry-run/verify/apply、SQL 白名单、审批和故障恢复。
 
 ## Backlog
 

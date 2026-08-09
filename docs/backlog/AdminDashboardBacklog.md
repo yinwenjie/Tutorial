@@ -2,7 +2,7 @@
 
 ## 状态
 
-- 当前状态：已进入 Phase 1.18；Phase 1.18.0 隔离方案和本地 Supabase/CI 准备阶段已完成，业务 migration、Edge Function、私有 Admin 仓库和 Access 配置尚未实施。
+- 当前状态：已进入 Phase 1.18；Phase 1.18.0 和准备阶段已完成，Phase 1.18.1 管理员数据库已完成仓库实现与本地验证，并已准备受保护的远程 migration/verification workflow；待配置 GitHub Environment、对齐历史、执行线上 `019` / `021` 和初始化 A/B/C 测试身份。Edge Function、私有 Admin 仓库和 Access 配置尚未实施。
 - 原延期条件已满足：正式主域名与 Phase 1.17 公开分享均已完成线上验收。
 - v1 固定为只读、强审计和最小权限；不会直接修改、恢复、删除或导出用户数据。
 - 后续以 `docs/implementation/phase-1/Phase1_18_Implement.md` 为唯一实施基线，本 backlog 只保留背景和候选依据；若两者冲突，以实施计划为准。

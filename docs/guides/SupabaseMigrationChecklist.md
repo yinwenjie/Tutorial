@@ -2,7 +2,7 @@
 
 ## Summary
 
-本项目的 Supabase 数据库变更保存在 `supabase/migrations/` 目录。2026-07-25 已接入 Supabase CLI 本地 migration replay、数据库 lint、pgTAP 和 Deno Functions 测试基线；当前仍未启用生产自动迁移，线上数据库继续通过 Supabase Dashboard SQL Editor 执行已批准 SQL。目标线上项目已于 2026-07-22 执行至 `018`，并通过 `020`、`019` 和真实账号公开分享验收；以下顺序继续作为新环境、补迁移和故障复核基线。
+本项目的 Supabase 数据库变更保存在 `supabase/migrations/` 目录。2026-07-25 已接入 Supabase CLI 本地 migration replay、数据库 lint、pgTAP 和 Deno Functions 测试基线；2026-08-09 进一步新增受保护的远程 dry-run/apply/verification 工作流，并已创建 GitHub `supabase-production` Environment、required reviewer、`master` 分支限制和 project-ref variable。当前仍缺两项 Environment secret，migration history 也尚未对齐，因此不会自动修改线上数据库。目标线上项目已于 2026-07-22 执行至 `018`，并通过 `020`、`019` 和真实账号公开分享验收；Phase 1.18.1 已在仓库新增 `019` 管理员数据库 migration 和 `021` 检查，但执行线上 migration 前目标项目仍保持在 `018`。
 
 ## 当前迁移顺序
 
@@ -108,12 +108,20 @@
     - 改用命名唯一约束 `public_home_shares_one_per_home_space` 作为冲突目标；只替换函数并恢复 authenticated execute grant，不改表结构、不删除或重写已有分享数据。
     - 执行后先运行 `supabase/checks/020_public_home_share_upsert_conflict_fix_verify.sql`，再运行 `019` Section 8 的 owner A/B rollback 检查。
 
+19. `supabase/migrations/019_admin_readonly_foundation.sql`
+    - 新增 `admin_users`，使用明确 Auth user UUID 保存 `owner`、`admin`、`support` 管理员身份和启用状态；migration 不插入任何真实管理员。
+    - 新增追加式 `admin_audit_events`，固定 action/severity、访问理由、结果数量和低敏感 metadata 约束，不保存邮箱搜索词、URL、首页内容、快照正文或凭证。
+    - 两张表均启用 RLS 且不创建普通用户 policy；`anon`、`authenticated`、`PUBLIC` 零 direct grant。
+    - `service_role` 对 `admin_users` 只有 `SELECT`，对 `admin_audit_events` 只有 `SELECT, INSERT`，没有管理员生命周期或审计更新/删除权限。
+    - 执行后运行 `supabase/checks/021_admin_readonly_foundation_verify.sql`；首个 owner 初始化、停用与安全回滚按 `AdminDashboardRunbook.md` 执行。
+
 ## 执行规则
 
-- 新 Supabase project：按 `001 -> 002 -> 003 -> 004 -> 005 -> 006 -> 007 -> 008 -> 009 -> 010 -> 011 -> 012 -> 013 -> 014 -> 015 -> 016 -> 017 -> 018` 顺序执行。
-- 已执行到任意早期版本的项目：从下一编号依次补执行至 `018`，不要跳过 `018`。
+- 新 Supabase project：按 `001 -> 002 -> 003 -> 004 -> 005 -> 006 -> 007 -> 008 -> 009 -> 010 -> 011 -> 012 -> 013 -> 014 -> 015 -> 016 -> 017 -> 018 -> 019` 顺序执行。
+- 已执行到任意早期版本的项目：从下一编号依次补执行，不要跳过 `018`；进入 Phase 1.18 后再执行 `019`。
 - 已经执行过 `016` 的项目：依次执行 `017`、`018`，随后运行 `020_public_home_share_upsert_conflict_fix_verify.sql` 和 `019_public_home_shares_verify.sql`。
 - 已经执行过 `017` 且公开快照发布报错的项目：只需补执行 `018`；不需要重跑 `017`、删除分享表或清理已有快照。随后运行 `020`，再运行 `019` Section 8。
+- 已经完成 Phase 1.17 且准备部署 Phase 1.18.1 的项目：只执行 `019_admin_readonly_foundation.sql`，随后完整执行 `021`；不要重跑公开分享 migration，也不要在 migration 中加入管理员 UUID。
 - 已经手动创建 `home-assets` bucket 的项目：仍需执行 `012`，因为上传所需的 RLS policy 不会由 Dashboard 创建 bucket 自动生成。
 - 执行前确认目标 project 是线上使用的 Supabase project。
 
@@ -123,6 +131,7 @@ Phase 1.18 准备阶段新增：
 
 - `supabase/config.toml`：仅用于本地 Supabase；没有远端 project ref 或服务端密钥。
 - `supabase/tests/database/000_existing_migrations_test.sql`：验证 `001-018` 重放后的关键表和公开分享 RPC。
+- `supabase/tests/database/001_admin_readonly_foundation_test.sql`：验证 `019` 后管理员表结构、RLS/grant、约束、索引、触发器、service-role 最小权限与 transaction-scoped A/B/C。
 - `supabase/functions/deno.json` 与 `supabase/functions/tests/000_preparation_test.ts`：验证 Deno Functions 测试运行时。
 - `scripts/verify-supabase-preparation.mjs` 与 `.github/workflows/verify-supabase.yml`：统一执行本地 migration、lint、pgTAP 和 Deno 门禁。
 
@@ -141,7 +150,17 @@ npm run verify:supabase-preparation
 - pgTAP：`1` 个文件、`10` 项断言全部通过。
 - Deno：fmt、lint、type-check 和 `1` 项运行时测试全部通过。
 
-生产 migration 自动执行、远端 verification 和 protected environment 审批留到 Phase 1.18.6；在该阶段完成前，不得把本地命令改成自动生产 `db push`。
+Phase 1.18.1 增量结果记录在 `Phase1_18_Implement.md`；线上执行前仍须按 `AdminDashboardRunbook.md` 运行 `021`，本地通过不等于生产数据库已更新。
+
+2026-08-09 Phase 1.18.1 本地结果：
+
+- 当前本机 Supabase CLI `2.113.0` 从空 PostgreSQL 17 数据库重放 `001-019` 成功；本地和远程 GitHub Actions 也固定使用 `2.113.0`。
+- 数据库 lint 零错误。
+- pgTAP 共 `2` 个文件、`56` 项断言通过，其中 Phase 1.18.1 新增 `46` 项。
+- `021` Section 1-8 完整执行通过；rollback 后 synthetic Auth、`admin_users` 和 `admin_audit_events` 行数均为 `0`。
+- 没有执行远端 project link、生产 migration、管理员初始化或 Edge Function 部署。
+
+仓库已新增 `npm run verify:supabase-remote-config`、`supabase/remote-deploy.json` 和 `.github/workflows/deploy-supabase.yml`。远程链路只允许 manifest 白名单 SQL，默认 dry-run，apply 必须通过 `supabase-production` Environment 审批并再次输入精确 project ref。它不会执行 `migration repair`、`--include-all`、远程 reset 或 Edge Function deploy；一次性 history 对齐和外部配置详见 `SupabaseRemoteDeployment.md`。Phase 1.18.6 仍负责 Edge Function、Admin Pages、Access 和完整上线回归。
 
 ## 迁移后手动结构检查
 
@@ -243,3 +262,5 @@ where table_schema = 'public'
 - `supabase/checks/017_client_error_events_verify.sql`：验证 Phase 1.11.9 错误监控表、RLS、前端表权限、受控 RPC、敏感字段缺失和属性白名单/禁采字段约束。
 - `supabase/checks/018_account_preferences_i18n_locale_verify.sql`：验证 Phase 1.15.0 多语言 locale 偏好约束、旧数据兼容、RLS、权限和 policy 边界。
 - `supabase/checks/019_public_home_shares_verify.sql`：验证 Phase 1.17.3 分享表、复合 owner FK、RLS、零 direct table grant、RPC grant 矩阵、fixed search path、公开 schema validator，以及可选的 rollback A/B token/撤销/越权回归。
+- `supabase/checks/020_public_home_share_upsert_conflict_fix_verify.sql`：验证 Phase 1.17 发布 RPC 热修复使用无歧义的命名唯一约束，并保持 security-definer/search-path 和 authenticated-only grant。
+- `supabase/checks/021_admin_readonly_foundation_verify.sql`：验证 Phase 1.18.1 管理员身份与审计表、RLS、零前端权限、service-role 最小 grant、约束、索引、updated-at trigger，以及自动 rollback 的 A=owner、B=support、C=普通账号测试。

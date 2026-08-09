@@ -3,8 +3,10 @@ name: Verify Supabase
 on:
   pull_request:
     paths:
+      - ".github/workflows/deploy-supabase.yml"
       - ".github/workflows/verify-supabase.yml"
       - "package.json"
+      - "scripts/deploy-supabase-remote.mjs"
       - "scripts/verify-supabase-preparation.mjs"
       - "supabase/**"
       - "tsconfig.json"
@@ -13,8 +15,10 @@ on:
       - master
       - production
     paths:
+      - ".github/workflows/deploy-supabase.yml"
       - ".github/workflows/verify-supabase.yml"
       - "package.json"
+      - "scripts/deploy-supabase-remote.mjs"
       - "scripts/verify-supabase-preparation.mjs"
       - "supabase/**"
       - "tsconfig.json"
@@ -31,10 +35,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version-file: .node-version
+
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v1
         with:
-          version: 2.109.1
+          version: 2.113.0
+
+      - name: Validate remote deployment allowlist
+        run: npm run verify:supabase-remote-config
 
       - name: Start local database
         run: supabase db start
